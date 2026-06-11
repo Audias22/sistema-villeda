@@ -13,7 +13,7 @@
 | ORM | SQLAlchemy | ✅ Instalado |
 | Panel web | React 18 — Vercel | ⏳ No iniciado |
 | App móvil | React Native — APK Android | ⏳ No iniciado |
-| OCR | Tesseract 5.x | ⏳ No iniciado |
+| OCR | Tesseract 5.5.0 | ✅ Funcionando |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
 | Autenticación | JWT + bcrypt | ✅ Funcionando |
@@ -39,6 +39,7 @@
 | JWT_SECRET_KEY | ✅ Configurada |
 | FLASK_ENV | ✅ Configurada (development) |
 | PORT | ✅ Configurada (5000) |
+| TESSERACT_CMD | ✅ Hardcodeado en services.py (C:\Program Files\Tesseract-OCR\tesseract.exe) |
 | R2_ACCOUNT_ID | ⏳ Pendiente |
 | R2_ACCESS_KEY_ID | ⏳ Pendiente |
 | R2_SECRET_ACCESS_KEY | ⏳ Pendiente |
@@ -76,10 +77,13 @@ backend/
 │   │   ├── init.py      ✅ Exporta Rol, Permiso, RolPermiso, require_permission
 │   │   ├── models.py        ✅ Modelos Rol, Permiso, RolPermiso
 │   │   └── decorators.py    ✅ @require_permission con json.loads
+│   ├── ocr/
+│   │   ├── init.py      ✅ Exporta ocr_bp
+│   │   ├── routes.py        ✅ POST /api/v1/ocr/procesar
+│   │   └── services.py      ✅ procesar_archivo(), calcular_hash()
 │   ├── clientes/            ⏳ Vacío
 │   ├── expedientes/         ⏳ Vacío
 │   ├── documentos/          ⏳ Vacío
-│   ├── ocr/                 ⏳ Vacío
 │   ├── ml/                  ⏳ Vacío
 │   ├── busquedas/           ⏳ Vacío
 │   ├── reportes/            ⏳ Vacío
@@ -99,6 +103,7 @@ backend/
 | POST | /api/v1/auth/login | ✅ Funcionando | No |
 | POST | /api/v1/auth/logout | ✅ Funcionando | No |
 | GET | /api/v1/test/protegido | ✅ Funcionando | Sí — ver_dashboard |
+| POST | /api/v1/ocr/procesar | ✅ Funcionando | Sí — cargar_documento |
 
 ---
 
@@ -109,7 +114,7 @@ backend/
 | Fase 2 | GitHub + estructura carpetas | ✅ Completa |
 | Fase 3 | Backend Flask esqueleto | ✅ Completa |
 | Fase 4 | JWT + RBAC | ✅ Completa |
-| Fase 5 | OCR Tesseract | ⏳ Pendiente |
+| Fase 5 | OCR Tesseract | ✅ Completa |
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
@@ -138,8 +143,8 @@ backend/
 
 ## PENDIENTES INMEDIATOS
 1. ⏳ Cloudflare R2 — resolver problema de tarjeta y configurar bucket
-2. ⏳ Instalar Tesseract 5.x en Windows con idioma español (spa)
-3. ⏳ Crear servicio OCR en backend/app/ocr/
+2. ⏳ Instalar poppler en Windows — necesario para procesar PDFs reales con pdf2image
+3. ⏳ Mover ruta Tesseract del código al .env para producción en Render
 
 ---
 
@@ -149,3 +154,5 @@ backend/
 - Conexión BD usa Session Pooler (compatible con IPv4 de Render.com)
 - Supabase se pausa tras 7 días sin actividad — Render hará ping cada 3 días
 - Identity del JWT se serializa como JSON string (compatibilidad flask-jwt-extended 4.7.4)
+- Tesseract instalado en C:\Program Files\Tesseract-OCR\ con idioma spa
+- OCR probado con imagen PNG de texto jurídico guatemalteco — resultado exitoso
