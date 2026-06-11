@@ -22,6 +22,9 @@ def create_app():
         from app.usuarios.models import Usuario
 
     from app.auth.routes import auth_bp
+    from app.ocr.routes import ocr_bp
+
     app.register_blueprint(auth_bp)
+    app.register_blueprint(ocr_bp)
 
     return app
