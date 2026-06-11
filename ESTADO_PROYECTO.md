@@ -2,7 +2,6 @@
 **Última actualización:** 11 de junio de 2026  
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232  
 
-
 ---
 
 ## STACK TECNOLÓGICO
@@ -18,7 +17,7 @@
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
 | Autenticación | JWT + bcrypt | ✅ Funcionando |
-| RBAC | 2 capas (BD + decoradores) | 🔄 En progreso |
+| RBAC | 2 capas (BD + decoradores) | ✅ Funcionando |
 
 ---
 
@@ -57,25 +56,26 @@
 | Extensión pg_trgm | ✅ |
 | Índice GIN texto_completo | ✅ |
 | Usuario ovilleda creado | ✅ |
+| Permisos asignados a los 5 roles | ✅ |
 
 ---
 
 ## ESTRUCTURA DE ARCHIVOS — backend/
-```
 backend/
 ├── app/
-│   ├── __init__.py          ✅ Factory function con blueprints
+│   ├── init.py          ✅ Factory function con blueprints
 │   ├── config.py            ✅ Variables de entorno
 │   ├── auth/
-│   │   ├── __init__.py      ✅ Exporta auth_bp
+│   │   ├── init.py      ✅ Exporta auth_bp
 │   │   ├── routes.py        ✅ POST /api/v1/auth/login, POST /api/v1/auth/logout
 │   │   └── services.py      ✅ autenticar_usuario()
 │   ├── usuarios/
-│   │   ├── __init__.py      ✅ Exporta Usuario
+│   │   ├── init.py      ✅ Exporta Usuario
 │   │   └── models.py        ✅ Modelo Usuario (SQLAlchemy)
 │   ├── common/
+│   │   ├── init.py      ✅ Exporta Rol, Permiso, RolPermiso, require_permission
 │   │   ├── models.py        ✅ Modelos Rol, Permiso, RolPermiso
-│   │   └── decorators.py    ✅ @require_permission
+│   │   └── decorators.py    ✅ @require_permission con json.loads
 │   ├── clientes/            ⏳ Vacío
 │   ├── expedientes/         ⏳ Vacío
 │   ├── documentos/          ⏳ Vacío
@@ -85,11 +85,10 @@ backend/
 │   ├── reportes/            ⏳ Vacío
 │   └── auditoria/           ⏳ Vacío
 ├── venv/                    ✅ Entorno virtual activo
-├── .env                     ✅ Variables configuradas (parcial)
+├── .env                     ✅ Variables configuradas (parcial — faltan R2)
 ├── requirements.txt         ✅ Dependencias guardadas
-├── run.py                   ✅ Punto de entrada con /health
+├── run.py                   ✅ Punto de entrada con /health y endpoint de prueba
 └── Procfile                 ✅ Para Render.com
-```
 
 ---
 
@@ -99,6 +98,7 @@ backend/
 | GET | /health | ✅ Funcionando | No |
 | POST | /api/v1/auth/login | ✅ Funcionando | No |
 | POST | /api/v1/auth/logout | ✅ Funcionando | No |
+| GET | /api/v1/test/protegido | ✅ Funcionando | Sí — ver_dashboard |
 
 ---
 
@@ -108,7 +108,7 @@ backend/
 | Fase 1 | Supabase — Base de datos | ✅ Completa |
 | Fase 2 | GitHub + estructura carpetas | ✅ Completa |
 | Fase 3 | Backend Flask esqueleto | ✅ Completa |
-| Fase 4 | JWT + RBAC | 🔄 En progreso (falta asignar permisos a roles) |
+| Fase 4 | JWT + RBAC | ✅ Completa |
 | Fase 5 | OCR Tesseract | ⏳ Pendiente |
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
@@ -138,9 +138,8 @@ backend/
 
 ## PENDIENTES INMEDIATOS
 1. ⏳ Cloudflare R2 — resolver problema de tarjeta y configurar bucket
-2. ⏳ Asignar permisos a roles en BD (INSERT en roles_permisos)
-3. ⏳ Probar decorador @require_permission con endpoint de prueba
-4. ⏳ Crear módulo common/__init__.py
+2. ⏳ Instalar Tesseract 5.x en Windows con idioma español (spa)
+3. ⏳ Crear servicio OCR en backend/app/ocr/
 
 ---
 
@@ -149,3 +148,4 @@ backend/
 - Los archivos .bin del modelo ML NUNCA van a GitHub
 - Conexión BD usa Session Pooler (compatible con IPv4 de Render.com)
 - Supabase se pausa tras 7 días sin actividad — Render hará ping cada 3 días
+- Identity del JWT se serializa como JSON string (compatibilidad flask-jwt-extended 4.7.4)
