@@ -6,6 +6,7 @@ from PIL import Image
 from pdf2image import convert_from_bytes
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+POPPLER_PATH = r'C:\poppler\bin'
 
 def calcular_hash(archivo_bytes):
     return hashlib.sha256(archivo_bytes).hexdigest()
@@ -21,7 +22,7 @@ def extraer_texto_imagen(imagen_bytes):
     return texto.strip()
 
 def extraer_texto_pdf(pdf_bytes):
-    paginas = convert_from_bytes(pdf_bytes, dpi=300)
+    paginas = convert_from_bytes(pdf_bytes, dpi=300, poppler_path=POPPLER_PATH)
     texto_completo = ''
     textos_por_pagina = []
 
@@ -60,17 +61,16 @@ def procesar_archivo(archivo_bytes, extension):
         exitoso = False
 
     tiempo_seg = round(time.time() - inicio, 3)
-
     num_caracteres = len(texto)
     num_palabras = len(texto.split()) if texto else 0
 
     return {
-        'texto':           texto,
-        'paginas':         paginas,
-        'num_caracteres':  num_caracteres,
-        'num_palabras':    num_palabras,
-        'num_paginas':     len(paginas),
-        'tiempo_seg':      tiempo_seg,
-        'exitoso':         exitoso,
-        'mensaje_error':   mensaje_error
+        'texto':          texto,
+        'paginas':        paginas,
+        'num_caracteres': num_caracteres,
+        'num_palabras':   num_palabras,
+        'num_paginas':    len(paginas),
+        'tiempo_seg':     tiempo_seg,
+        'exitoso':        exitoso,
+        'mensaje_error':  mensaje_error
     }
