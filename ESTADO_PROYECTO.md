@@ -62,6 +62,7 @@
 ---
 
 ## ESTRUCTURA DE ARCHIVOS — backend/
+```
 backend/
 ├── app/
 │   ├── init.py          ✅ Factory function con blueprints
@@ -93,7 +94,7 @@ backend/
 ├── requirements.txt         ✅ Dependencias guardadas
 ├── run.py                   ✅ Punto de entrada con /health y endpoint de prueba
 └── Procfile                 ✅ Para Render.com
-
+```
 ---
 
 ## ENDPOINTS DISPONIBLES
