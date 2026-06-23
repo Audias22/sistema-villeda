@@ -18,16 +18,22 @@ def create_app():
     bcrypt.init_app(app)
 
     with app.app_context():
-        from app.common.models import Rol, Permiso, RolPermiso
+        from app.common.models import (
+            Rol, Permiso, RolPermiso,
+            AreaJuridica, EstadoExpediente, Prioridad, TipoExpediente
+        )
         from app.usuarios.models import Usuario
         from app.clientes.models import Cliente
+        from app.expedientes.models import Expediente
 
     from app.auth.routes import auth_bp
     from app.ocr.routes import ocr_bp
     from app.clientes.routes import clientes_bp
+    from app.expedientes.routes import expedientes_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(ocr_bp)
     app.register_blueprint(clientes_bp)
+    app.register_blueprint(expedientes_bp)
 
     return app
