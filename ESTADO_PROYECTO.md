@@ -144,7 +144,7 @@ backend/
 
 ## PENDIENTES INMEDIATOS
 1. ⏳ Cloudflare R2 — resolver problema de tarjeta y configurar bucket
-2. ⏳ Instalar poppler en Windows — necesario para procesar PDFs reales con pdf2image
+2. ✅ Poppler 26.02.0 instalado en C:\poppler\bin — PDFs listos para procesar
 3. ⏳ Mover ruta Tesseract del código al .env para producción en Render
 
 ---

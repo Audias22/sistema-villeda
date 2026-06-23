@@ -20,11 +20,14 @@ def create_app():
     with app.app_context():
         from app.common.models import Rol, Permiso, RolPermiso
         from app.usuarios.models import Usuario
+        from app.clientes.models import Cliente
 
     from app.auth.routes import auth_bp
     from app.ocr.routes import ocr_bp
+    from app.clientes.routes import clientes_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(ocr_bp)
+    app.register_blueprint(clientes_bp)
 
     return app
