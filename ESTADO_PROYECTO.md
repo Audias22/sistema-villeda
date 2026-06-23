@@ -15,6 +15,8 @@
 | Validación de entradas | Marshmallow | ✅ Instalado y en uso |
 | Extracción PDF digital | pdfplumber | ✅ Funcionando |
 | Búsqueda insensible a acentos | PostgreSQL unaccent | ✅ Funcionando |
+| Exportación Excel | openpyxl | ✅ Funcionando |
+| Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
 | Panel web | React 18 — Vercel | ⏳ No iniciado |
 | App móvil | React Native — APK Android | ⏳ No iniciado |
 | OCR | Tesseract 5.5.0 | ✅ Funcionando |
@@ -75,6 +77,7 @@
 | 1 expediente real de prueba creado (id_expediente: 1, numero: NOT-2026-0001) | ✅ |
 | 2 documentos reales de prueba creados (id_documento: 1 y 2 — el 2 es duplicado detectado del 1) | ✅ |
 | 4 búsquedas reales registradas con TBR (promedio 105.50 ms, rango 93-117 ms) | ✅ |
+| 1 exportación Excel real generada y descargada exitosamente | ✅ |
 
 ---
 
@@ -83,7 +86,7 @@ backend/
 
 ├── app/
 
-│   ├── init.py          ✅ Factory function con blueprints (auth, ocr, clientes, expedientes, documentos, busquedas)
+│   ├── init.py          ✅ Factory function con blueprints (auth, ocr, clientes, expedientes, documentos, busquedas, reportes)
 
 │   ├── config.py            ✅ Variables de entorno
 
@@ -165,13 +168,21 @@ backend/
 
 │   │   └── routes.py        ✅ POST /busquedas, GET /historial, GET /metricas
 
-│   ├── ml/                  ⏳ Vacío
+│   ├── reportes/
 
-│   ├── reportes/            ⏳ Vacío
+│   │   ├── init.py      ✅ Exporta reportes_bp
+
+│   │   ├── services.py      ✅ obtener_dashboard(), exportar_expedientes_excel() con openpyxl (encabezados con color, filtros, freeze panes)
+
+│   │   └── routes.py        ✅ GET /dashboard, GET /expedientes/excel (descarga con send_file)
+
+│   ├── ml/                  ⏳ Vacío
 
 │   └── auditoria/           ⏳ Vacío
 
 ├── almacenamiento/          ✅ Carpeta de archivos subidos (NO se sube a GitHub — en .gitignore)
+
+│   └── exportaciones/       ✅ Carpeta de reportes Excel/PDF generados (NO se sube a GitHub — en .gitignore)
 
 ├── venv/                    ✅ Entorno virtual activo
 
@@ -210,6 +221,8 @@ backend/
 | POST | /api/v1/busquedas | ✅ Funcionando (mide y registra TBR real) | Sí — buscar_expediente |
 | GET | /api/v1/busquedas/historial | ✅ Funcionando (paginado + filtros usuario/criterio) | Sí — buscar_expediente |
 | GET | /api/v1/busquedas/metricas | ✅ Funcionando (promedio/min/max TBR) | Sí — ver_dashboard |
+| GET | /api/v1/reportes/dashboard | ✅ Funcionando (totales + por área + por estado + TBR + duplicados) | Sí — ver_dashboard |
+| GET | /api/v1/reportes/expedientes/excel | ✅ Funcionando (descarga real .xlsx con filtros opcionales) | Sí — exportar_reporte |
 
 ---
 
@@ -221,7 +234,7 @@ backend/
 | Fase 3 | Backend Flask esqueleto | ✅ Completa |
 | Fase 4 | JWT + RBAC | ✅ Completa |
 | Fase 5 | OCR Tesseract | ✅ Completa |
-| Fase 5.5 | Backend completo (clientes, expedientes, documentos, busquedas) | ✅ Completa |
+| Fase 5.5 | Backend completo (clientes, expedientes, documentos, busquedas, reportes) | ✅ Completa |
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
@@ -251,9 +264,9 @@ backend/
 ---
 
 ## FLUJO END-TO-END VALIDADO
-**Confirmado funcionando completo:** Cliente → Expediente → Documento (carga con OCR/pdfplumber automático) → Texto extraído y almacenado → Detección de duplicados por hash → Búsqueda (5 criterios) con medición real de TBR → Métricas agregadas.
+**Confirmado funcionando completo:** Cliente → Expediente → Documento (carga con OCR/pdfplumber automático) → Texto extraído y almacenado → Detección de duplicados por hash → Búsqueda (5 criterios) con medición real de TBR → Métricas agregadas → Dashboard consolidado → Exportación Excel descargable.
 
-Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expediente NOT-2026-0001, texto extraído correctamente con Tesseract, segunda carga del mismo archivo detectada como duplicado exacto del documento ID 1, búsqueda por número de expediente y por contenido (con y sin tildes) funcionando, 4 búsquedas registradas con TBR real entre 93-117 ms.
+Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expediente NOT-2026-0001, texto extraído correctamente con Tesseract, segunda carga del mismo archivo detectada como duplicado exacto del documento ID 1, búsqueda por número de expediente y por contenido (con y sin tildes) funcionando, 4 búsquedas registradas con TBR real entre 93-117 ms, dashboard mostrando todos los totales y distribuciones correctamente, archivo Excel descargado con formato profesional (encabezados con color, filtros automáticos, panel congelado).
 
 ---
 
@@ -262,8 +275,8 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 2. ⏳ Mover ruta Tesseract del código al .env para producción en Render
 3. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
 4. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
-5. ⏳ Construir módulo `reportes/` (dashboard, exportar Excel/PDF)
-6. ⏳ Decidir si se arranca el panel web (React) ahora o se completa primero `reportes/`
+5. ⏳ Exportación PDF de expediente individual (reportlab) — queda pendiente, menor prioridad que el panel web
+6. ⏳ Decidir si se arranca el panel web (React) ahora o se construye primero el módulo `auditoria/`
 
 ---
 
@@ -279,12 +292,15 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 
 **Búsqueda insensible a acentos:** se detectó que ILIKE de PostgreSQL no ignora tildes ("jurídico" ≠ "juridico"), lo cual afectaría la usabilidad real en la oficina. Se resolvió con la extensión `unaccent` de PostgreSQL aplicada en los criterios de búsqueda por nombre de cliente y por contenido OCR.
 
+**Reporte Excel priorizado sobre PDF:** se decidió construir primero el listado de expedientes en Excel (más útil para uso diario del Lic. Villeda y demuestra integración de 4 tablas) y dejar la exportación PDF individual para después, ya que tiene menor prioridad para el Capítulo V que el panel web.
+
 ---
 
 ## NOTAS IMPORTANTES
 - El .env NUNCA se sube a GitHub — está en .gitignore
 - Los archivos .bin del modelo ML NUNCA van a GitHub
 - La carpeta backend/almacenamiento/ NUNCA se sube a GitHub — está en .gitignore (son archivos binarios de prueba)
+- La carpeta backend/almacenamiento/exportaciones/ NUNCA se sube a GitHub — está en .gitignore
 - Conexión BD usa Session Pooler (compatible con IPv4 de Render.com)
 - Supabase se pausa tras 7 días sin actividad — reactivar manualmente con "Resume project"
 - Identity del JWT se serializa como JSON string (compatibilidad flask-jwt-extended 4.7.4)
@@ -301,3 +317,4 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 - to_dict() en Documento NO incluye texto_completo (puede ser muy largo); usar to_dict_completo() solo en detalle individual
 - id_criterio en busquedas: 1=nombre_cliente, 2=fecha, 3=area, 4=contenido, 5=numero_expediente
 - Criterios 1 y 4 usan func.unaccent() en ambos lados de la comparación ILIKE para ignorar tildes
+- Si el primer "git push origin main" da error "src refspec main does not match any", simplemente repetir el comando — es un glitch de timing, no un problema real
