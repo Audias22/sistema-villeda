@@ -35,6 +35,7 @@ def create_app():
     from app.expedientes.routes import expedientes_bp
     from app.documentos.routes import documentos_bp
     from app.busquedas.routes import busquedas_bp
+    from app.reportes.routes import reportes_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(ocr_bp)
@@ -42,5 +43,6 @@ def create_app():
     app.register_blueprint(expedientes_bp)
     app.register_blueprint(documentos_bp)
     app.register_blueprint(busquedas_bp)
+    app.register_blueprint(reportes_bp)
 
     return app
