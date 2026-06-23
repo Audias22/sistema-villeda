@@ -9,9 +9,11 @@
 |------|-----------|--------|
 | Backend | Python 3.14.3 + Flask | ✅ Funcionando |
 | Base de datos | PostgreSQL — Supabase | ✅ Funcionando |
-| Almacenamiento archivos | Cloudflare R2 | ⏳ Pendiente (problema tarjeta) |
+| Almacenamiento archivos | Local temporal (backend/almacenamiento/) | ✅ Funcionando — se migrará a Cloudflare R2 |
+| Almacenamiento archivos (definitivo) | Cloudflare R2 | ⏳ Pendiente (problema tarjeta) |
 | ORM | SQLAlchemy | ✅ Funcionando |
 | Validación de entradas | Marshmallow | ✅ Instalado y en uso |
+| Extracción PDF digital | pdfplumber | ✅ Funcionando |
 | Panel web | React 18 — Vercel | ⏳ No iniciado |
 | App móvil | React Native — APK Android | ⏳ No iniciado |
 | OCR | Tesseract 5.5.0 | ✅ Funcionando |
@@ -61,10 +63,13 @@
 | Permisos asignados a los 5 roles | ✅ |
 | Esquema de `clientes` verificado (14 columnas) | ✅ |
 | Esquema de `expedientes` verificado (18 columnas) | ✅ |
+| Esquema de `documentos` verificado (16 columnas) | ✅ |
+| Esquema de `formatos_documento` verificado (6 formatos: PDF escaneado=1, PDF digital=2, Word=3, Excel=4, JPG=5, PNG=6) | ✅ |
 | `estados_fisico_doc` ajustada a 3 niveles (Deteriorado=1, Regular=2, Bueno=3) según marco metodológico (variable EFD) | ✅ |
 | `tipos_expediente` poblada con 13 tipos base (4 Notarial, 4 Civil, 3 Laboral, 3 Penal) — **PENDIENTE validar con Lic. Villeda** | ⚠️ Provisional |
 | 1 cliente real de prueba creado (id_cliente: 1) | ✅ |
 | 1 expediente real de prueba creado (id_expediente: 1, numero: NOT-2026-0001) | ✅ |
+| 2 documentos reales de prueba creados (id_documento: 1 y 2 — el 2 es duplicado detectado del 1) | ✅ |
 
 ---
 
@@ -73,7 +78,7 @@ backend/
 
 ├── app/
 
-│   ├── init.py          ✅ Factory function con blueprints (auth, ocr, clientes, expedientes)
+│   ├── init.py          ✅ Factory function con blueprints (auth, ocr, clientes, expedientes, documentos)
 
 │   ├── config.py            ✅ Variables de entorno
 
@@ -93,9 +98,9 @@ backend/
 
 │   ├── common/
 
-│   │   ├── init.py      ✅ Exporta Rol, Permiso, RolPermiso, AreaJuridica, EstadoExpediente, Prioridad, TipoExpediente, require_permission
+│   │   ├── init.py      ✅ Exporta 11 modelos catálogo + require_permission
 
-│   │   ├── models.py        ✅ 7 modelos catálogo (Rol, Permiso, RolPermiso, AreaJuridica, EstadoExpediente, Prioridad, TipoExpediente)
+│   │   ├── models.py        ✅ Rol, Permiso, RolPermiso, AreaJuridica, EstadoExpediente, Prioridad, TipoExpediente, FormatoDocumento, EstadoFisicoDoc, EstadoCarga, CargaMasiva
 
 │   │   └── decorators.py    ✅ @require_permission con json.loads
 
@@ -131,7 +136,17 @@ backend/
 
 │   │   └── routes.py        ✅ POST, GET (lista+detalle), PUT, PUT /estado
 
-│   ├── documentos/          ⏳ Vacío (siguiente módulo — integra OCR + expedientes + clientes)
+│   ├── documentos/
+
+│   │   ├── init.py      ✅ Exporta documentos_bp
+
+│   │   ├── models.py        ✅ Modelo Documento (16 columnas, igual a Supabase) + to_dict_completo()
+
+│   │   ├── schemas.py       ✅ DocumentoUploadSchema, DocumentoUpdateSchema
+
+│   │   ├── services.py      ✅ cargar_documento() integra OCR+pdfplumber+hash+almacenamiento local
+
+│   │   └── routes.py        ✅ POST, GET por expediente, GET detalle (con texto), PUT estado_fisico
 
 │   ├── ml/                  ⏳ Vacío
 
@@ -141,11 +156,13 @@ backend/
 
 │   └── auditoria/           ⏳ Vacío
 
+├── almacenamiento/          ✅ Carpeta de archivos subidos (NO se sube a GitHub — en .gitignore)
+
 ├── venv/                    ✅ Entorno virtual activo
 
 ├── .env                     ✅ Variables configuradas (parcial — faltan R2)
 
-├── requirements.txt         ✅ Actualizado con marshmallow (regenerado correctamente en backend/)
+├── requirements.txt         ✅ Actualizado con marshmallow + pdfplumber (regenerado correctamente en backend/)
 
 ├── run.py                   ✅ Punto de entrada con /health y endpoint de prueba
 
@@ -171,6 +188,10 @@ backend/
 | GET | /api/v1/expedientes/\<id\> | ✅ Funcionando | Sí — ver_expediente |
 | PUT | /api/v1/expedientes/\<id\> | ✅ Funcionando (bloqueado si cerrado/archivado) | Sí — gestionar_expedientes |
 | PUT | /api/v1/expedientes/\<id\>/estado | ✅ Funcionando (transiciones controladas) | Sí — gestionar_expedientes |
+| POST | /api/v1/documentos | ✅ Funcionando (OCR/pdfplumber automático + duplicados) | Sí — cargar_documento |
+| GET | /api/v1/expedientes/\<id\>/documentos | ✅ Funcionando (paginado) | Sí — ver_expediente |
+| GET | /api/v1/documentos/\<id\> | ✅ Funcionando (incluye texto_completo) | Sí — ver_expediente |
+| PUT | /api/v1/documentos/\<id\> | ✅ Funcionando (solo estado_fisico) | Sí — cargar_documento |
 
 ---
 
@@ -182,11 +203,11 @@ backend/
 | Fase 3 | Backend Flask esqueleto | ✅ Completa |
 | Fase 4 | JWT + RBAC | ✅ Completa |
 | Fase 5 | OCR Tesseract | ✅ Completa |
-| Fase 5.5 | Backend completo (clientes, expedientes, documentos) | 🔄 En progreso — clientes ✅, expedientes ✅, documentos pendiente |
+| Fase 5.5 | Backend completo (clientes, expedientes, documentos) | ✅ Completa — clientes ✅, expedientes ✅, documentos ✅ |
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
-| Fase 9 | Panel web + App móvil | ⏳ Pendiente — bloqueada hasta backend completo |
+| Fase 9 | Panel web + App móvil | ⏳ Próximo paso — backend core completo y probado end-to-end |
 | Fase 10 | Pruebas + medición TBR | ⏳ Pendiente |
 
 ---
@@ -207,15 +228,24 @@ backend/
 - reportlab 4.5.1
 - sqlalchemy 2.0.50
 - marshmallow 4.3.0
+- pdfplumber 0.11.10
+
+---
+
+## FLUJO END-TO-END VALIDADO
+**Confirmado funcionando completo:** Cliente → Expediente → Documento (carga con OCR/pdfplumber automático) → Texto extraído y almacenado → Detección de duplicados por hash.
+
+Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expediente NOT-2026-0001, texto extraído correctamente con Tesseract, segunda carga del mismo archivo detectada como duplicado exacto del documento ID 1.
 
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ Cloudflare R2 — resolver problema de tarjeta y configurar bucket
+1. ⏳ Cloudflare R2 — resolver problema de tarjeta y migrar `guardar_archivo_local()` a subida real a R2
 2. ⏳ Mover ruta Tesseract del código al .env para producción en Render
-3. ⏳ Construir módulo `documentos/` (siguiente paso inmediato — integra OCR + expedientes + clientes)
-4. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
-5. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
+3. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
+4. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
+5. ⏳ Construir módulo `busquedas/` (registra TBR — crítico para Capítulo V)
+6. ⏳ Decidir si se arranca el panel web (React) ahora o se completan primero `busquedas/` y `reportes/`
 
 ---
 
@@ -225,11 +255,14 @@ backend/
 - Mientras tanto, avanzar el backend completo (expedientes, documentos, búsquedas, reportes) que no depende del dataset
 - Panel web y app móvil se construyen DESPUÉS de tener el backend completo, no antes — para evitar pantallas sin datos reales
 
+**Diferenciación PDF digital vs escaneado:** se decidió detectar automáticamente con pdfplumber si un PDF tiene texto extraíble (id_formato=2, sin OCR) o es escaneado (id_formato=1, requiere OCR con Tesseract), en lugar de asumir siempre un solo tipo. Esto preserva la precisión de las métricas de OCR para el Capítulo V.
+
 ---
 
 ## NOTAS IMPORTANTES
 - El .env NUNCA se sube a GitHub — está en .gitignore
 - Los archivos .bin del modelo ML NUNCA van a GitHub
+- La carpeta backend/almacenamiento/ NUNCA se sube a GitHub — está en .gitignore (son archivos binarios de prueba)
 - Conexión BD usa Session Pooler (compatible con IPv4 de Render.com)
 - Supabase se pausa tras 7 días sin actividad — reactivar manualmente con "Resume project"
 - Identity del JWT se serializa como JSON string (compatibilidad flask-jwt-extended 4.7.4)
@@ -241,3 +274,5 @@ backend/
 - numero_expediente se genera automático con formato [PREFIJO-AREA]-[AÑO]-[SECUENCIA] (ej: NOT-2026-0001). Prefijos: NOT=Notarial, CIV=Civil, LAB=Laboral, PEN=Penal
 - Transiciones de estado de expediente: Activo(1)↔EnRevisión(2)↔Pendiente(3)→Cerrado(4)→Archivado(5). Cerrado y Archivado son finales (no editables salvo Cerrado→Archivado)
 - Todos los modelos SQLAlchemy referenciados por Foreign Key deben existir como clase Python, aunque la tabla ya exista en Supabase — error típico: NoReferencedTableError
+- id_formato en documentos: 1=PDF escaneado, 2=PDF digital, 3=Word, 4=Excel, 5=JPG, 6=PNG. Para PDF se detecta automáticamente con pdfplumber cuál de los dos (1 o 2) corresponde
+- to_dict() en Documento NO incluye texto_completo (puede ser muy largo); usar to_dict_completo() solo en detalle individual

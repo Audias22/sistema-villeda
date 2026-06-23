@@ -59,3 +59,43 @@ class TipoExpediente(db.Model):
     nombre      = db.Column(db.String(150), nullable=False)
     descripcion = db.Column(db.Text)
     activo      = db.Column(db.Boolean, nullable=False, default=True)
+
+
+class FormatoDocumento(db.Model):
+    __tablename__ = 'formatos_documento'
+
+    id_formato        = db.Column(db.Integer, primary_key=True)
+    nombre            = db.Column(db.String(50), nullable=False)
+    extension         = db.Column(db.String(10), nullable=False)
+    metodo_extraccion = db.Column(db.String(50), nullable=False)
+
+
+class EstadoFisicoDoc(db.Model):
+    __tablename__ = 'estados_fisico_doc'
+
+    id_estado = db.Column(db.Integer, primary_key=True)
+    nombre    = db.Column(db.String(50), nullable=False)
+
+
+class EstadoCarga(db.Model):
+    __tablename__ = 'estados_carga'
+
+    id_estado = db.Column(db.Integer, primary_key=True)
+    nombre    = db.Column(db.String(50), nullable=False)
+
+
+class CargaMasiva(db.Model):
+    __tablename__ = 'cargas_masivas'
+
+    id_carga              = db.Column(db.Integer, primary_key=True)
+    id_usuario            = db.Column(db.Integer, db.ForeignKey('usuarios.id_usuario'), nullable=False)
+    nombre_carpeta        = db.Column(db.String)
+    origen_carga          = db.Column(db.String(20), nullable=False)
+    total_archivos        = db.Column(db.Integer, nullable=False, default=0)
+    exitosos              = db.Column(db.Integer, nullable=False, default=0)
+    con_error             = db.Column(db.Integer, nullable=False, default=0)
+    duplicados_detectados = db.Column(db.Integer, nullable=False, default=0)
+    id_estado             = db.Column(db.Integer, db.ForeignKey('estados_carga.id_estado'), nullable=False)
+    fecha_inicio          = db.Column(db.DateTime, nullable=False)
+    fecha_fin              = db.Column(db.DateTime)
+    observaciones          = db.Column(db.Text)

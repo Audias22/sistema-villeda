@@ -20,20 +20,24 @@ def create_app():
     with app.app_context():
         from app.common.models import (
             Rol, Permiso, RolPermiso,
-            AreaJuridica, EstadoExpediente, Prioridad, TipoExpediente
+            AreaJuridica, EstadoExpediente, Prioridad, TipoExpediente,
+            FormatoDocumento, EstadoFisicoDoc, EstadoCarga, CargaMasiva
         )
         from app.usuarios.models import Usuario
         from app.clientes.models import Cliente
         from app.expedientes.models import Expediente
+        from app.documentos.models import Documento
 
     from app.auth.routes import auth_bp
     from app.ocr.routes import ocr_bp
     from app.clientes.routes import clientes_bp
     from app.expedientes.routes import expedientes_bp
+    from app.documentos.routes import documentos_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(ocr_bp)
     app.register_blueprint(clientes_bp)
     app.register_blueprint(expedientes_bp)
+    app.register_blueprint(documentos_bp)
 
     return app
