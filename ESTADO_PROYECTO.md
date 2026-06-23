@@ -14,6 +14,7 @@
 | ORM | SQLAlchemy | ✅ Funcionando |
 | Validación de entradas | Marshmallow | ✅ Instalado y en uso |
 | Extracción PDF digital | pdfplumber | ✅ Funcionando |
+| Búsqueda insensible a acentos | PostgreSQL unaccent | ✅ Funcionando |
 | Panel web | React 18 — Vercel | ⏳ No iniciado |
 | App móvil | React Native — APK Android | ⏳ No iniciado |
 | OCR | Tesseract 5.5.0 | ✅ Funcionando |
@@ -58,18 +59,22 @@
 | 5 triggers creados | ✅ |
 | Datos seed (roles, permisos, áreas, etc.) | ✅ |
 | Extensión pg_trgm | ✅ |
+| Extensión unaccent | ✅ |
 | Índice GIN texto_completo | ✅ |
 | Usuario ovilleda creado | ✅ |
 | Permisos asignados a los 5 roles | ✅ |
 | Esquema de `clientes` verificado (14 columnas) | ✅ |
 | Esquema de `expedientes` verificado (18 columnas) | ✅ |
 | Esquema de `documentos` verificado (16 columnas) | ✅ |
+| Esquema de `busquedas` verificado (8 columnas) | ✅ |
 | Esquema de `formatos_documento` verificado (6 formatos: PDF escaneado=1, PDF digital=2, Word=3, Excel=4, JPG=5, PNG=6) | ✅ |
+| `criterios_busqueda` verificado (5 criterios: nombre_cliente=1, fecha=2, area=3, contenido=4, numero_expediente=5) | ✅ |
 | `estados_fisico_doc` ajustada a 3 niveles (Deteriorado=1, Regular=2, Bueno=3) según marco metodológico (variable EFD) | ✅ |
 | `tipos_expediente` poblada con 13 tipos base (4 Notarial, 4 Civil, 3 Laboral, 3 Penal) — **PENDIENTE validar con Lic. Villeda** | ⚠️ Provisional |
 | 1 cliente real de prueba creado (id_cliente: 1) | ✅ |
 | 1 expediente real de prueba creado (id_expediente: 1, numero: NOT-2026-0001) | ✅ |
 | 2 documentos reales de prueba creados (id_documento: 1 y 2 — el 2 es duplicado detectado del 1) | ✅ |
+| 4 búsquedas reales registradas con TBR (promedio 105.50 ms, rango 93-117 ms) | ✅ |
 
 ---
 
@@ -78,7 +83,7 @@ backend/
 
 ├── app/
 
-│   ├── init.py          ✅ Factory function con blueprints (auth, ocr, clientes, expedientes, documentos)
+│   ├── init.py          ✅ Factory function con blueprints (auth, ocr, clientes, expedientes, documentos, busquedas)
 
 │   ├── config.py            ✅ Variables de entorno
 
@@ -148,9 +153,19 @@ backend/
 
 │   │   └── routes.py        ✅ POST, GET por expediente, GET detalle (con texto), PUT estado_fisico
 
-│   ├── ml/                  ⏳ Vacío
+│   ├── busquedas/
 
-│   ├── busquedas/           ⏳ Vacío
+│   │   ├── init.py      ✅ Exporta busquedas_bp
+
+│   │   ├── models.py        ✅ CriterioBusqueda, Busqueda (8 columnas, igual a Supabase)
+
+│   │   ├── schemas.py       ✅ BusquedaSchema
+
+│   │   ├── services.py      ✅ Medición TBR con time.perf_counter(), unaccent en criterios 1 y 4, métricas agregadas
+
+│   │   └── routes.py        ✅ POST /busquedas, GET /historial, GET /metricas
+
+│   ├── ml/                  ⏳ Vacío
 
 │   ├── reportes/            ⏳ Vacío
 
@@ -192,6 +207,9 @@ backend/
 | GET | /api/v1/expedientes/\<id\>/documentos | ✅ Funcionando (paginado) | Sí — ver_expediente |
 | GET | /api/v1/documentos/\<id\> | ✅ Funcionando (incluye texto_completo) | Sí — ver_expediente |
 | PUT | /api/v1/documentos/\<id\> | ✅ Funcionando (solo estado_fisico) | Sí — cargar_documento |
+| POST | /api/v1/busquedas | ✅ Funcionando (mide y registra TBR real) | Sí — buscar_expediente |
+| GET | /api/v1/busquedas/historial | ✅ Funcionando (paginado + filtros usuario/criterio) | Sí — buscar_expediente |
+| GET | /api/v1/busquedas/metricas | ✅ Funcionando (promedio/min/max TBR) | Sí — ver_dashboard |
 
 ---
 
@@ -203,12 +221,12 @@ backend/
 | Fase 3 | Backend Flask esqueleto | ✅ Completa |
 | Fase 4 | JWT + RBAC | ✅ Completa |
 | Fase 5 | OCR Tesseract | ✅ Completa |
-| Fase 5.5 | Backend completo (clientes, expedientes, documentos) | ✅ Completa — clientes ✅, expedientes ✅, documentos ✅ |
+| Fase 5.5 | Backend completo (clientes, expedientes, documentos, busquedas) | ✅ Completa |
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
 | Fase 9 | Panel web + App móvil | ⏳ Próximo paso — backend core completo y probado end-to-end |
-| Fase 10 | Pruebas + medición TBR | ⏳ Pendiente |
+| Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
 ---
 
@@ -233,9 +251,9 @@ backend/
 ---
 
 ## FLUJO END-TO-END VALIDADO
-**Confirmado funcionando completo:** Cliente → Expediente → Documento (carga con OCR/pdfplumber automático) → Texto extraído y almacenado → Detección de duplicados por hash.
+**Confirmado funcionando completo:** Cliente → Expediente → Documento (carga con OCR/pdfplumber automático) → Texto extraído y almacenado → Detección de duplicados por hash → Búsqueda (5 criterios) con medición real de TBR → Métricas agregadas.
 
-Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expediente NOT-2026-0001, texto extraído correctamente con Tesseract, segunda carga del mismo archivo detectada como duplicado exacto del documento ID 1.
+Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expediente NOT-2026-0001, texto extraído correctamente con Tesseract, segunda carga del mismo archivo detectada como duplicado exacto del documento ID 1, búsqueda por número de expediente y por contenido (con y sin tildes) funcionando, 4 búsquedas registradas con TBR real entre 93-117 ms.
 
 ---
 
@@ -244,8 +262,8 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 2. ⏳ Mover ruta Tesseract del código al .env para producción en Render
 3. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
 4. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
-5. ⏳ Construir módulo `busquedas/` (registra TBR — crítico para Capítulo V)
-6. ⏳ Decidir si se arranca el panel web (React) ahora o se completan primero `busquedas/` y `reportes/`
+5. ⏳ Construir módulo `reportes/` (dashboard, exportar Excel/PDF)
+6. ⏳ Decidir si se arranca el panel web (React) ahora o se completa primero `reportes/`
 
 ---
 
@@ -257,6 +275,10 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 
 **Diferenciación PDF digital vs escaneado:** se decidió detectar automáticamente con pdfplumber si un PDF tiene texto extraíble (id_formato=2, sin OCR) o es escaneado (id_formato=1, requiere OCR con Tesseract), en lugar de asumir siempre un solo tipo. Esto preserva la precisión de las métricas de OCR para el Capítulo V.
 
+**Medición de TBR:** se usa `time.perf_counter()` (no `time.time()`) porque está diseñado específicamente para medir duraciones cortas con mayor precisión y no se ve afectado por ajustes del reloj del sistema. El tiempo se mide únicamente alrededor de la consulta a la base de datos, sin incluir validación de esquema ni serialización de la respuesta — esto asegura que el TBR reflejado en el Capítulo V sea el tiempo real de búsqueda y recuperación, no el tiempo total de la petición HTTP.
+
+**Búsqueda insensible a acentos:** se detectó que ILIKE de PostgreSQL no ignora tildes ("jurídico" ≠ "juridico"), lo cual afectaría la usabilidad real en la oficina. Se resolvió con la extensión `unaccent` de PostgreSQL aplicada en los criterios de búsqueda por nombre de cliente y por contenido OCR.
+
 ---
 
 ## NOTAS IMPORTANTES
@@ -266,6 +288,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 - Conexión BD usa Session Pooler (compatible con IPv4 de Render.com)
 - Supabase se pausa tras 7 días sin actividad — reactivar manualmente con "Resume project"
 - Identity del JWT se serializa como JSON string (compatibilidad flask-jwt-extended 4.7.4)
+- Token JWT expira en 15 minutos — si una petición da "Token has expired", simplemente hacer login de nuevo
 - Tesseract instalado en C:\Program Files\Tesseract-OCR\ con idioma spa
 - Poppler instalado en C:\poppler\bin
 - OCR probado con imagen PNG de texto jurídico guatemalteco — resultado exitoso
@@ -276,3 +299,5 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 - Todos los modelos SQLAlchemy referenciados por Foreign Key deben existir como clase Python, aunque la tabla ya exista en Supabase — error típico: NoReferencedTableError
 - id_formato en documentos: 1=PDF escaneado, 2=PDF digital, 3=Word, 4=Excel, 5=JPG, 6=PNG. Para PDF se detecta automáticamente con pdfplumber cuál de los dos (1 o 2) corresponde
 - to_dict() en Documento NO incluye texto_completo (puede ser muy largo); usar to_dict_completo() solo en detalle individual
+- id_criterio en busquedas: 1=nombre_cliente, 2=fecha, 3=area, 4=contenido, 5=numero_expediente
+- Criterios 1 y 4 usan func.unaccent() en ambos lados de la comparación ILIKE para ignorar tildes
