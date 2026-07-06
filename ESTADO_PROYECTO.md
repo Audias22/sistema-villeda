@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 22 de junio de 2026  
+**Última actualización:** 6 de julio de 2026  
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232  
 
 ---
@@ -86,7 +86,7 @@ backend/
 
 ├── app/
 
-│   ├── init.py          ✅ Factory function con blueprints (auth, ocr, clientes, expedientes, documentos, busquedas, reportes)
+│   ├── init.py          ✅ Factory function con 8 blueprints registrados (auth, ocr, clientes, expedientes, documentos, busquedas, reportes, auditoria)
 
 │   ├── config.py            ✅ Variables de entorno
 
@@ -178,7 +178,15 @@ backend/
 
 │   ├── ml/                  ⏳ Vacío
 
-│   └── auditoria/           ⏳ Vacío
+│   └── auditoria/           ✅ Completo
+
+│       ├── init.py      ✅ Exporta auditoria_bp
+
+│       ├── models.py        ✅ Modelo Auditoria (11 columnas, igual a Supabase)
+
+│       ├── services.py      ✅ registrar_auditoria() + listar_auditoria() con filtros y paginación
+
+│       └── routes.py        ✅ GET (lista+detalle)
 
 ├── almacenamiento/          ✅ Carpeta de archivos subidos (NO se sube a GitHub — en .gitignore)
 
@@ -223,6 +231,8 @@ backend/
 | GET | /api/v1/busquedas/metricas | ✅ Funcionando (promedio/min/max TBR) | Sí — ver_dashboard |
 | GET | /api/v1/reportes/dashboard | ✅ Funcionando (totales + por área + por estado + TBR + duplicados) | Sí — ver_dashboard |
 | GET | /api/v1/reportes/expedientes/excel | ✅ Funcionando (descarga real .xlsx con filtros opcionales) | Sí — exportar_reporte |
+| GET | /api/v1/auditoria | ✅ Funcionando (paginado + filtros tabla/acción/usuario/fecha) | Sí — ver_auditoria |
+| GET | /api/v1/auditoria/\<id\> | ✅ Funcionando | Sí — ver_auditoria |
 
 ---
 
@@ -276,7 +286,6 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 3. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
 4. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
 5. ⏳ Exportación PDF de expediente individual (reportlab) — queda pendiente, menor prioridad que el panel web
-6. ⏳ Decidir si se arranca el panel web (React) ahora o se construye primero el módulo `auditoria/`
 
 ---
 
