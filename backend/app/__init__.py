@@ -28,6 +28,7 @@ def create_app():
         from app.expedientes.models import Expediente
         from app.documentos.models import Documento
         from app.busquedas.models import CriterioBusqueda, Busqueda
+        from app.auditoria.models import Auditoria
 
     from app.auth.routes import auth_bp
     from app.ocr.routes import ocr_bp
@@ -36,6 +37,7 @@ def create_app():
     from app.documentos.routes import documentos_bp
     from app.busquedas.routes import busquedas_bp
     from app.reportes.routes import reportes_bp
+    from app.auditoria.routes import auditoria_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(ocr_bp)
@@ -44,5 +46,6 @@ def create_app():
     app.register_blueprint(documentos_bp)
     app.register_blueprint(busquedas_bp)
     app.register_blueprint(reportes_bp)
+    app.register_blueprint(auditoria_bp)
 
     return app
