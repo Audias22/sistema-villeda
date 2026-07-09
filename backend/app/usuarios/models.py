@@ -25,5 +25,6 @@ class Usuario(db.Model):
             'nombre_usuario': self.nombre_usuario,
             'correo':         self.correo,
             'id_rol':         self.id_rol,
-            'activo':         self.activo
+            'activo':         self.activo,
+            'fecha_creacion': self.fecha_creacion.isoformat() if self.fecha_creacion else None
         }

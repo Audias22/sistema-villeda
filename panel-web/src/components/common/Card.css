@@ -1,0 +1,12 @@
+.card {
+  background: var(--fondo-tarjeta);
+  border: 1px solid var(--borde-suave);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-tarjeta);
+  padding: 20px;
+  transition: var(--transicion);
+}
+
+.card-hover:hover {
+  box-shadow: var(--sombra-elevada);
+}

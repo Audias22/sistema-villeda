@@ -38,6 +38,8 @@ def create_app():
     from app.busquedas.routes import busquedas_bp
     from app.reportes.routes import reportes_bp
     from app.auditoria.routes import auditoria_bp
+    from app.usuarios.routes import usuarios_bp
+    from app.catalogos.routes import catalogos_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(ocr_bp)
@@ -47,5 +49,7 @@ def create_app():
     app.register_blueprint(busquedas_bp)
     app.register_blueprint(reportes_bp)
     app.register_blueprint(auditoria_bp)
+    app.register_blueprint(usuarios_bp)
+    app.register_blueprint(catalogos_bp)
 
     return app

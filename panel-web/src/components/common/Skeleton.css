@@ -1,0 +1,19 @@
+.skeleton {
+  background: var(--borde-suave);
+  border-radius: var(--radio-sm);
+  animation: skeleton-pulso 1.4s ease-in-out infinite;
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+@keyframes skeleton-pulso {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}

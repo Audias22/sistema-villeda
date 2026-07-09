@@ -1,0 +1,48 @@
+.dashboard-fecha {
+  color: var(--texto-muted);
+  font-size: 13px;
+  margin-bottom: 24px;
+  text-transform: capitalize;
+}
+
+.dashboard-metricas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metrica-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metrica-card-icono {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: var(--dorado);
+  opacity: 0.3;
+}
+
+.dashboard-graficas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dashboard-subtitulo {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-metricas {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dashboard-graficas {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,97 @@
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  height: 100vh;
+  background: var(--fondo-sidebar);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 20px;
+}
+
+.sidebar-sello {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--dorado);
+  color: var(--azul-notarial);
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+}
+
+.sidebar-nombre {
+  font-family: 'DM Serif Display', serif;
+  font-size: 20px;
+  color: var(--dorado);
+}
+
+.sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radio-md);
+  color: var(--texto-sidebar);
+  font-size: 14px;
+  border-left: 3px solid transparent;
+  transition: var(--transicion);
+}
+
+.sidebar-item:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sidebar-item-activo {
+  background: var(--dorado-suave);
+  color: var(--texto-sidebar-activo);
+  border-left-color: var(--dorado);
+}
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-usuario {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--texto-sidebar);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  transition: var(--transicion);
+}
+
+.sidebar-logout:hover {
+  color: var(--dorado);
+}

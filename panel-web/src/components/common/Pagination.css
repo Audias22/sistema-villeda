@@ -1,0 +1,36 @@
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--borde-suave);
+  border-radius: var(--radio-md);
+  background: var(--fondo-tarjeta);
+  color: var(--azul-notarial);
+  cursor: pointer;
+  transition: var(--transicion);
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: var(--dorado);
+  background: var(--dorado-suave);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 12px;
+  color: var(--texto-muted);
+}

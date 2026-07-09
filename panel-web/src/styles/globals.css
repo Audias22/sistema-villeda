@@ -1,0 +1,193 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap');
+
+:root {
+  /* Primarios */
+  --azul-notarial: #1B2A4A;
+  --azul-medio: #2A3F6E;
+  --azul-claro: #3B5998;
+
+  /* Acento */
+  --dorado: #D4A853;
+  --dorado-hover: #C49A48;
+  --dorado-suave: rgba(212, 168, 83, 0.15);
+
+  /* Fondos */
+  --fondo-pagina: #F7F5F2;
+  --fondo-tarjeta: #FFFFFF;
+  --fondo-sidebar: #1B2A4A;
+
+  /* Texto */
+  --texto-primario: #1B2A4A;
+  --texto-secundario: #5A6578;
+  --texto-muted: #8A8580;
+  --texto-sidebar: rgba(255, 255, 255, 0.5);
+  --texto-sidebar-activo: #D4A853;
+
+  /* Bordes */
+  --borde-suave: #E8E4DF;
+  --borde-medio: #D5D0CA;
+
+  /* Estados */
+  --exito: #3B6D11;
+  --exito-fondo: #E8F0E4;
+  --peligro: #A32D2D;
+  --peligro-fondo: #FCEBEB;
+  --advertencia: #854F0B;
+  --advertencia-fondo: #FAEEDA;
+  --info: #185FA5;
+  --info-fondo: #E6F1FB;
+
+  /* Áreas jurídicas */
+  --notarial: #3B6D11;
+  --notarial-fondo: #E8F0E4;
+  --civil: #185FA5;
+  --civil-fondo: #E6F1FB;
+  --laboral: #854F0B;
+  --laboral-fondo: #FAEEDA;
+  --penal: #A32D2D;
+  --penal-fondo: #FCEBEB;
+
+  /* Sombras */
+  --sombra-tarjeta: 0 1px 3px rgba(27, 42, 74, 0.06);
+  --sombra-elevada: 0 4px 12px rgba(27, 42, 74, 0.1);
+
+  /* Radios */
+  --radio-sm: 6px;
+  --radio-md: 8px;
+  --radio-lg: 12px;
+
+  /* Transiciones */
+  --transicion: all 0.2s ease;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--fondo-pagina);
+  color: var(--texto-primario);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  font-weight: 400;
+}
+
+h3 {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.label,
+label {
+  font-size: 12px;
+  color: var(--texto-muted);
+}
+
+.metrica {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+.select-field,
+.textarea-field {
+  width: 100%;
+  background: #FAFAF8;
+  border: 1px solid var(--borde-suave);
+  border-radius: var(--radio-md);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--texto-primario);
+  transition: var(--transicion);
+}
+
+.textarea-field {
+  resize: vertical;
+}
+
+.select-field:focus,
+.textarea-field:focus {
+  outline: none;
+  border-color: var(--dorado);
+  box-shadow: 0 0 0 3px var(--dorado-suave);
+}
+
+.cliente-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: var(--fondo-tarjeta);
+  border: 1px solid var(--borde-suave);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-elevada);
+  max-height: 200px;
+  overflow-y: auto;
+  list-style: none;
+  margin-top: 4px;
+}
+
+.cliente-dropdown li {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transicion);
+}
+
+.cliente-dropdown li:hover {
+  background: var(--dorado-suave);
+}
+
+.filtros-barra {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filtros-barra .campo-filtro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.busqueda-resumen {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+}

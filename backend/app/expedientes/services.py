@@ -1,7 +1,65 @@
 from app import db
 from app.expedientes.models import Expediente
-from app.common.models import Rol
+from app.common.models import Rol, AreaJuridica, EstadoExpediente, TipoExpediente, Prioridad
+from app.clientes.models import Cliente
+from app.usuarios.models import Usuario
 from datetime import datetime
+
+
+def _nombre_cliente(cliente):
+    if not cliente:
+        return None
+    if cliente.razon_social:
+        return cliente.razon_social
+    return ' '.join(filter(None, [cliente.primer_nombre, cliente.primer_apellido]))
+
+
+def _nombre_usuario(usuario):
+    if not usuario:
+        return None
+    return f"{usuario.nombre} {usuario.apellido}"
+
+
+def serializar_expediente(expediente):
+    """Enriquece el expediente con los nombres de sus catálogos relacionados, no solo los IDs."""
+    datos = expediente.to_dict()
+    datos['cliente_nombre'] = _nombre_cliente(Cliente.query.get(expediente.id_cliente))
+    datos['area_nombre'] = getattr(AreaJuridica.query.get(expediente.id_area), 'nombre', None)
+    datos['tipo_nombre'] = getattr(TipoExpediente.query.get(expediente.id_tipo_expediente), 'nombre', None)
+    datos['estado_nombre'] = getattr(EstadoExpediente.query.get(expediente.id_estado), 'nombre', None)
+    datos['prioridad_nombre'] = getattr(Prioridad.query.get(expediente.prioridad), 'nombre', None)
+    datos['usuario_asignado_nombre'] = _nombre_usuario(Usuario.query.get(expediente.id_usuario_asignado))
+    return datos
+
+
+def serializar_lista_expedientes(expedientes):
+    """Igual que serializar_expediente pero evita N+1 consultas: precarga los catálogos
+    (tablas pequeñas) y hace una sola consulta IN para clientes y usuarios asignados."""
+    if not expedientes:
+        return []
+
+    areas = {a.id_area: a.nombre for a in AreaJuridica.query.all()}
+    tipos = {t.id_tipo: t.nombre for t in TipoExpediente.query.all()}
+    estados = {e.id_estado: e.nombre for e in EstadoExpediente.query.all()}
+    prioridades = {p.id_prioridad: p.nombre for p in Prioridad.query.all()}
+
+    ids_cliente = {e.id_cliente for e in expedientes}
+    ids_usuario = {e.id_usuario_asignado for e in expedientes}
+
+    clientes = {c.id_cliente: c for c in Cliente.query.filter(Cliente.id_cliente.in_(ids_cliente)).all()}
+    usuarios = {u.id_usuario: u for u in Usuario.query.filter(Usuario.id_usuario.in_(ids_usuario)).all()}
+
+    resultado = []
+    for e in expedientes:
+        datos = e.to_dict()
+        datos['cliente_nombre'] = _nombre_cliente(clientes.get(e.id_cliente))
+        datos['area_nombre'] = areas.get(e.id_area)
+        datos['tipo_nombre'] = tipos.get(e.id_tipo_expediente)
+        datos['estado_nombre'] = estados.get(e.id_estado)
+        datos['prioridad_nombre'] = prioridades.get(e.prioridad)
+        datos['usuario_asignado_nombre'] = _nombre_usuario(usuarios.get(e.id_usuario_asignado))
+        resultado.append(datos)
+    return resultado
 
 
 def generar_numero_expediente(id_area):

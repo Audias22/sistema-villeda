@@ -8,7 +8,8 @@ from .schemas import BusquedaSchema
 from .services import (
     buscar_y_registrar,
     listar_historial_busquedas,
-    obtener_metricas_tbr
+    obtener_metricas_tbr,
+    serializar_resultados
 )
 
 busquedas_bp = Blueprint('busquedas', __name__)
@@ -32,7 +33,7 @@ def buscar():
         desde_plataforma=datos.get('desde_plataforma', 'web')
     )
 
-    resultados_dict = [r.to_dict() for r in resultados]
+    resultados_dict = serializar_resultados(datos['id_criterio'], resultados)
 
     return jsonify({
         'resultados':         resultados_dict,

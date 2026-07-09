@@ -1,0 +1,49 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-notarial {
+  background: var(--notarial-fondo);
+  color: var(--notarial);
+}
+
+.badge-civil {
+  background: var(--civil-fondo);
+  color: var(--civil);
+}
+
+.badge-laboral {
+  background: var(--laboral-fondo);
+  color: var(--laboral);
+}
+
+.badge-penal {
+  background: var(--penal-fondo);
+  color: var(--penal);
+}
+
+.badge-exito {
+  background: var(--exito-fondo);
+  color: var(--exito);
+}
+
+.badge-peligro {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+
+.badge-advertencia {
+  background: var(--advertencia-fondo);
+  color: var(--advertencia);
+}
+
+.badge-info {
+  background: var(--info-fondo);
+  color: var(--info);
+}

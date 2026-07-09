@@ -18,13 +18,22 @@ from sqlalchemy import func
 RUTA_EXPORTACIONES = os.path.join(os.path.dirname(__file__), '..', '..', 'almacenamiento', 'exportaciones')
 
 
-def obtener_dashboard():
+def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None):
     """
-    Estadísticas generales del sistema para el dashboard principal.
-    Combina datos de expedientes, documentos, clientes y búsquedas (TBR).
+    Estadísticas generales del sistema para el dashboard principal y para
+    la pantalla de Reportes (que además puede filtrar por área y rango de fechas
+    de apertura del expediente).
     """
 
-    total_expedientes = Expediente.query.count()
+    filtro_expediente = []
+    if id_area:
+        filtro_expediente.append(Expediente.id_area == id_area)
+    if fecha_desde:
+        filtro_expediente.append(Expediente.fecha_apertura >= fecha_desde)
+    if fecha_hasta:
+        filtro_expediente.append(Expediente.fecha_apertura <= fecha_hasta)
+
+    total_expedientes = Expediente.query.filter(*filtro_expediente).count()
     total_documentos = Documento.query.count()
     total_clientes = Cliente.query.filter_by(activo=True).count()
     total_busquedas = Busqueda.query.count()
@@ -33,15 +42,20 @@ def obtener_dashboard():
         AreaJuridica.nombre,
         func.count(Expediente.id_expediente).label('total')
     ).outerjoin(
-        Expediente, Expediente.id_area == AreaJuridica.id_area
+        Expediente, db.and_(Expediente.id_area == AreaJuridica.id_area, *filtro_expediente)
     ).group_by(AreaJuridica.id_area, AreaJuridica.nombre).all()
 
     expedientes_por_estado = db.session.query(
         EstadoExpediente.nombre,
         func.count(Expediente.id_expediente).label('total')
     ).outerjoin(
-        Expediente, Expediente.id_estado == EstadoExpediente.id_estado
+        Expediente, db.and_(Expediente.id_estado == EstadoExpediente.id_estado, *filtro_expediente)
     ).group_by(EstadoExpediente.id_estado, EstadoExpediente.nombre).all()
+
+    expedientes_por_mes = db.session.query(
+        func.to_char(Expediente.fecha_apertura, 'YYYY-MM').label('mes'),
+        func.count(Expediente.id_expediente).label('total')
+    ).filter(*filtro_expediente).group_by('mes').order_by('mes').all()
 
     metricas_tbr = db.session.query(
         func.avg(Busqueda.tiempo_respuesta_ms).label('promedio_ms'),
@@ -64,6 +78,9 @@ def obtener_dashboard():
         'expedientes_por_estado': [
             {'estado': nombre, 'total': total} for nombre, total in expedientes_por_estado
         ],
+        'expedientes_por_mes': [
+            {'mes': mes, 'total': total} for mes, total in expedientes_por_mes
+        ],
         'tbr': {
             'promedio_ms': round(metricas_tbr.promedio_ms, 2) if metricas_tbr.promedio_ms else 0,
             'minimo_ms':   metricas_tbr.minimo_ms or 0,
@@ -73,7 +90,7 @@ def obtener_dashboard():
     }
 
 
-def exportar_expedientes_excel(id_area=None, id_estado=None):
+def exportar_expedientes_excel(id_area=None, id_estado=None, fecha_desde=None, fecha_hasta=None):
     """
     Genera un archivo Excel con el listado completo de expedientes,
     combinando datos de cliente, área, tipo, estado, prioridad,
@@ -112,6 +129,12 @@ def exportar_expedientes_excel(id_area=None, id_estado=None):
 
     if id_estado:
         query = query.filter(Expediente.id_estado == id_estado)
+
+    if fecha_desde:
+        query = query.filter(Expediente.fecha_apertura >= fecha_desde)
+
+    if fecha_hasta:
+        query = query.filter(Expediente.fecha_apertura <= fecha_hasta)
 
     filas = query.order_by(Expediente.fecha_apertura.desc()).all()
 

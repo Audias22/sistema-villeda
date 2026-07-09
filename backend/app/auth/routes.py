@@ -3,6 +3,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity
 from datetime import datetime
 import json
 from app import db
+from app.common.models import Rol
 from .services import autenticar_usuario
 
 auth_bp = Blueprint('auth', __name__)
@@ -33,9 +34,13 @@ def login():
     usuario.ultimo_acceso = datetime.utcnow()
     db.session.commit()
 
+    rol = Rol.query.get(usuario.id_rol)
+    datos_usuario = usuario.to_dict()
+    datos_usuario['rol'] = rol.nombre_rol if rol else None
+
     return jsonify({
         'token':   token,
-        'usuario': usuario.to_dict()
+        'usuario': datos_usuario
     }), 200
 
 

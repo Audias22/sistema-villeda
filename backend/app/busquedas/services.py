@@ -2,6 +2,7 @@ import time
 from app import db
 from app.busquedas.models import Busqueda
 from app.expedientes.models import Expediente
+from app.expedientes.services import serializar_lista_expedientes
 from app.clientes.models import Cliente
 from app.documentos.models import Documento
 from sqlalchemy import func
@@ -87,6 +88,20 @@ def buscar_y_registrar(id_criterio, termino, id_usuario, desde_plataforma='web')
     db.session.commit()
 
     return resultados, busqueda
+
+
+def serializar_resultados(id_criterio, resultados):
+    """
+    Unifica la forma de los resultados para el frontend: siempre expedientes
+    con nombres resueltos (cliente, área, estado), incluso cuando el criterio
+    es 'contenido' (donde la búsqueda real ocurre sobre documentos).
+    """
+    if id_criterio == 4:  # contenido -> resultados son Documento, se resuelve al expediente padre
+        ids_expediente = {d.id_expediente for d in resultados}
+        expedientes = Expediente.query.filter(Expediente.id_expediente.in_(ids_expediente)).all() if ids_expediente else []
+        return serializar_lista_expedientes(expedientes)
+
+    return serializar_lista_expedientes(resultados)
 
 
 def listar_historial_busquedas(pagina=1, por_pagina=20, id_usuario=None, id_criterio=None):

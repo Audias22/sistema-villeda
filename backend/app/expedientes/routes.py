@@ -10,7 +10,9 @@ from .services import (
     listar_expedientes,
     obtener_expediente_por_id,
     actualizar_expediente,
-    cambiar_estado_expediente
+    cambiar_estado_expediente,
+    serializar_expediente,
+    serializar_lista_expedientes
 )
 
 expedientes_bp = Blueprint('expedientes', __name__)
@@ -32,7 +34,7 @@ def crear():
     if error:
         return jsonify({'error': error}), 400
 
-    return jsonify({'expediente': expediente.to_dict()}), 201
+    return jsonify({'expediente': serializar_expediente(expediente)}), 201
 
 
 @expedientes_bp.route('/api/v1/expedientes', methods=['GET'])
@@ -55,7 +57,7 @@ def listar():
     )
 
     return jsonify({
-        'expedientes':   [e.to_dict() for e in resultado.items],
+        'expedientes':   serializar_lista_expedientes(resultado.items),
         'total':         resultado.total,
         'pagina':        resultado.page,
         'por_pagina':    resultado.per_page,
@@ -71,7 +73,7 @@ def obtener(id_expediente):
     if not expediente:
         return jsonify({'error': 'Expediente no encontrado'}), 404
 
-    return jsonify({'expediente': expediente.to_dict()}), 200
+    return jsonify({'expediente': serializar_expediente(expediente)}), 200
 
 
 @expedientes_bp.route('/api/v1/expedientes/<int:id_expediente>', methods=['PUT'])
@@ -91,7 +93,7 @@ def actualizar(id_expediente):
         codigo = 404 if error == "Expediente no encontrado" else 400
         return jsonify({'error': error}), codigo
 
-    return jsonify({'expediente': expediente.to_dict()}), 200
+    return jsonify({'expediente': serializar_expediente(expediente)}), 200
 
 
 @expedientes_bp.route('/api/v1/expedientes/<int:id_expediente>/estado', methods=['PUT'])
@@ -121,4 +123,4 @@ def cambiar_estado(id_expediente):
         codigo = 404 if error == "Expediente no encontrado" else 400
         return jsonify({'error': error}), codigo
 
-    return jsonify({'expediente': expediente.to_dict()}), 200
+    return jsonify({'expediente': serializar_expediente(expediente)}), 200
