@@ -10,7 +10,7 @@ class Documento(db.Model):
     id_carga_masiva         = db.Column(db.Integer, db.ForeignKey('cargas_masivas.id_carga'))
     nombre_archivo_original = db.Column(db.String, nullable=False)
     nombre_archivo_sistema  = db.Column(db.String, nullable=False)
-    ruta_almacenamiento     = db.Column(db.String, nullable=False)
+    ruta_almacenamiento     = db.Column(db.String, nullable=False)  # nombre_key en Cloudflare R2 (antes: ruta local)
     tamano_bytes            = db.Column(db.BigInteger)
     num_paginas             = db.Column(db.Integer)
     hash_archivo            = db.Column(db.String)

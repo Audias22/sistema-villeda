@@ -9,8 +9,8 @@
 |------|-----------|--------|
 | Backend | Python 3.14.3 + Flask | ✅ Funcionando |
 | Base de datos | PostgreSQL — Supabase | ✅ Funcionando |
-| Almacenamiento archivos | Local temporal (backend/almacenamiento/) | ✅ Funcionando — se migrará a Cloudflare R2 |
-| Almacenamiento archivos (definitivo) | Cloudflare R2 | ⏳ Pendiente (problema tarjeta) |
+| Almacenamiento archivos | Cloudflare R2 (bucket villeda-archivos) | ✅ Funcionando — migrado desde almacenamiento local |
+| Almacenamiento archivos (código local anterior) | backend/almacenamiento/ | 🗄️ Comentado en documentos/services.py, no se borró (rollback disponible) |
 | ORM | SQLAlchemy | ✅ Funcionando |
 | Validación de entradas | Marshmallow | ✅ Instalado y en uso |
 | Extracción PDF digital | pdfplumber | ✅ Funcionando |
@@ -46,10 +46,10 @@
 | FLASK_ENV | ✅ Configurada (development) |
 | PORT | ✅ Configurada (5000) |
 | TESSERACT_CMD | ✅ Hardcodeado en services.py (C:\Program Files\Tesseract-OCR\tesseract.exe) |
-| R2_ACCOUNT_ID | ⏳ Pendiente |
-| R2_ACCESS_KEY_ID | ⏳ Pendiente |
-| R2_SECRET_ACCESS_KEY | ⏳ Pendiente |
-| R2_BUCKET_NAME | ⏳ Pendiente |
+| R2_ACCOUNT_ID | ✅ Configurada |
+| R2_ACCESS_KEY_ID | ✅ Configurada |
+| R2_SECRET_ACCESS_KEY | ✅ Configurada |
+| R2_BUCKET_NAME | ✅ Configurada (villeda-archivos) |
 
 ---
 
@@ -190,6 +190,12 @@ backend/
 
 │   │   └── routes.py        ✅ GET /dashboard, GET /expedientes/excel (descarga con send_file)
 
+│   ├── services/            ✅ Servicios transversales (no ligados a un módulo específico)
+
+│   │   ├── init.py
+
+│   │   └── r2_service.py    ✅ Cliente boto3 para Cloudflare R2 — subir_archivo(), obtener_url_firmada()
+
 │   ├── ml/                  ⏳ Vacío
 
 │   └── auditoria/           ✅ Completo
@@ -240,6 +246,7 @@ backend/
 | GET | /api/v1/expedientes/\<id\>/documentos | ✅ Funcionando (paginado) | Sí — ver_expediente |
 | GET | /api/v1/documentos/\<id\> | ✅ Funcionando (incluye texto_completo) | Sí — ver_expediente |
 | PUT | /api/v1/documentos/\<id\> | ✅ Funcionando (solo estado_fisico) | Sí — cargar_documento |
+| GET | /api/v1/documentos/\<id\>/descarga | ✅ Funcionando (URL firmada de R2, expira en 1 hora) | Sí — ver_expediente |
 | POST | /api/v1/busquedas | ✅ Funcionando (mide y registra TBR real) | Sí — buscar_expediente |
 | GET | /api/v1/busquedas/historial | ✅ Funcionando (paginado + filtros usuario/criterio) | Sí — buscar_expediente |
 | GET | /api/v1/busquedas/metricas | ✅ Funcionando (promedio/min/max TBR) | Sí — ver_dashboard |
@@ -324,7 +331,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 
 ## PENDIENTES INMEDIATOS
 1. ⏳ Desplegar panel web (React) en Vercel y configurar variables de entorno de producción
-2. ⏳ Cloudflare R2 — resolver problema de tarjeta y migrar `guardar_archivo_local()` a subida real a R2
+2. ⏳ Conectar el panel web al nuevo endpoint GET /api/v1/documentos/\<id\>/descarga para visualizar/descargar archivos desde R2
 3. ⏳ Mover ruta Tesseract del código al .env para producción en Render
 4. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
 5. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
@@ -373,3 +380,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 - El .env de panel-web NUNCA se sube a GitHub — está en .gitignore (solo panel-web/.env.example se sube como plantilla)
 - panel-web/node_modules/ y panel-web/dist/ NUNCA se suben a GitHub — están en .gitignore de la raíz
 - preprocesar_imagen() en ocr/services.py convierte a espacio HSV y elimina sellos rojos, azules y dorados (reemplazándolos con blanco) antes de pasar la imagen a Tesseract — mejora la precisión del OCR en documentos escaneados con sellos oficiales
+- Almacenamiento migrado a Cloudflare R2: `cargar_documento()` en documentos/services.py ahora sube cada archivo con `subir_archivo()` (app/services/r2_service.py) y guarda el nombre_key resultante en la columna `ruta_almacenamiento` (se reutilizó la columna existente, no se renombró, para evitar migración de esquema en Supabase)
+- `guardar_archivo_local()` se dejó comentada (no borrada) en documentos/services.py como respaldo por si algo falla con R2
+- Para servir el archivo original al frontend se agregó GET /api/v1/documentos/\<id\>/descarga, que devuelve una URL firmada de R2 (expira en 1 hora) en vez de leer el archivo desde disco
+- Probado end-to-end: subida real a R2, generación de URL firmada, descarga del contenido vía esa URL, y eliminación del objeto de prueba — las credenciales del .env funcionan correctamente

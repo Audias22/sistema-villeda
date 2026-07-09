@@ -9,7 +9,8 @@ from .services import (
     cargar_documento,
     listar_documentos_por_expediente,
     obtener_documento_por_id,
-    actualizar_estado_fisico
+    actualizar_estado_fisico,
+    obtener_url_descarga
 )
 
 documentos_bp = Blueprint('documentos', __name__)
@@ -80,6 +81,17 @@ def obtener(id_documento):
         return jsonify({'error': 'Documento no encontrado'}), 404
 
     return jsonify({'documento': documento.to_dict_completo()}), 200
+
+
+@documentos_bp.route('/api/v1/documentos/<int:id_documento>/descarga', methods=['GET'])
+@require_permission('ver_expediente')
+def descargar(id_documento):
+    url, error = obtener_url_descarga(id_documento)
+
+    if error:
+        return jsonify({'error': error}), 404
+
+    return jsonify({'url_descarga': url}), 200
 
 
 @documentos_bp.route('/api/v1/documentos/<int:id_documento>', methods=['PUT'])

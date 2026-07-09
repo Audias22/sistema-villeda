@@ -6,6 +6,7 @@ import io
 from app import db
 from app.documentos.models import Documento
 from app.ocr.services import calcular_hash, procesar_archivo
+from app.services.r2_service import subir_archivo, obtener_url_firmada
 
 
 EXTENSIONES_PERMITIDAS = {'pdf', 'jpg', 'jpeg', 'png'}
@@ -15,6 +16,13 @@ MAPEO_FORMATO = {
     'jpg':  5,
     'jpeg': 5,
     'png':  6
+}
+
+MAPEO_CONTENT_TYPE = {
+    'pdf':  'application/pdf',
+    'jpg':  'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png':  'image/png'
 }
 
 RUTA_ALMACENAMIENTO_LOCAL = os.path.join(os.path.dirname(__file__), '..', '..', 'almacenamiento')
@@ -52,18 +60,21 @@ def extraer_texto_pdf_digital(pdf_bytes):
     return texto_completo.strip(), len(pdf.pages)
 
 
-def guardar_archivo_local(archivo_bytes, nombre_sistema):
-    """
-    Almacenamiento local temporal. Se reemplazará por Cloudflare R2
-    cuando se resuelva el problema de la tarjeta (ver pendientes del proyecto).
-    """
-    os.makedirs(RUTA_ALMACENAMIENTO_LOCAL, exist_ok=True)
-    ruta_completa = os.path.join(RUTA_ALMACENAMIENTO_LOCAL, nombre_sistema)
-
-    with open(ruta_completa, 'wb') as f:
-        f.write(archivo_bytes)
-
-    return ruta_completa
+# DEPRECADO — reemplazado por subir_archivo() de app.services.r2_service (migración a Cloudflare R2).
+# Se deja comentado (no se borra) para poder comparar/revertir si algo falla con R2.
+#
+# def guardar_archivo_local(archivo_bytes, nombre_sistema):
+#     """
+#     Almacenamiento local temporal. Se reemplazará por Cloudflare R2
+#     cuando se resuelva el problema de la tarjeta (ver pendientes del proyecto).
+#     """
+#     os.makedirs(RUTA_ALMACENAMIENTO_LOCAL, exist_ok=True)
+#     ruta_completa = os.path.join(RUTA_ALMACENAMIENTO_LOCAL, nombre_sistema)
+#
+#     with open(ruta_completa, 'wb') as f:
+#         f.write(archivo_bytes)
+#
+#     return ruta_completa
 
 
 def cargar_documento(archivo_bytes, nombre_original, id_expediente, id_usuario, estado_fisico=None):
@@ -94,14 +105,15 @@ def cargar_documento(archivo_bytes, nombre_original, id_expediente, id_usuario, 
             return None, f"Error al procesar el documento: {resultado_ocr['mensaje_error']}"
 
     nombre_sistema = f"{uuid.uuid4().hex}.{extension}"
-    ruta = guardar_archivo_local(archivo_bytes, nombre_sistema)
+    content_type = MAPEO_CONTENT_TYPE.get(extension, 'application/octet-stream')
+    nombre_key = subir_archivo(archivo_bytes, nombre_sistema, content_type)
 
     documento = Documento(
         id_expediente=id_expediente,
         id_formato=id_formato,
         nombre_archivo_original=nombre_original,
         nombre_archivo_sistema=nombre_sistema,
-        ruta_almacenamiento=ruta,
+        ruta_almacenamiento=nombre_key,
         tamano_bytes=len(archivo_bytes),
         num_paginas=num_paginas,
         hash_archivo=hash_archivo,
@@ -137,3 +149,13 @@ def actualizar_estado_fisico(id_documento, estado_fisico):
     db.session.commit()
 
     return documento, None
+
+
+def obtener_url_descarga(id_documento):
+    """Genera una URL presignada de R2 para descargar el archivo original del documento."""
+    documento = Documento.query.get(id_documento)
+    if not documento:
+        return None, "Documento no encontrado"
+
+    url = obtener_url_firmada(documento.ruta_almacenamiento)
+    return url, None
