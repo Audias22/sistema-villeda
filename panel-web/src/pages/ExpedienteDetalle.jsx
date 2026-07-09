@@ -41,6 +41,15 @@ function ExpedienteDetalle() {
     (TRANSICIONES_VALIDAS[expediente?.id_estado] || []).includes(e.id_estado)
   )
 
+  const handleDescargarDocumento = async (idDocumento) => {
+    try {
+      const { data } = await api.get(`/documentos/${idDocumento}/descarga`)
+      window.open(data.url_descarga, '_blank')
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'No se pudo obtener el archivo')
+    }
+  }
+
   const handleCambiarEstado = async (e) => {
     e.preventDefault()
     setEnviando(true)
@@ -160,7 +169,15 @@ function ExpedienteDetalle() {
           {!cargandoDocs &&
             docsData?.documentos?.map((doc) => (
               <tr key={doc.id_documento}>
-                <td>{doc.nombre_archivo_original}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="link-descarga"
+                    onClick={() => handleDescargarDocumento(doc.id_documento)}
+                  >
+                    {doc.nombre_archivo_original}
+                  </button>
+                </td>
                 <td>{doc.num_paginas ?? '—'}</td>
                 <td>{doc.tamano_bytes ? `${Math.round(doc.tamano_bytes / 1024)} KB` : '—'}</td>
                 <td>{formatearFechaHora(doc.fecha_carga)}</td>
