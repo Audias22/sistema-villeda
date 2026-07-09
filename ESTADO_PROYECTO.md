@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 6 de julio de 2026  
+**Última actualización:** 8 de julio de 2026  
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232  
 
 ---
@@ -17,9 +17,9 @@
 | Búsqueda insensible a acentos | PostgreSQL unaccent | ✅ Funcionando |
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
-| Panel web | React 18 — Vercel | ⏳ No iniciado |
+| Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — despliegue en Vercel pendiente |
 | App móvil | React Native — APK Android | ⏳ No iniciado |
-| OCR | Tesseract 5.5.0 | ✅ Funcionando |
+| OCR | Tesseract 5.5.0 + OpenCV (filtrado HSV de sellos de color) | ✅ Funcionando — precisión mejorada |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
 | Autenticación | JWT + bcrypt | ✅ Funcionando |
@@ -100,9 +100,23 @@ backend/
 
 │   ├── usuarios/
 
-│   │   ├── init.py      ✅ Exporta Usuario
+│   │   ├── init.py      ✅ Exporta usuarios_bp
 
-│   │   └── models.py        ✅ Modelo Usuario (SQLAlchemy)
+│   │   ├── models.py        ✅ Modelo Usuario (SQLAlchemy)
+
+│   │   ├── schemas.py       ✅ UsuarioSchema, UsuarioUpdateSchema (marshmallow)
+
+│   │   ├── services.py      ✅ CRUD completo (crear, listar paginado+búsqueda, obtener, actualizar, desactivar)
+
+│   │   └── routes.py        ✅ POST, GET (lista+detalle), PUT, DELETE — protegidas con gestionar_usuarios
+
+│   ├── catalogos/           ✅ Completo
+
+│   │   ├── init.py      ✅ Exporta catalogos_bp
+
+│   │   ├── routes.py        ✅ GET roles, áreas jurídicas, estados de expediente, tipos de expediente (filtrable por área), prioridades, criterios de búsqueda
+
+│   │   └── services.py      ✅ Consultas de solo lectura sobre los catálogos de app/common/models.py
 
 │   ├── common/
 
@@ -118,7 +132,7 @@ backend/
 
 │   │   ├── routes.py        ✅ POST /api/v1/ocr/procesar
 
-│   │   └── services.py      ✅ procesar_archivo(), calcular_hash()
+│   │   └── services.py      ✅ procesar_archivo(), calcular_hash(), preprocesar_imagen() — filtrado de color HSV con OpenCV para eliminar sellos (rojo, azul, dorado) antes de Tesseract
 
 │   ├── clientes/
 
@@ -233,6 +247,34 @@ backend/
 | GET | /api/v1/reportes/expedientes/excel | ✅ Funcionando (descarga real .xlsx con filtros opcionales) | Sí — exportar_reporte |
 | GET | /api/v1/auditoria | ✅ Funcionando (paginado + filtros tabla/acción/usuario/fecha) | Sí — ver_auditoria |
 | GET | /api/v1/auditoria/\<id\> | ✅ Funcionando | Sí — ver_auditoria |
+| POST | /api/v1/usuarios | ✅ Funcionando | Sí — gestionar_usuarios |
+| GET | /api/v1/usuarios | ✅ Funcionando (paginado + búsqueda) | Sí — gestionar_usuarios |
+| GET | /api/v1/usuarios/\<id\> | ✅ Funcionando | Sí — gestionar_usuarios |
+| PUT | /api/v1/usuarios/\<id\> | ✅ Funcionando | Sí — gestionar_usuarios |
+| DELETE | /api/v1/usuarios/\<id\> | ✅ Funcionando (soft delete) | Sí — gestionar_usuarios |
+| GET | /api/v1/catalogos/roles | ✅ Funcionando | Sí (JWT) |
+| GET | /api/v1/catalogos/areas-juridicas | ✅ Funcionando | Sí (JWT) |
+| GET | /api/v1/catalogos/estados-expediente | ✅ Funcionando | Sí (JWT) |
+| GET | /api/v1/catalogos/tipos-expediente | ✅ Funcionando (filtrable por id_area) | Sí (JWT) |
+| GET | /api/v1/catalogos/prioridades | ✅ Funcionando | Sí (JWT) |
+| GET | /api/v1/catalogos/criterios-busqueda | ✅ Funcionando | Sí (JWT) |
+
+---
+
+## PANEL WEB — panel-web/ (React 18 + Vite)
+| Pantalla | Ruta | Estado |
+|----------|------|--------|
+| Login | /login | ✅ Autenticación JWT con AuthContext |
+| Dashboard | /dashboard | ✅ Totales, distribución por área/estado, TBR, gráficas (Area/Pie) |
+| Expedientes (lista + detalle) | /expedientes, /expedientes/:id | ✅ Listado paginado, filtros, detalle con documentos, modal de nuevo expediente |
+| Cargar documento | /cargar | ✅ Subida de archivo con OCR/pdfplumber automático |
+| Búsqueda | /busqueda | ✅ Búsqueda por los 5 criterios con medición de TBR |
+| Usuarios | /usuarios | ✅ CRUD conectado a /api/v1/usuarios |
+| Reportes | /reportes | ✅ Dashboard de reportes + exportación Excel |
+
+**Estructura:** componentes comunes reutilizables (Button, Card, Input, Modal, Table, Badge, Pagination, Skeleton, EmptyState), layout con Sidebar + TopBar, rutas protegidas (ProtectedRoute), contexto de autenticación (AuthContext), hooks (useAuth, useFetch), capa de servicios (api.js) que centraliza las llamadas al backend Flask.
+
+**Pendiente:** despliegue en Vercel, variables de entorno de producción (.env), pruebas end-to-end contra el backend desplegado.
 
 ---
 
@@ -248,7 +290,7 @@ backend/
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
-| Fase 9 | Panel web + App móvil | ⏳ Próximo paso — backend core completo y probado end-to-end |
+| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas — falta desplegar en Vercel. App móvil ⏳ no iniciada |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
 ---
@@ -281,11 +323,12 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ Cloudflare R2 — resolver problema de tarjeta y migrar `guardar_archivo_local()` a subida real a R2
-2. ⏳ Mover ruta Tesseract del código al .env para producción en Render
-3. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
-4. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
-5. ⏳ Exportación PDF de expediente individual (reportlab) — queda pendiente, menor prioridad que el panel web
+1. ⏳ Desplegar panel web (React) en Vercel y configurar variables de entorno de producción
+2. ⏳ Cloudflare R2 — resolver problema de tarjeta y migrar `guardar_archivo_local()` a subida real a R2
+3. ⏳ Mover ruta Tesseract del código al .env para producción en Render
+4. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
+5. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
+6. ⏳ Exportación PDF de expediente individual (reportlab) — queda pendiente, menor prioridad que el panel web
 
 ---
 
@@ -327,3 +370,6 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 - id_criterio en busquedas: 1=nombre_cliente, 2=fecha, 3=area, 4=contenido, 5=numero_expediente
 - Criterios 1 y 4 usan func.unaccent() en ambos lados de la comparación ILIKE para ignorar tildes
 - Si el primer "git push origin main" da error "src refspec main does not match any", simplemente repetir el comando — es un glitch de timing, no un problema real
+- El .env de panel-web NUNCA se sube a GitHub — está en .gitignore (solo panel-web/.env.example se sube como plantilla)
+- panel-web/node_modules/ y panel-web/dist/ NUNCA se suben a GitHub — están en .gitignore de la raíz
+- preprocesar_imagen() en ocr/services.py convierte a espacio HSV y elimina sellos rojos, azules y dorados (reemplazándolos con blanco) antes de pasar la imagen a Tesseract — mejora la precisión del OCR en documentos escaneados con sellos oficiales
