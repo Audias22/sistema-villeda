@@ -330,12 +330,14 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ Desplegar panel web (React) en Vercel y configurar variables de entorno de producción
-2. ⏳ Conectar el panel web al nuevo endpoint GET /api/v1/documentos/\<id\>/descarga para visualizar/descargar archivos desde R2
+1. ⏳ **Deploy backend en Render.com — previsto para mañana 9 de julio de 2026**
+2. ⏳ Desplegar panel web (React) en Vercel y configurar variables de entorno de producción (apuntando al backend ya desplegado en Render)
 3. ⏳ Mover ruta Tesseract del código al .env para producción en Render
 4. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
 5. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
 6. ⏳ Exportación PDF de expediente individual (reportlab) — queda pendiente, menor prioridad que el panel web
+
+**Completado:** el nombre de archivo en la tabla "Documentos" de ExpedienteDetalle.jsx ya es un link que llama a GET /api/v1/documentos/\<id\>/descarga y abre la URL firmada de R2 en pestaña nueva. Se revisaron Dashboard.jsx, Busqueda.jsx y Reportes.jsx — ninguna de esas pantallas lista documentos individuales (solo conteos agregados o expedientes), así que no requirieron cambios.
 
 ---
 
