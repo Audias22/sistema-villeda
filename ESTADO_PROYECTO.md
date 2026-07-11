@@ -18,7 +18,7 @@
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
 | Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
-| App móvil | React Native (Expo) — APK Android | 🔄 Fase 1 (setup base) completada |
+| App móvil | React Native (Expo) — APK Android | 🔄 Fases 1-2 completadas (setup base + servicios/tema) |
 | OCR | Tesseract 5.5.0 + OpenCV (filtrado HSV de sellos de color) | ✅ Funcionando — precisión mejorada |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
@@ -301,8 +301,8 @@ backend/
 | Fase | Descripción | Estado |
 |------|-------------|--------|
 | Fase 1 | Setup base del proyecto Expo | ✅ Completada |
-| Fase 2 | Pantallas de autenticación | ⏳ Pendiente |
-| Fase 3 | Pantallas principales (expedientes, documentos, búsqueda) | ⏳ Pendiente |
+| Fase 2 | Servicios base y sistema de tema | ✅ Completada |
+| Fase 3 | Pantallas (login, dashboard, expedientes, documentos, búsqueda) | ⏳ Pendiente |
 | Fase 4 | Funcionalidades nativas (cámara, notificaciones, biometría) | ⏳ Pendiente |
 
 **Fase 1 — detalle:**
@@ -316,6 +316,15 @@ backend/
 - `App.js` mínimo con `SafeAreaProvider` + `NavigationContainer` + placeholder — verificado que Expo arranca y compila sin errores (bundle Android servido con HTTP 200 por Metro)
 - `.env`, `node_modules/` y `.expo/` de app-movil agregados al `.gitignore` raíz del monorepo (no se creó `.gitignore` propio dentro de app-movil)
 - No instalado todavía (se agregan en su fase correspondiente): `expo-camera`, `expo-notifications`, `expo-local-authentication`, `expo-image-picker`
+
+**Fase 2 — detalle:** todo el trabajo se hizo dentro de `app-movil/src/` (excepto `App.js`, que consume el tema y el hook de fuentes).
+- `src/theme/colors.js` — design tokens del panel web (navy, gold, cream, white, textPrimary, textSecondary, danger, success, border)
+- `src/theme/typography.js` — nombres exactos de familias DM Serif Display / DM Sans (regular, medium, semibold, bold) y escala de tamaños (h1 a tiny)
+- `src/services/storage.js` — wrapper sobre `expo-secure-store` (`saveToken`, `getToken`, `saveUser`, `getUser`, `clearAll`), serializa/deserializa JSON ya que secure-store solo acepta strings
+- `src/services/api.js` — cliente axios (`baseURL` desde `EXPO_PUBLIC_API_URL`, timeout 60s por el arranque en frío de Render free tier), interceptor de request que agrega el JWT, interceptor de response que distingue `SESSION_EXPIRED` (401, limpia storage) de `NETWORK_ERROR` (sin respuesta del servidor)
+- `src/services/auth.js` — `login()`, `logout()`, `isAuthenticated()`, construido sobre api.js y storage.js
+- `src/hooks/useFonts.js` — hook que carga las 5 variantes de fuente con `expo-font`, retorna `{ fontsLoaded, fontError }`
+- `App.js` actualizado: splash con fondo cream mientras cargan las fuentes, luego placeholder con DM Serif Display, color navy y fondo cream
 
 ---
 
@@ -331,7 +340,7 @@ backend/
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
-| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fase 1 (setup Expo) completada |
+| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-2 (setup Expo + servicios/tema) completadas |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
 ---
@@ -366,7 +375,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ App móvil React Native (APK Android) — Fase 1 (setup Expo) completada, faltan Fases 2-4 (pantallas y funcionalidades nativas)
+1. ⏳ App móvil React Native (APK Android) — Fases 1-2 (setup Expo + servicios/tema) completadas, faltan Fases 3-4 (pantallas y funcionalidades nativas)
 2. ⏳ Migración a gunicorn en Render (actualmente warning de development server de Flask — no urgente, no bloquea uso)
 3. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para el dataset de ML (Fase 6-8) y el Capítulo V
 
