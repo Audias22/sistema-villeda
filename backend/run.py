@@ -1,4 +1,7 @@
 import os
+import threading
+import requests
+import time
 from flask import jsonify
 from flask_jwt_extended import jwt_required
 from app import create_app
@@ -15,7 +18,17 @@ def health():
 def test_protegido():
     return jsonify({'mensaje': 'Acceso concedido — tienes permiso ver_dashboard'}), 200
 
+def ping_propio():
+    while True:
+        time.sleep(840)  # cada 14 minutos
+        try:
+            requests.get('https://sistema-villeda-backend.onrender.com/health')
+        except:
+            pass
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     debug_mode = os.getenv('FLASK_ENV') == 'development'
+    if os.getenv('FLASK_ENV') == 'production':
+        threading.Thread(target=ping_propio, daemon=True).start()
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
