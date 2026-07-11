@@ -225,3 +225,8 @@ backend/almacenamiento/exportaciones/
 panel-web/node_modules/
 panel-web/dist/
 panel-web/.env
+
+# App móvil (Expo)
+app-movil/node_modules/
+app-movil/.env
+app-movil/.expo/
