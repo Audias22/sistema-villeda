@@ -306,7 +306,7 @@ backend/
 | Fase 4A | Bottom tabs — Dashboard + Búsqueda + Perfil | ✅ Completada |
 | Fase 4B.1 | 5 tabs + Stack anidado de Expedientes + lista paginada | ✅ Completada |
 | Fase 4B.2 | Detalle de expediente + carga de documentos | ✅ Completada |
-| Fase 4B.3 | Pantalla de Reportes | ⏳ Pendiente |
+| Fase 4B.3 | Pantalla de Reportes (con exportar PDF) | ⏳ Pendiente — próxima sesión |
 | Fase 5 | Funcionalidades nativas (cámara, notificaciones, biometría) | ⏳ Pendiente |
 
 **Fase 1 — detalle:**
@@ -361,6 +361,9 @@ backend/
 - `src/screens/CargarDocumentoScreen.js` — selector de expediente con debounce 400ms (mínimo 3 caracteres) usando **`GET /expedientes?busqueda=`, NO `POST /busquedas`** (ver nota abajo); expediente bloqueado con 🔒 si llegó preseleccionado por navegación, o cambiable si se buscó manualmente; selección de archivo con `expo-document-picker` (PDF/JPG/PNG, validación de 10MB también en cliente); sube con `POST /documentos` (`FormData` con campos `archivo` + `id_expediente`); duplicados se muestran como aviso (⚠️) en el Alert de éxito, no como error, porque el backend responde 201 con `documento.aviso`
 - **Buscador de expediente en CargarDocumento usa `GET /expedientes?busqueda=` (NO `POST /busquedas`) por consistencia con panel web — decisión de diseño para no contaminar la tabla BUSQUEDAS del Capítulo V con búsquedas administrativas**
 - Nuevas dependencias: `expo-document-picker`, `expo-web-browser` (instaladas con `npx expo install`, SDK 54 compatible)
+
+**Bugs conocidos pendientes:**
+- Al tocar un documento .png o .jpg desde `ExpedienteDetalleScreen`, el navegador del sistema no lo abre correctamente. Los .pdf sí funcionan. Probable causa: Content-Type incorrecto en R2 para imágenes, o comportamiento de `expo-web-browser` con imágenes vía Custom Tabs en Android. Detectado en producción con expedientes reales. Fase pendiente: diagnóstico y corrección (posiblemente en `backend/documentos_services.py` al determinar `content_type`, o en la app usando un Image viewer nativo en vez de `openBrowserAsync`).
 
 ---
 
