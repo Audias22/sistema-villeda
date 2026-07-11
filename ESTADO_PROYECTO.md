@@ -18,7 +18,7 @@
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
 | Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
-| App móvil | React Native (Expo) — APK Android | 🔄 Fases 1-3, 4A y 4B.1 completadas (setup base + servicios/tema + login + 5 tabs con dashboard/expedientes/búsqueda/reportes(placeholder)/perfil) |
+| App móvil | React Native (Expo) — APK Android | 🔄 Fases 1-3, 4A, 4B.1 y 4B.2 completadas (setup base + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos) |
 | OCR | Tesseract 5.5.0 + OpenCV (filtrado HSV de sellos de color) | ✅ Funcionando — precisión mejorada |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
@@ -305,7 +305,7 @@ backend/
 | Fase 3 | Pantalla de Login + navegación (Auth/App/Root) | ✅ Completada |
 | Fase 4A | Bottom tabs — Dashboard + Búsqueda + Perfil | ✅ Completada |
 | Fase 4B.1 | 5 tabs + Stack anidado de Expedientes + lista paginada | ✅ Completada |
-| Fase 4B.2 | Detalle de expediente + carga de documentos | ⏳ Pendiente |
+| Fase 4B.2 | Detalle de expediente + carga de documentos | ✅ Completada |
 | Fase 4B.3 | Pantalla de Reportes | ⏳ Pendiente |
 | Fase 5 | Funcionalidades nativas (cámara, notificaciones, biometría) | ⏳ Pendiente |
 
@@ -351,8 +351,16 @@ backend/
 **Fase 4B.1 — detalle:**
 - `src/navigation/AppNavigator.js` — ampliado a 5 tabs en orden Dashboard / Expedientes / Búsqueda / Reportes / Perfil; el tab Expedientes renderiza `ExpedientesStack`, el tab Reportes renderiza un placeholder temporal ("Reportes (Fase 4B.3)") dentro del propio archivo
 - `src/navigation/ExpedientesStack.js` — stack anidado sin header, ruta única `ExpedientesLista` por ahora (rutas de Detalle y CargarDocumento llegan en la Fase 4B.2)
-- `src/screens/ExpedientesScreen.js` — consume `GET /expedientes` (paginación `pagina`/`por_pagina`, no offset/limit); carga 20 iniciales + botón "Cargar más" que incrementa `pagina`; estados de carga inicial, error con Reintentar, lista vacía, y "No hay más expedientes" cuando `pagina >= total_paginas`; tarjeta con número (DM Serif Display), cliente, chips de área/estado, y fecha de apertura; tap en tarjeta muestra Alert placeholder (detalle real en Fase 4B.2)
-- **Los colores de chips de área y estado están sincronizados con `panel-web/src/utils/formatters.js`** (y los valores hex de `panel-web/src/styles/globals.css`) — cualquier cambio futuro de esa paleta debe aplicarse también en `ExpedientesScreen.js`
+- `src/screens/ExpedientesScreen.js` — consume `GET /expedientes` (paginación `pagina`/`por_pagina`, no offset/limit); carga 20 iniciales + botón "Cargar más" que incrementa `pagina`; estados de carga inicial, error con Reintentar, lista vacía, y "No hay más expedientes" cuando `pagina >= total_paginas`; tarjeta con número (DM Serif Display), cliente, chips de área/estado, y fecha de apertura; tap en tarjeta navega a `ExpedienteDetalle` (Fase 4B.2)
+- **Los colores de chips de área y estado están sincronizados con `panel-web/src/utils/formatters.js`** (y los valores hex de `panel-web/src/styles/globals.css`) — cualquier cambio futuro de esa paleta debe aplicarse en `ExpedientesScreen.js` y `ExpedienteDetalleScreen.js` (Fase 4B.2), donde el mismo mapeo está duplicado
+
+**Fase 4B.2 — detalle:**
+- `src/components/AppHeader.js` — nueva prop `showBackButton`; usa `useNavigation()` internamente (en vez de recibir `navigation` como prop) porque se renderiza tanto en pantallas raíz de tabs como en pantallas dentro del stack de Expedientes
+- `src/navigation/ExpedientesStack.js` — 2 rutas nuevas: `ExpedienteDetalle` y `CargarDocumento`
+- `src/screens/ExpedienteDetalleScreen.js` — dos llamadas (`GET /expedientes/{id}` + `GET /expedientes/{id}/documentos`); tarjeta de datos en grid (cliente y asignado a ocupan la fila completa por ser nombres largos, el resto en 2 columnas); documentos listados con nombre, páginas, tamaño y fecha; al tocar un documento pide la URL firmada (`GET /documentos/{id}/descarga`) y la abre con `expo-web-browser`; recarga documentos automáticamente al reenfocarse (`useFocusEffect`, sin parpadeo de loading completo en recargas posteriores a la primera)
+- `src/screens/CargarDocumentoScreen.js` — selector de expediente con debounce 400ms (mínimo 3 caracteres) usando **`GET /expedientes?busqueda=`, NO `POST /busquedas`** (ver nota abajo); expediente bloqueado con 🔒 si llegó preseleccionado por navegación, o cambiable si se buscó manualmente; selección de archivo con `expo-document-picker` (PDF/JPG/PNG, validación de 10MB también en cliente); sube con `POST /documentos` (`FormData` con campos `archivo` + `id_expediente`); duplicados se muestran como aviso (⚠️) en el Alert de éxito, no como error, porque el backend responde 201 con `documento.aviso`
+- **Buscador de expediente en CargarDocumento usa `GET /expedientes?busqueda=` (NO `POST /busquedas`) por consistencia con panel web — decisión de diseño para no contaminar la tabla BUSQUEDAS del Capítulo V con búsquedas administrativas**
+- Nuevas dependencias: `expo-document-picker`, `expo-web-browser` (instaladas con `npx expo install`, SDK 54 compatible)
 
 ---
 
@@ -368,7 +376,7 @@ backend/
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
-| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3, 4A y 4B.1 (setup Expo + servicios/tema + login + 5 tabs con lista de expedientes) completadas |
+| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3, 4A, 4B.1 y 4B.2 (setup Expo + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos) completadas |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
 ---
@@ -403,7 +411,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ App móvil React Native (APK Android) — Fases 1-3, 4A y 4B.1 (setup Expo + servicios/tema + login + 5 tabs con lista de expedientes paginada) completadas, faltan Fase 4B.2 (detalle de expediente + carga de documentos), 4B.3 (Reportes) y Fase 5 (funcionalidades nativas)
+1. ⏳ App móvil React Native (APK Android) — Fases 1-3, 4A, 4B.1 y 4B.2 (setup Expo + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos) completadas, faltan Fase 4B.3 (Reportes) y Fase 5 (funcionalidades nativas)
 2. ⏳ Migración a gunicorn en Render (actualmente warning de development server de Flask — no urgente, no bloquea uso)
 3. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para el dataset de ML (Fase 6-8) y el Capítulo V
 

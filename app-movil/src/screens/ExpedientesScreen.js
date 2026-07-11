@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AppHeader from '../components/AppHeader'
 import api from '../services/api'
@@ -51,7 +51,7 @@ function formatearFechaVisible(fechaIso) {
   return `${dd}/${mm}/${yyyy}`
 }
 
-export default function ExpedientesScreen() {
+export default function ExpedientesScreen({ navigation }) {
   const [expedientes, setExpedientes] = useState([])
   const [pagina, setPagina] = useState(1)
   const [totalPaginas, setTotalPaginas] = useState(1)
@@ -100,7 +100,7 @@ export default function ExpedientesScreen() {
   }
 
   function verDetalle(expediente) {
-    Alert.alert(expediente.numero_expediente, 'Detalle en Fase 4B.2')
+    navigation.navigate('ExpedienteDetalle', { id_expediente: expediente.id_expediente })
   }
 
   return (
