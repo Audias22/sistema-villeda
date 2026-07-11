@@ -306,7 +306,7 @@ backend/
 | Fase 4 | Funcionalidades nativas (cámara, notificaciones, biometría) | ⏳ Pendiente |
 
 **Fase 1 — detalle:**
-- Proyecto creado con `create-expo-app` (SDK 57, template blank), JavaScript puro (sin TypeScript), consistente con el panel web
+- Proyecto creado con `create-expo-app` (template blank), JavaScript puro (sin TypeScript), consistente con el panel web — SDK 54 (bajado desde SDK 57 por compatibilidad con la versión de Expo Go disponible en Play Store)
 - Estructura `src/{assets,components,navigation,screens,services}` preservada (pre-creada, aún vacía — pantallas se agregan en fases siguientes)
 - Navegación: `@react-navigation/native`, `@react-navigation/native-stack`, `@react-navigation/bottom-tabs`, `react-native-screens`, `react-native-safe-area-context`
 - HTTP: `axios`
