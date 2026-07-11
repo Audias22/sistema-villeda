@@ -18,7 +18,7 @@
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
 | Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
-| App móvil | React Native (Expo) — APK Android | 🔄 Fases 1-3 y 4A completadas (setup base + servicios/tema + login + bottom tabs con dashboard/búsqueda/perfil) |
+| App móvil | React Native (Expo) — APK Android | 🔄 Fases 1-3, 4A y 4B.1 completadas (setup base + servicios/tema + login + 5 tabs con dashboard/expedientes/búsqueda/reportes(placeholder)/perfil) |
 | OCR | Tesseract 5.5.0 + OpenCV (filtrado HSV de sellos de color) | ✅ Funcionando — precisión mejorada |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
@@ -304,7 +304,9 @@ backend/
 | Fase 2 | Servicios base y sistema de tema | ✅ Completada |
 | Fase 3 | Pantalla de Login + navegación (Auth/App/Root) | ✅ Completada |
 | Fase 4A | Bottom tabs — Dashboard + Búsqueda + Perfil | ✅ Completada |
-| Fase 4B | Expedientes y documentos (listado, detalle) | ⏳ Pendiente |
+| Fase 4B.1 | 5 tabs + Stack anidado de Expedientes + lista paginada | ✅ Completada |
+| Fase 4B.2 | Detalle de expediente + carga de documentos | ⏳ Pendiente |
+| Fase 4B.3 | Pantalla de Reportes | ⏳ Pendiente |
 | Fase 5 | Funcionalidades nativas (cámara, notificaciones, biometría) | ⏳ Pendiente |
 
 **Fase 1 — detalle:**
@@ -346,6 +348,12 @@ backend/
 - Nueva dependencia: `@react-native-community/datetimepicker` (instalada con `npx expo install`, SDK 54 compatible)
 - `src/assets/logo-villeda.jpg` (logo real del despacho, ya existente en el repo) ahora es una dependencia real del código (`require()` en AppHeader y PerfilScreen) — se agregó al control de versiones
 
+**Fase 4B.1 — detalle:**
+- `src/navigation/AppNavigator.js` — ampliado a 5 tabs en orden Dashboard / Expedientes / Búsqueda / Reportes / Perfil; el tab Expedientes renderiza `ExpedientesStack`, el tab Reportes renderiza un placeholder temporal ("Reportes (Fase 4B.3)") dentro del propio archivo
+- `src/navigation/ExpedientesStack.js` — stack anidado sin header, ruta única `ExpedientesLista` por ahora (rutas de Detalle y CargarDocumento llegan en la Fase 4B.2)
+- `src/screens/ExpedientesScreen.js` — consume `GET /expedientes` (paginación `pagina`/`por_pagina`, no offset/limit); carga 20 iniciales + botón "Cargar más" que incrementa `pagina`; estados de carga inicial, error con Reintentar, lista vacía, y "No hay más expedientes" cuando `pagina >= total_paginas`; tarjeta con número (DM Serif Display), cliente, chips de área/estado, y fecha de apertura; tap en tarjeta muestra Alert placeholder (detalle real en Fase 4B.2)
+- **Los colores de chips de área y estado están sincronizados con `panel-web/src/utils/formatters.js`** (y los valores hex de `panel-web/src/styles/globals.css`) — cualquier cambio futuro de esa paleta debe aplicarse también en `ExpedientesScreen.js`
+
 ---
 
 ## FASES DE DESARROLLO
@@ -360,7 +368,7 @@ backend/
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
-| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3 y 4A (setup Expo + servicios/tema + login + bottom tabs) completadas |
+| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3, 4A y 4B.1 (setup Expo + servicios/tema + login + 5 tabs con lista de expedientes) completadas |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
 ---
@@ -395,7 +403,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ App móvil React Native (APK Android) — Fases 1-3 y 4A (setup Expo + servicios/tema + login + bottom tabs con dashboard/búsqueda/perfil) completadas, faltan Fase 4B (expedientes/documentos) y Fase 5 (funcionalidades nativas)
+1. ⏳ App móvil React Native (APK Android) — Fases 1-3, 4A y 4B.1 (setup Expo + servicios/tema + login + 5 tabs con lista de expedientes paginada) completadas, faltan Fase 4B.2 (detalle de expediente + carga de documentos), 4B.3 (Reportes) y Fase 5 (funcionalidades nativas)
 2. ⏳ Migración a gunicorn en Render (actualmente warning de development server de Flask — no urgente, no bloquea uso)
 3. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para el dataset de ML (Fase 6-8) y el Capítulo V
 
