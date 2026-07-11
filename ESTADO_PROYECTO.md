@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 8 de julio de 2026  
+**Última actualización:** 11 de julio de 2026  
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232  
 
 ---
@@ -17,7 +17,7 @@
 | Búsqueda insensible a acentos | PostgreSQL unaccent | ✅ Funcionando |
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
-| Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — despliegue en Vercel pendiente |
+| Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
 | App móvil | React Native — APK Android | ⏳ No iniciado |
 | OCR | Tesseract 5.5.0 + OpenCV (filtrado HSV de sellos de color) | ✅ Funcionando — precisión mejorada |
 | Modelo baseline | BETO | ⏳ No iniciado |
@@ -32,9 +32,21 @@
 |----------|--------|-------|
 | Supabase | ✅ Activo | Proyecto: villeda-juridico, región us-east-2 |
 | GitHub | ✅ Activo | Repo: Audias22/sistema-villeda (privado) |
-| Cloudflare R2 | ⏳ Pendiente | Problema con tarjeta de débito |
-| Render.com | ⏳ Pendiente | Se configura al final |
-| Vercel | ⏳ Pendiente | Se configura con panel web |
+| Cloudflare R2 | ✅ Activo | Bucket villeda-archivos |
+| Render.com | ✅ Activo | Backend desplegado — https://sistema-villeda-backend.onrender.com |
+| Vercel | ✅ Activo | Panel web desplegado — https://sistema-villeda-panel.vercel.app |
+
+---
+
+## DEPLOY EN PRODUCCIÓN
+| Item | Estado | Notas |
+|------|--------|-------|
+| Backend en Render.com | ✅ Completado | https://sistema-villeda-backend.onrender.com |
+| Frontend en Vercel | ✅ Completado | https://sistema-villeda-panel.vercel.app |
+| Fix seguridad — debugger de Flask | ✅ Completado | `debug` ahora depende de `FLASK_ENV` (desactivado en producción, activo en local) |
+| Fix codificación — requirements.txt | ✅ Completado | Convertido de UTF-16 a UTF-8 sin BOM, sin cambios de dependencias |
+| Ping anti-pausa (Render free tier) | ✅ Activo | Hilo en background solo si `FLASK_ENV=production`, ping cada 14 min a /health |
+| Prueba end-to-end en producción | ✅ Exitosa | Subida de documento + OCR + almacenamiento en R2 + descarga vía URL firmada, todo contra el backend desplegado |
 
 ---
 
@@ -281,7 +293,7 @@ backend/
 
 **Estructura:** componentes comunes reutilizables (Button, Card, Input, Modal, Table, Badge, Pagination, Skeleton, EmptyState), layout con Sidebar + TopBar, rutas protegidas (ProtectedRoute), contexto de autenticación (AuthContext), hooks (useAuth, useFetch), capa de servicios (api.js) que centraliza las llamadas al backend Flask.
 
-**Pendiente:** despliegue en Vercel, variables de entorno de producción (.env), pruebas end-to-end contra el backend desplegado.
+**Desplegado en Vercel, con variables de entorno de producción configuradas y prueba end-to-end contra el backend desplegado en Render.com exitosa.**
 
 ---
 
@@ -297,7 +309,7 @@ backend/
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
-| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas — falta desplegar en Vercel. App móvil ⏳ no iniciada |
+| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil ⏳ no iniciada |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
 ---
@@ -327,17 +339,16 @@ backend/
 
 Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expediente NOT-2026-0001, texto extraído correctamente con Tesseract, segunda carga del mismo archivo detectada como duplicado exacto del documento ID 1, búsqueda por número de expediente y por contenido (con y sin tildes) funcionando, 4 búsquedas registradas con TBR real entre 93-117 ms, dashboard mostrando todos los totales y distribuciones correctamente, archivo Excel descargado con formato profesional (encabezados con color, filtros automáticos, panel congelado).
 
+**Prueba end-to-end en producción (11 de julio de 2026):** el mismo flujo (subida de documento + OCR + almacenamiento en Cloudflare R2 + descarga vía URL firmada) se repitió contra el backend ya desplegado en Render.com y el panel web desplegado en Vercel, con resultado exitoso.
+
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ **Deploy backend en Render.com — previsto para mañana 9 de julio de 2026**
-2. ⏳ Desplegar panel web (React) en Vercel y configurar variables de entorno de producción (apuntando al backend ya desplegado en Render)
-3. ⏳ Mover ruta Tesseract del código al .env para producción en Render
-4. ⏳ Validar con el Lic. Villeda los 13 tipos de expediente provisionales (ajustar tabla `tipos_expediente` según su práctica real)
-5. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda (esta semana, según lo conversado)
-6. ⏳ Exportación PDF de expediente individual (reportlab) — queda pendiente, menor prioridad que el panel web
+1. ⏳ App móvil React Native (APK Android) — no iniciada
+2. ⏳ Migración a gunicorn en Render (actualmente warning de development server de Flask — no urgente, no bloquea uso)
+3. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para el dataset de ML (Fase 6-8) y el Capítulo V
 
-**Completado:** el nombre de archivo en la tabla "Documentos" de ExpedienteDetalle.jsx ya es un link que llama a GET /api/v1/documentos/\<id\>/descarga y abre la URL firmada de R2 en pestaña nueva. Se revisaron Dashboard.jsx, Busqueda.jsx y Reportes.jsx — ninguna de esas pantallas lista documentos individuales (solo conteos agregados o expedientes), así que no requirieron cambios.
+**Completado:** deploy de backend (Render.com) y frontend (Vercel), fix de seguridad del debugger de Flask, fix de codificación de requirements.txt, ping anti-pausa activo, y prueba end-to-end en producción (subida + OCR + almacenamiento R2 + descarga vía URL firmada) exitosa. Además, el nombre de archivo en la tabla "Documentos" de ExpedienteDetalle.jsx ya es un link que llama a GET /api/v1/documentos/\<id\>/descarga y abre la URL firmada de R2 en pestaña nueva.
 
 ---
 
