@@ -1,43 +1,35 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { useAuth } from '../context/AuthContext'
+import { Text } from 'react-native'
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import DashboardScreen from '../screens/DashboardScreen'
+import BusquedaScreen from '../screens/BusquedaScreen'
+import PerfilScreen from '../screens/PerfilScreen'
 import { colors } from '../theme/colors'
-import { fontFamily, fontSize } from '../theme/typography'
 
-export default function AppNavigator() {
-  const { signOut } = useAuth()
+const Tab = createBottomTabNavigator()
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Dashboard (Fase 4)</Text>
-      <TouchableOpacity style={styles.button} onPress={signOut}>
-        <Text style={styles.buttonText}>Cerrar sesión</Text>
-      </TouchableOpacity>
-    </View>
-  )
+const ICONOS = {
+  Dashboard: '📊',
+  Busqueda: '🔍',
+  Perfil: '👤',
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontFamily: fontFamily.regular,
-    fontSize: fontSize.h3,
-    color: colors.navy,
-    marginBottom: 24,
-  },
-  button: {
-    backgroundColor: colors.gold,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  buttonText: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: fontSize.body,
-    color: colors.navy,
-  },
-})
+export default function AppNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: colors.navy,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.cream,
+          borderTopColor: colors.border,
+        },
+        tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>{ICONOS[route.name]}</Text>,
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Busqueda" component={BusquedaScreen} options={{ tabBarLabel: 'Búsqueda' }} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} />
+    </Tab.Navigator>
+  )
+}
