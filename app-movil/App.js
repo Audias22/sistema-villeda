@@ -4,7 +4,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import useFonts from './src/hooks/useFonts';
 import { colors } from './src/theme/colors';
-import { fontFamily, fontSize } from './src/theme/typography';
+import { fontSize } from './src/theme/typography';
+import { AuthProvider } from './src/context/AuthContext';
+import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
   const { fontsLoaded, fontError } = useFonts();
@@ -20,10 +22,10 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <View style={styles.container}>
-          <Text style={styles.title}>Sistema Villeda - App móvil</Text>
+        <AuthProvider>
+          <RootNavigator />
           <StatusBar style="auto" />
-        </View>
+        </AuthProvider>
       </NavigationContainer>
     </SafeAreaProvider>
   );
@@ -39,17 +41,5 @@ const styles = StyleSheet.create({
   splashText: {
     fontSize: fontSize.body,
     color: colors.textPrimary,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontFamily: fontFamily.serif,
-    fontSize: fontSize.h1,
-    color: colors.navy,
-    textAlign: 'center',
   },
 });

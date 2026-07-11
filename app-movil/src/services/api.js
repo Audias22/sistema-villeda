@@ -22,7 +22,9 @@ api.interceptors.response.use(
       return Promise.reject(networkError)
     }
 
-    if (error.response.status === 401) {
+    const esLogin = error.config?.url?.includes('/auth/login')
+
+    if (error.response.status === 401 && !esLogin) {
       await clearAll()
       const sessionError = new Error('SESSION_EXPIRED')
       sessionError.code = 'SESSION_EXPIRED'

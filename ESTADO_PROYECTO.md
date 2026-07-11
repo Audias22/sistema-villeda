@@ -18,7 +18,7 @@
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
 | Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
-| App móvil | React Native (Expo) — APK Android | 🔄 Fases 1-2 completadas (setup base + servicios/tema) |
+| App móvil | React Native (Expo) — APK Android | 🔄 Fases 1-3 completadas (setup base + servicios/tema + login funcional) |
 | OCR | Tesseract 5.5.0 + OpenCV (filtrado HSV de sellos de color) | ✅ Funcionando — precisión mejorada |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
@@ -302,8 +302,9 @@ backend/
 |------|-------------|--------|
 | Fase 1 | Setup base del proyecto Expo | ✅ Completada |
 | Fase 2 | Servicios base y sistema de tema | ✅ Completada |
-| Fase 3 | Pantallas (login, dashboard, expedientes, documentos, búsqueda) | ⏳ Pendiente |
-| Fase 4 | Funcionalidades nativas (cámara, notificaciones, biometría) | ⏳ Pendiente |
+| Fase 3 | Pantalla de Login + navegación (Auth/App/Root) | ✅ Completada |
+| Fase 4 | Pantallas principales (dashboard, expedientes, documentos, búsqueda) con bottom tabs | ⏳ Pendiente |
+| Fase 5 | Funcionalidades nativas (cámara, notificaciones, biometría) | ⏳ Pendiente |
 
 **Fase 1 — detalle:**
 - Proyecto creado con `create-expo-app` (template blank), JavaScript puro (sin TypeScript), consistente con el panel web — SDK 54 (bajado desde SDK 57 por compatibilidad con la versión de Expo Go disponible en Play Store)
@@ -326,6 +327,15 @@ backend/
 - `src/hooks/useFonts.js` — hook que carga las 5 variantes de fuente con `expo-font`, retorna `{ fontsLoaded, fontError }`
 - `App.js` actualizado: splash con fondo cream mientras cargan las fuentes, luego placeholder con DM Serif Display, color navy y fondo cream
 
+**Fase 3 — detalle:**
+- `src/context/AuthContext.js` — `AuthProvider` + hook `useAuth()`; al montar intenta cargar sesión guardada (storage.js), expone `{ user, token, isAuthenticated, isLoading, signIn, signOut }`
+- `src/navigation/AuthNavigator.js` — stack sin header con una sola ruta (Login)
+- `src/navigation/AppNavigator.js` — placeholder temporal ("Dashboard (Fase 4)" + botón Cerrar sesión conectado a `signOut()` del contexto); se reemplaza por bottom tabs en la Fase 4
+- `src/navigation/RootNavigator.js` — decide Auth vs App según `isAuthenticated` del contexto; splash "Cargando..." mientras `isLoading`
+- `src/screens/LoginScreen.js` — pantalla completa: sello "V" en círculo gold, título/subtítulo en DM Serif/DM Sans, inputs de usuario y contraseña (con toggle de visibilidad), botón con `ActivityIndicator` durante la carga, aviso de "servidor iniciando" pasados 15s (Render free tier), validación local de campos vacíos, y mensajes de error diferenciados (credenciales incorrectas / sin conexión / error genérico)
+- `App.js` ahora envuelve `RootNavigator` en `AuthProvider`, dentro de `NavigationContainer` + `SafeAreaProvider`
+- **Fix en `src/services/api.js`:** el interceptor de 401→`SESSION_EXPIRED` (de la Fase 2) interceptaba también el 401 de credenciales incorrectas en `/auth/login`, que usa el mismo código de estado. Se excluyó `/auth/login` de esa transformación para que `LoginScreen` pueda distinguir "credenciales incorrectas" de "sesión expirada" — el resto de la app sigue usando `SESSION_EXPIRED` sin cambios
+
 ---
 
 ## FASES DE DESARROLLO
@@ -340,7 +350,7 @@ backend/
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
-| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-2 (setup Expo + servicios/tema) completadas |
+| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3 (setup Expo + servicios/tema + login funcional) completadas |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
 ---
@@ -375,7 +385,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ App móvil React Native (APK Android) — Fases 1-2 (setup Expo + servicios/tema) completadas, faltan Fases 3-4 (pantallas y funcionalidades nativas)
+1. ⏳ App móvil React Native (APK Android) — Fases 1-3 (setup Expo + servicios/tema + login funcional) completadas, faltan Fases 4-5 (pantallas principales y funcionalidades nativas)
 2. ⏳ Migración a gunicorn en Render (actualmente warning de development server de Flask — no urgente, no bloquea uso)
 3. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para el dataset de ML (Fase 6-8) y el Capítulo V
 
