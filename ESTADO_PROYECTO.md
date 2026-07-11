@@ -18,7 +18,7 @@
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
 | Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
-| App móvil | React Native — APK Android | ⏳ No iniciado |
+| App móvil | React Native (Expo) — APK Android | 🔄 Fase 1 (setup base) completada |
 | OCR | Tesseract 5.5.0 + OpenCV (filtrado HSV de sellos de color) | ✅ Funcionando — precisión mejorada |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
@@ -297,6 +297,28 @@ backend/
 
 ---
 
+## APP MÓVIL — app-movil/ (React Native + Expo)
+| Fase | Descripción | Estado |
+|------|-------------|--------|
+| Fase 1 | Setup base del proyecto Expo | ✅ Completada |
+| Fase 2 | Pantallas de autenticación | ⏳ Pendiente |
+| Fase 3 | Pantallas principales (expedientes, documentos, búsqueda) | ⏳ Pendiente |
+| Fase 4 | Funcionalidades nativas (cámara, notificaciones, biometría) | ⏳ Pendiente |
+
+**Fase 1 — detalle:**
+- Proyecto creado con `create-expo-app` (SDK 57, template blank), JavaScript puro (sin TypeScript), consistente con el panel web
+- Estructura `src/{assets,components,navigation,screens,services}` preservada (pre-creada, aún vacía — pantallas se agregan en fases siguientes)
+- Navegación: `@react-navigation/native`, `@react-navigation/native-stack`, `@react-navigation/bottom-tabs`, `react-native-screens`, `react-native-safe-area-context`
+- HTTP: `axios`
+- Almacenamiento seguro: `expo-secure-store` (para el token JWT en fases siguientes)
+- Fuentes: `expo-font` + `@expo-google-fonts/dm-serif-display` + `@expo-google-fonts/dm-sans`
+- Variable de entorno `EXPO_PUBLIC_API_URL` apuntando a `https://sistema-villeda-backend.onrender.com/api/v1` (prefijo `EXPO_PUBLIC_` obligatorio en Expo para exponer variables al cliente)
+- `App.js` mínimo con `SafeAreaProvider` + `NavigationContainer` + placeholder — verificado que Expo arranca y compila sin errores (bundle Android servido con HTTP 200 por Metro)
+- `.env`, `node_modules/` y `.expo/` de app-movil agregados al `.gitignore` raíz del monorepo (no se creó `.gitignore` propio dentro de app-movil)
+- No instalado todavía (se agregan en su fase correspondiente): `expo-camera`, `expo-notifications`, `expo-local-authentication`, `expo-image-picker`
+
+---
+
 ## FASES DE DESARROLLO
 | Fase | Descripción | Estado |
 |------|-------------|--------|
@@ -309,7 +331,7 @@ backend/
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
-| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil ⏳ no iniciada |
+| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fase 1 (setup Expo) completada |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
 ---
@@ -344,7 +366,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ App móvil React Native (APK Android) — no iniciada
+1. ⏳ App móvil React Native (APK Android) — Fase 1 (setup Expo) completada, faltan Fases 2-4 (pantallas y funcionalidades nativas)
 2. ⏳ Migración a gunicorn en Render (actualmente warning de development server de Flask — no urgente, no bloquea uso)
 3. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para el dataset de ML (Fase 6-8) y el Capítulo V
 
