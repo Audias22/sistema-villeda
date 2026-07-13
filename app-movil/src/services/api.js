@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { getToken, clearAll } from './storage'
+import { emitSessionExpired } from './authEvents'
 
 const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL,
@@ -26,6 +27,7 @@ api.interceptors.response.use(
 
     if (error.response.status === 401 && !esLogin) {
       await clearAll()
+      emitSessionExpired()
       const sessionError = new Error('SESSION_EXPIRED')
       sessionError.code = 'SESSION_EXPIRED'
       sessionError.original = error
