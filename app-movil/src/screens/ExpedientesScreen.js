@@ -80,6 +80,9 @@ export default function ExpedientesScreen({ navigation }) {
       setPagina(data.pagina || numeroPagina)
       setTotalPaginas(data.total_paginas || 1)
     } catch (err) {
+      if (err.code === 'SESSION_EXPIRED') {
+        return
+      }
       setError('No pudimos cargar los expedientes. Revisa tu conexión.')
     } finally {
       setCargando(false)

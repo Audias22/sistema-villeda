@@ -50,7 +50,12 @@ export default function CargarDocumentoScreen({ route, navigation }) {
     api
       .get(`/expedientes/${idExpedientePreseleccionado}`)
       .then(({ data }) => setExpedienteSeleccionado(data.expediente))
-      .catch(() => setErrorPreseleccion('No pudimos cargar el expediente preseleccionado.'))
+      .catch((err) => {
+        if (err.code === 'SESSION_EXPIRED') {
+          return
+        }
+        setErrorPreseleccion('No pudimos cargar el expediente preseleccionado.')
+      })
       .finally(() => setCargandoPreseleccion(false))
   }, [idExpedientePreseleccionado])
 
@@ -64,7 +69,12 @@ export default function CargarDocumentoScreen({ route, navigation }) {
       api
         .get('/expedientes', { params: { busqueda: busqueda.trim(), por_pagina: 8 } })
         .then(({ data }) => setResultadosBusqueda(data.expedientes || []))
-        .catch(() => setResultadosBusqueda([]))
+        .catch((err) => {
+          if (err.code === 'SESSION_EXPIRED') {
+            return
+          }
+          setResultadosBusqueda([])
+        })
     }, 400)
 
     return () => clearTimeout(timeout)
@@ -128,6 +138,9 @@ export default function CargarDocumentoScreen({ route, navigation }) {
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       )
     } catch (err) {
+      if (err.code === 'SESSION_EXPIRED') {
+        return
+      }
       if (err.code === 'NETWORK_ERROR') {
         setErrorSubida('Sin conexión. Revisa tu WiFi o datos móviles')
       } else if (err.response?.data?.error?.includes('10 MB')) {

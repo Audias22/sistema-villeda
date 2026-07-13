@@ -18,6 +18,9 @@ export default function DashboardScreen() {
       const { data } = await api.get('/reportes/dashboard')
       setDatos(data)
     } catch (err) {
+      if (err.code === 'SESSION_EXPIRED') {
+        return
+      }
       setError('No pudimos cargar el dashboard. Revisa tu conexión.')
     } finally {
       setCargando(false)

@@ -93,6 +93,9 @@ export default function ExpedienteDetalleScreen({ route, navigation }) {
       setExpediente(detalleData.expediente)
       setDocumentos(docsData.documentos || [])
     } catch (err) {
+      if (err.code === 'SESSION_EXPIRED') {
+        return
+      }
       setError('No pudimos cargar el expediente. Revisa tu conexión.')
     } finally {
       setCargando(false)
@@ -115,6 +118,9 @@ export default function ExpedienteDetalleScreen({ route, navigation }) {
       const { data } = await api.get(`/documentos/${documento.id_documento}/descarga`)
       await WebBrowser.openBrowserAsync(data.url_descarga)
     } catch (err) {
+      if (err.code === 'SESSION_EXPIRED') {
+        return
+      }
       Alert.alert('Error', 'No pudimos abrir el documento. Intenta de nuevo.')
     } finally {
       setAbriendoId(null)

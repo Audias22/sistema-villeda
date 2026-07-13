@@ -112,6 +112,9 @@ export default function BusquedaScreen() {
       setResultados(data.resultados || [])
       setHaBuscado(true)
     } catch (err) {
+      if (err.code === 'SESSION_EXPIRED') {
+        return
+      }
       if (err.code === 'NETWORK_ERROR') {
         setError('Sin conexión. Revisa tu WiFi o datos móviles')
       } else {
