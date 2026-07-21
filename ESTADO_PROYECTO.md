@@ -33,7 +33,7 @@
 | Supabase | ✅ Activo | Proyecto: villeda-juridico, región us-east-2 |
 | GitHub | ✅ Activo | Repo: Audias22/sistema-villeda (privado) |
 | Cloudflare R2 | ✅ Activo | Bucket villeda-archivos |
-| Render.com | ✅ Activo | Backend desplegado — https://sistema-villeda-backend.onrender.com |
+| Render.com | ✅ Activo | Backend desplegado — https://sistema-villeda-backend-v2.onrender.com |
 | Vercel | ✅ Activo | Panel web desplegado — https://sistema-villeda-panel.vercel.app |
 
 ---
@@ -41,13 +41,17 @@
 ## DEPLOY EN PRODUCCIÓN
 | Item | Estado | Notas |
 |------|--------|-------|
-| Backend en Render.com | ✅ Completado | https://sistema-villeda-backend.onrender.com |
+| Backend en Render.com | ✅ Completado | https://sistema-villeda-backend-v2.onrender.com |
 | Frontend en Vercel | ✅ Completado | https://sistema-villeda-panel.vercel.app |
 | Fix seguridad — debugger de Flask | ✅ Completado | `debug` ahora depende de `FLASK_ENV` (desactivado en producción, activo en local) |
 | Fix codificación — requirements.txt | ✅ Completado | Convertido de UTF-16 a UTF-8 sin BOM, sin cambios de dependencias |
 | Ping anti-pausa (Render free tier) | ✅ Activo | Hilo en background solo si `FLASK_ENV=production`, ping cada 14 min a /health |
 | Prueba end-to-end en producción | ✅ Exitosa | Subida de documento + OCR + almacenamiento en R2 + descarga vía URL firmada, todo contra el backend desplegado |
 | Dockerización del backend (Tesseract + Poppler en Render) | ✅ Completado | `backend/Dockerfile` (imagen `python:3.13-slim`, instala `tesseract-ocr`, `tesseract-ocr-spa` y `poppler-utils` vía apt) + `backend/.dockerignore`. Se eliminaron los hardcodes de rutas de Windows en `ocr/services.py`: `tesseract_cmd` y `POPPLER_PATH` ahora se leen de las variables de entorno `TESSERACT_CMD`/`POPPLER_PATH` (opcionales — si no están definidas, pytesseract y pdf2image usan lo que encuentren en el PATH del sistema, que es el caso dentro del contenedor Linux). Verificado localmente: build y ejecución del contenedor Docker con OCR funcionando correctamente |
+
+**Migración a servicio nuevo en Render (`sistema-villeda-backend-v2.onrender.com`):** Render no permite cambiar el runtime de un servicio existente de nativo (buildpack de Python) a Docker, así que se creó un servicio nuevo (`sistema-villeda-backend-v2`) con runtime Docker apuntando al mismo repo. El servicio anterior (`sistema-villeda-backend.onrender.com`) quedó **suspendido, no eliminado**, por si hace falta consultar sus logs históricos. La app móvil (`app-movil/.env`, `EXPO_PUBLIC_API_URL`) y el panel web ya apuntan al servicio nuevo.
+
+**El bug de PNG/JPG en el visor móvil (documentado antes como "pendiente" en Bugs conocidos) quedó resuelto como efecto secundario de la investigación de R2**, no de un cambio en el visor: era un problema de datos históricos — los documentos 1 y 2 del expediente NOT-2026-0001 se cargaron antes de la migración a Cloudflare R2 y su `ruta_almacenamiento` guardó una ruta local de Windows en vez de una key de R2, por lo que el archivo nunca existió en el bucket (confirmado con `list_objects_v2`, sin resultados para esos hashes). Los documentos cargados después de la migración a R2 suben con key UUID limpia y se abren correctamente en cualquier navegador — no hubo que tocar `expo-web-browser` ni el Content-Type. Los dos documentos huérfanos siguen en la base de datos (ver "MEJORAS FUTURAS PENDIENTES" más abajo).
 
 ---
 
@@ -318,7 +322,7 @@ backend/
 - HTTP: `axios`
 - Almacenamiento seguro: `expo-secure-store` (para el token JWT en fases siguientes)
 - Fuentes: `expo-font` + `@expo-google-fonts/dm-serif-display` + `@expo-google-fonts/dm-sans`
-- Variable de entorno `EXPO_PUBLIC_API_URL` apuntando a `https://sistema-villeda-backend.onrender.com/api/v1` (prefijo `EXPO_PUBLIC_` obligatorio en Expo para exponer variables al cliente)
+- Variable de entorno `EXPO_PUBLIC_API_URL` apuntando a `https://sistema-villeda-backend-v2.onrender.com/api/v1` (prefijo `EXPO_PUBLIC_` obligatorio en Expo para exponer variables al cliente)
 - `App.js` mínimo con `SafeAreaProvider` + `NavigationContainer` + placeholder — verificado que Expo arranca y compila sin errores (bundle Android servido con HTTP 200 por Metro)
 - `.env`, `node_modules/` y `.expo/` de app-movil agregados al `.gitignore` raíz del monorepo (no se creó `.gitignore` propio dentro de app-movil)
 - No instalado todavía (se agregan en su fase correspondiente): `expo-camera`, `expo-notifications`, `expo-local-authentication`, `expo-image-picker`
@@ -366,8 +370,7 @@ backend/
 
 **Fix — sincronización de sesión ante token expirado (12 de julio de 2026):** el interceptor de `src/services/api.js` limpiaba el storage físico (`clearAll()`) al detectar un 401 fuera de `/auth/login`, pero no tenía forma de actualizar el estado de React de `AuthContext.js` (`isAuthenticated` se calcula como `!!token`, en memoria). Resultado: `RootNavigator` seguía mostrando el stack autenticado hasta reiniciar la app manualmente. Se agregó `src/services/authEvents.js`, un pub/sub minimalista sin librerías nuevas (`onSessionExpired` / `emitSessionExpired`). `api.js` llama a `emitSessionExpired()` justo después de `clearAll()` dentro del bloque de 401. `AuthContext.js` se suscribe con `onSessionExpired()` en un `useEffect` propio (independiente del que carga la sesión guardada); el callback pone `user`/`token` en `null` y muestra `Alert.alert('Sesión expirada', 'Tu sesión expiró, inicia sesión de nuevo.')`, protegido con un `useRef` (`sessionExpiredShown`) para no duplicar el aviso si llegan varios 401 casi simultáneos — el ref se resetea a `false` en `signIn()` y en `signOut()`. Además, los `catch` que originaban el request (`DashboardScreen.js`, `BusquedaScreen.js`, `ExpedientesScreen.js`, los dos de `ExpedienteDetalleScreen.js`, y los tres de `CargarDocumentoScreen.js`) ahora chequean `if (err.code === 'SESSION_EXPIRED') { return }` como primera condición, para no mostrar su mensaje genérico ("revisa tu conexión") como parpadeo antes de que el `Alert` de `AuthContext` tome control — en `CargarDocumentoScreen.js` esto obligó a cambiar dos `.catch(() => ...)` a `.catch((err) => ...)` para poder leer el código de error.
 
-**Bugs conocidos pendientes:**
-- Al tocar un documento .png o .jpg desde `ExpedienteDetalleScreen`, el navegador del sistema no lo abre correctamente. Los .pdf sí funcionan. Probable causa: Content-Type incorrecto en R2 para imágenes, o comportamiento de `expo-web-browser` con imágenes vía Custom Tabs en Android. Detectado en producción con expedientes reales. Fase pendiente: diagnóstico y corrección (posiblemente en `backend/documentos_services.py` al determinar `content_type`, o en la app usando un Image viewer nativo en vez de `openBrowserAsync`).
+**Bug resuelto — apertura de .png/.jpg desde `ExpedienteDetalleScreen` (21 de julio de 2026):** la hipótesis original de este bug ("Content-Type incorrecto en R2 para imágenes") era incorrecta. La causa real: los dos documentos PNG del expediente de prueba NOT-2026-0001 se cargaron antes de la migración a Cloudflare R2 y su `ruta_almacenamiento` quedó como una ruta local de Windows en vez de una key de R2 — el archivo nunca existió en el bucket, por eso la URL firmada devolvía `NoSuchKey`. No era un bug del visor (`expo-web-browser`) ni del Content-Type. Ver nota completa en "DEPLOY EN PRODUCCIÓN". Los documentos cargados después de la migración a R2 (con key UUID) se abren correctamente.
 
 ---
 
@@ -423,6 +426,13 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 3. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para el dataset de ML (Fase 6-8) y el Capítulo V
 
 **Completado:** deploy de backend (Render.com) y frontend (Vercel), fix de seguridad del debugger de Flask, fix de codificación de requirements.txt, ping anti-pausa activo, y prueba end-to-end en producción (subida + OCR + almacenamiento R2 + descarga vía URL firmada) exitosa. Además, el nombre de archivo en la tabla "Documentos" de ExpedienteDetalle.jsx ya es un link que llama a GET /api/v1/documentos/\<id\>/descarga y abre la URL firmada de R2 en pestaña nueva.
+
+---
+
+## MEJORAS FUTURAS PENDIENTES
+1. ⏳ **UX botón "Quitar archivo" en pantalla Cargar Documento** — cuando el backend devuelve el aviso de "Documento duplicado del documento ID X", el archivo queda listado sin forma de removerlo salvo salir y volver a la pantalla. Agregar un botón que reinicie el formulario. Aplica en `CargarDocumento` del panel-web y `CargarDocumentoScreen.js` del app-movil.
+2. ⏳ **Marca visual de documentos duplicados en el listado** — en la tabla "Documentos" del detalle de expediente, agregar ícono ⚠️ o chip al lado del nombre cuando `es_duplicado_exacto=True`, con tooltip "Duplicado del documento ID X". Aplica en `ExpedienteDetalle.jsx` del panel-web y `ExpedienteDetalleScreen.js` del app-movil.
+3. ⏳ **Limpiar el expediente de prueba NOT-2026-0001 completo** (incluyendo los 2 PNG huérfanos con `ruta_almacenamiento` como ruta local de Windows, previos a la migración a R2) cuando empiece la carga en limpio con los expedientes reales del Licenciado.
 
 ---
 
