@@ -1,3 +1,4 @@
+import os
 import pytesseract
 import hashlib
 import io
@@ -7,8 +8,13 @@ import numpy as np
 from PIL import Image
 from pdf2image import convert_from_bytes
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-POPPLER_PATH = r'C:\poppler\bin'
+# Configuración condicional: en local (Windows) leemos las rutas de .env;
+# en Docker/Linux con Tesseract y Poppler instalados vía apt, los binarios
+# están en el PATH del sistema y no hace falta especificar rutas.
+_tesseract_cmd = os.getenv('TESSERACT_CMD')
+if _tesseract_cmd:
+    pytesseract.pytesseract.tesseract_cmd = _tesseract_cmd
+POPPLER_PATH = os.getenv('POPPLER_PATH')
 
 
 def calcular_hash(archivo_bytes):
@@ -81,7 +87,10 @@ def extraer_texto_imagen(imagen_bytes):
 
 
 def extraer_texto_pdf(pdf_bytes):
-    paginas = convert_from_bytes(pdf_bytes, dpi=300, poppler_path=POPPLER_PATH)
+    _pdf_kwargs = {'dpi': 300}
+    if POPPLER_PATH:
+        _pdf_kwargs['poppler_path'] = POPPLER_PATH
+    paginas = convert_from_bytes(pdf_bytes, **_pdf_kwargs)
     texto_completo = ''
     textos_por_pagina = []
 

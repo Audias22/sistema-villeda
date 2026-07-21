@@ -47,6 +47,7 @@
 | Fix codificación — requirements.txt | ✅ Completado | Convertido de UTF-16 a UTF-8 sin BOM, sin cambios de dependencias |
 | Ping anti-pausa (Render free tier) | ✅ Activo | Hilo en background solo si `FLASK_ENV=production`, ping cada 14 min a /health |
 | Prueba end-to-end en producción | ✅ Exitosa | Subida de documento + OCR + almacenamiento en R2 + descarga vía URL firmada, todo contra el backend desplegado |
+| Dockerización del backend (Tesseract + Poppler en Render) | ✅ Completado | `backend/Dockerfile` (imagen `python:3.13-slim`, instala `tesseract-ocr`, `tesseract-ocr-spa` y `poppler-utils` vía apt) + `backend/.dockerignore`. Se eliminaron los hardcodes de rutas de Windows en `ocr/services.py`: `tesseract_cmd` y `POPPLER_PATH` ahora se leen de las variables de entorno `TESSERACT_CMD`/`POPPLER_PATH` (opcionales — si no están definidas, pytesseract y pdf2image usan lo que encuentren en el PATH del sistema, que es el caso dentro del contenedor Linux). Verificado localmente: build y ejecución del contenedor Docker con OCR funcionando correctamente |
 
 ---
 
@@ -57,7 +58,8 @@
 | JWT_SECRET_KEY | ✅ Configurada |
 | FLASK_ENV | ✅ Configurada (development) |
 | PORT | ✅ Configurada (5000) |
-| TESSERACT_CMD | ✅ Hardcodeado en services.py (C:\Program Files\Tesseract-OCR\tesseract.exe) |
+| TESSERACT_CMD | ⏳ Opcional — sin definir en local todavía (usa PATH del sistema si no está definida; en Docker/Render no hace falta) |
+| POPPLER_PATH | ⏳ Opcional — sin definir en local todavía (usa PATH del sistema si no está definida; en Docker/Render no hace falta) |
 | R2_ACCOUNT_ID | ✅ Configurada |
 | R2_ACCESS_KEY_ID | ✅ Configurada |
 | R2_SECRET_ACCESS_KEY | ✅ Configurada |

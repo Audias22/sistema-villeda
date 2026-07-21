@@ -1,0 +1,28 @@
+# Entorno virtual — el contenedor tiene el suyo propio
+venv/
+
+# Variables locales — Render inyecta las suyas
+.env
+
+# Almacenamiento local — obsoleto tras la migración a R2
+almacenamiento/
+
+# Scripts y salidas de pruebas locales, no necesarios en producción
+test_ocr_prueba.py
+resultado_ocr_prueba.txt
+separar_expedientes.py
+
+# Caché de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
