@@ -22,7 +22,8 @@ def ping_propio():
     while True:
         time.sleep(840)  # cada 14 minutos
         try:
-            requests.get('https://sistema-villeda-backend.onrender.com/health')
+            url = os.getenv('SELF_PING_URL', 'https://sistema-villeda-backend-v2.onrender.com/health')
+            requests.get(url)
         except:
             pass
 
