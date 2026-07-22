@@ -19,7 +19,7 @@
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
 | Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
-| App móvil | React Native (Expo SDK 54) — APK Android | 🔄 Fases 1-3, 4A, 4B.1 y 4B.2 completadas (setup base + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos) |
+| App móvil | React Native (Expo SDK 54) — APK Android | 🔄 Fases 1-3, 4A, 4B.1, 4B.2 y 4B.3 completadas (setup base + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos + reportes con exportación PDF y compartir) |
 | OCR | Tesseract 5.x + OpenCV (filtrado HSV de sellos de color) — instalado vía apt en Docker de producción, en `C:\Program Files\Tesseract-OCR\` en local | ✅ Funcionando en producción y en local |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
@@ -321,7 +321,7 @@ backend/
 | Fase 4A | Bottom tabs — Dashboard + Búsqueda + Perfil | ✅ Completada |
 | Fase 4B.1 | 5 tabs + Stack anidado de Expedientes + lista paginada | ✅ Completada |
 | Fase 4B.2 | Detalle de expediente + carga de documentos | ✅ Completada |
-| Fase 4B.3 | Pantalla de Reportes (con exportar PDF) | ⏳ Pendiente — próxima sesión |
+| Fase 4B.3 | Pantalla de Reportes (con exportar PDF) | ✅ Completada |
 | Fase 5 | Funcionalidades nativas (cámara, notificaciones, biometría) | ⏳ Pendiente |
 
 **Fase 1 — detalle:**
@@ -364,7 +364,7 @@ backend/
 - `src/assets/logo-villeda.jpg` (logo real del despacho, ya existente en el repo) ahora es una dependencia real del código (`require()` en AppHeader y PerfilScreen) — se agregó al control de versiones
 
 **Fase 4B.1 — detalle:**
-- `src/navigation/AppNavigator.js` — ampliado a 5 tabs en orden Dashboard / Expedientes / Búsqueda / Reportes / Perfil; el tab Expedientes renderiza `ExpedientesStack`, el tab Reportes renderiza un placeholder temporal ("Reportes (Fase 4B.3)") dentro del propio archivo
+- `src/navigation/AppNavigator.js` — ampliado a 5 tabs en orden Dashboard / Expedientes / Búsqueda / Reportes / Perfil; el tab Expedientes renderiza `ExpedientesStack`, el tab Reportes renderizaba un placeholder temporal ("Reportes (Fase 4B.3)") dentro del propio archivo, reemplazado por `ReportesScreen` real en la Fase 4B.3
 - `src/navigation/ExpedientesStack.js` — stack anidado sin header, ruta única `ExpedientesLista` por ahora (rutas de Detalle y CargarDocumento llegan en la Fase 4B.2)
 - `src/screens/ExpedientesScreen.js` — consume `GET /expedientes` (paginación `pagina`/`por_pagina`, no offset/limit); carga 20 iniciales + botón "Cargar más" que incrementa `pagina`; estados de carga inicial, error con Reintentar, lista vacía, y "No hay más expedientes" cuando `pagina >= total_paginas`; tarjeta con número (DM Serif Display), cliente, chips de área/estado, y fecha de apertura; tap en tarjeta navega a `ExpedienteDetalle` (Fase 4B.2)
 - **Los colores de chips de área y estado están sincronizados con `panel-web/src/utils/formatters.js`** (y los valores hex de `panel-web/src/styles/globals.css`) — cualquier cambio futuro de esa paleta debe aplicarse en `ExpedientesScreen.js` y `ExpedienteDetalleScreen.js` (Fase 4B.2), donde el mismo mapeo está duplicado
@@ -376,6 +376,15 @@ backend/
 - `src/screens/CargarDocumentoScreen.js` — selector de expediente con debounce 400ms (mínimo 3 caracteres) usando **`GET /expedientes?busqueda=`, NO `POST /busquedas`** (ver nota abajo); expediente bloqueado con 🔒 si llegó preseleccionado por navegación, o cambiable si se buscó manualmente; selección de archivo con `expo-document-picker` (PDF/JPG/PNG, validación de 10MB también en cliente); sube con `POST /documentos` (`FormData` con campos `archivo` + `id_expediente`); duplicados se muestran como aviso (⚠️) en el Alert de éxito, no como error, porque el backend responde 201 con `documento.aviso`
 - **Buscador de expediente en CargarDocumento usa `GET /expedientes?busqueda=` (NO `POST /busquedas`) por consistencia con panel web — decisión de diseño para no contaminar la tabla BUSQUEDAS del Capítulo V con búsquedas administrativas**
 - Nuevas dependencias: `expo-document-picker`, `expo-web-browser` (instaladas con `npx expo install`, SDK 54 compatible)
+
+**Fase 4B.3 — detalle (22 de julio de 2026):**
+- `src/screens/ReportesScreen.js` (nuevo) — sigue el mismo patrón de `ExpedienteDetalleScreen.js`: `SafeAreaView` + `AppHeader` (sin `showBackButton`, es raíz de tab), estados `cargando`/`error`/`datos`, catch con `if (err.code === 'SESSION_EXPIRED') { return }` como primera condición
+- Filtros: dropdown de área jurídica (mismo catálogo `GET /catalogos/areas-juridicas` que ya consume `BusquedaScreen.js`) + dos `DateTimePickerAndroid` (desde/hasta), reutilizando el patrón ya usado en `BusquedaScreen.js`
+- Botón "Generar reporte" llama a `GET /reportes/dashboard` con `id_area`, `fecha_desde`, `fecha_hasta`; sin auto-fetch al montar (a diferencia de las otras pantallas), porque el reporte depende de filtros que el usuario define primero
+- Resultados sin gráficas (decisión explícita, ver Paso 0 de esta fase): 3 tarjetas de métricas (Expedientes, Documentos, Duplicados) con el mismo estilo de tarjeta que `ExpedienteDetalleScreen.js`; listas de texto simple para `expedientes_por_area`, `expedientes_por_estado` y `expedientes_por_mes` (formato "Nombre — cantidad"); TBR como 3 líneas de texto (promedio/mínimo/máximo)
+- **No existe endpoint de PDF en el backend** (solo `GET /reportes/expedientes/excel`, sin tocar) — el PDF se genera 100% en el dispositivo: se arma un HTML simple con los mismos datos ya renderizados en pantalla, `Print.printToFileAsync({ html })` lo convierte a PDF, y se mueve con la API de `expo-file-system` (`File`/`Paths`, la API nueva de la v19 — reemplazó a las funciones legacy `documentDirectory`/`moveAsync`) a un archivo `reporte-villeda-{fecha}.pdf` en el directorio de documentos de la app
+- Botón "Compartir" con `Sharing.shareAsync()`, deshabilitado (`opacity: 0.5`) hasta que exista un PDF generado en la sesión actual
+- Nuevas dependencias: `expo-print` (~15.0.8), `expo-sharing` (~14.0.8), `expo-file-system` (~19.0.23) — instaladas con `npx expo install`, SDK 54 compatible
 
 **Fix — sincronización de sesión ante token expirado (12 de julio de 2026):** el interceptor de `src/services/api.js` limpiaba el storage físico (`clearAll()`) al detectar un 401 fuera de `/auth/login`, pero no tenía forma de actualizar el estado de React de `AuthContext.js` (`isAuthenticated` se calcula como `!!token`, en memoria). Resultado: `RootNavigator` seguía mostrando el stack autenticado hasta reiniciar la app manualmente. Se agregó `src/services/authEvents.js`, un pub/sub minimalista sin librerías nuevas (`onSessionExpired` / `emitSessionExpired`). `api.js` llama a `emitSessionExpired()` justo después de `clearAll()` dentro del bloque de 401. `AuthContext.js` se suscribe con `onSessionExpired()` en un `useEffect` propio (independiente del que carga la sesión guardada); el callback pone `user`/`token` en `null` y muestra `Alert.alert('Sesión expirada', 'Tu sesión expiró, inicia sesión de nuevo.')`, protegido con un `useRef` (`sessionExpiredShown`) para no duplicar el aviso si llegan varios 401 casi simultáneos — el ref se resetea a `false` en `signIn()` y en `signOut()`. Además, los `catch` que originaban el request (`DashboardScreen.js`, `BusquedaScreen.js`, `ExpedientesScreen.js`, los dos de `ExpedienteDetalleScreen.js`, y los tres de `CargarDocumentoScreen.js`) ahora chequean `if (err.code === 'SESSION_EXPIRED') { return }` como primera condición, para no mostrar su mensaje genérico ("revisa tu conexión") como parpadeo antes de que el `Alert` de `AuthContext` tome control — en `CargarDocumentoScreen.js` esto obligó a cambiar dos `.catch(() => ...)` a `.catch((err) => ...)` para poder leer el código de error.
 
@@ -398,7 +407,7 @@ backend/
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
 | Fase 8.5 | Despliegue del modelo ML en Modal (microservicio serverless) | ⏳ Decidido, no iniciado |
-| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3, 4A, 4B.1 y 4B.2 (setup Expo + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos) completadas |
+| Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3, 4A, 4B.1, 4B.2 y 4B.3 (setup Expo + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos + reportes con PDF y compartir) completadas |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
 ---
@@ -437,8 +446,8 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ Probar flujos de subida y visualización de archivos en app móvil (Expo Go vía `--tunnel`) contra el backend v2. Al 22 de julio solo se probó el login.
-2. ⏳ Fase 4B.3 móvil — Pantalla de Reportes (con exportar PDF y compartir usando `expo-print` + `expo-sharing` + `expo-file-system`).
+1. ⏳ Probar flujos de subida y visualización de archivos en app móvil (Expo Go vía `--tunnel`) contra el backend v2. Al 22 de julio solo se probó el login. También falta probar en dispositivo real la pantalla de Reportes recién completada (generar reporte, descargar PDF, compartir).
+2. ✅ Fase 4B.3 móvil — Pantalla de Reportes completada (filtros + métricas + exportar PDF con `expo-print` + compartir con `expo-sharing`/`expo-file-system`).
 3. ⏳ Aplicar las mejoras UX pendientes en panel web (marca visual de documentos duplicados + botón "Quitar archivo").
 4. ⏳ Redactar 4.5.1 / 4.5.2 / 4.6.1 de la tesis (describir sistema construido, pruebas end-to-end reales, despliegue en Render/Docker/Vercel/Supabase/R2/Expo).
 5. ⏳ Migración de Flask dev server a `gunicorn` en Docker de producción (warning en logs, no urgente).
@@ -446,6 +455,8 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 7. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para dataset ML (Fase 6-8), despliegue en Modal (Fase 8.5), Capítulo V, y 4.6.2 Prueba de Aceptación.
 
 **Completado en la sesión del 21 de julio de 2026:** dockerización completa del backend (Tesseract + Poppler funcionando en producción), migración a servicio nuevo `sistema-villeda-backend-v2` (el anterior quedó suspendido), fix del `self-ping` (ahora configurable vía `SELF_PING_URL`), fix del AuthContext móvil ante token expirado (pub/sub + Alert), fix de los 8 catches para ignorar `SESSION_EXPIRED`, y verificación end-to-end en producción con OCR real. También se identificó que el bug de PNG/JPG del visor móvil era en realidad un problema de datos históricos, no del código.
+
+**Completado en la sesión del 22 de julio de 2026:** Fase 4B.3 móvil — pantalla de Reportes (`src/screens/ReportesScreen.js`) con filtros (área + rango de fechas), métricas y listas sin gráficas, generación de PDF en el dispositivo con `expo-print`, y compartir con `expo-sharing` sobre un archivo movido con la API nueva de `expo-file-system` v19 (`File`/`Paths`). Tab "Reportes" en `AppNavigator.js` conectado a la pantalla real, placeholder eliminado.
 
 ---
 

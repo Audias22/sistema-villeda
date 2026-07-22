@@ -1,11 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import { Text } from 'react-native'
 import DashboardScreen from '../screens/DashboardScreen'
 import BusquedaScreen from '../screens/BusquedaScreen'
+import ReportesScreen from '../screens/ReportesScreen'
 import PerfilScreen from '../screens/PerfilScreen'
 import ExpedientesStack from './ExpedientesStack'
 import { colors } from '../theme/colors'
-import { fontFamily, fontSize } from '../theme/typography'
 
 const Tab = createBottomTabNavigator()
 
@@ -15,14 +15,6 @@ const ICONOS = {
   Busqueda: '🔍',
   Reportes: '📈',
   Perfil: '👤',
-}
-
-function ReportesPlaceholder() {
-  return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderTexto}>Reportes (Fase 4B.3)</Text>
-    </View>
-  )
 }
 
 export default function AppNavigator() {
@@ -42,22 +34,8 @@ export default function AppNavigator() {
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Expedientes" component={ExpedientesStack} />
       <Tab.Screen name="Busqueda" component={BusquedaScreen} options={{ tabBarLabel: 'Búsqueda' }} />
-      <Tab.Screen name="Reportes" component={ReportesPlaceholder} />
+      <Tab.Screen name="Reportes" component={ReportesScreen} />
       <Tab.Screen name="Perfil" component={PerfilScreen} />
     </Tab.Navigator>
   )
 }
-
-const styles = StyleSheet.create({
-  placeholder: {
-    flex: 1,
-    backgroundColor: colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderTexto: {
-    fontFamily: fontFamily.regular,
-    fontSize: fontSize.h3,
-    color: colors.navy,
-  },
-})
