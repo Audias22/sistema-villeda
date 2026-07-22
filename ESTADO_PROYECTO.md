@@ -1,13 +1,14 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 11 de julio de 2026  
-**Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232  
+**Última actualización:** 22 de julio de 2026
+**Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232
 
 ---
 
 ## STACK TECNOLÓGICO
 | Capa | Tecnología | Estado |
 |------|-----------|--------|
-| Backend | Python 3.14.3 + Flask | ✅ Funcionando |
+| Backend | Python 3.14.3 + Flask (desarrollo local); Python 3.13-slim en Docker de producción | ✅ Funcionando |
+| Contenerización | Docker (imagen `python:3.13-slim` con `tesseract-ocr`, `tesseract-ocr-spa` y `poppler-utils` vía apt) | ✅ Funcionando en producción |
 | Base de datos | PostgreSQL — Supabase | ✅ Funcionando |
 | Almacenamiento archivos | Cloudflare R2 (bucket villeda-archivos) | ✅ Funcionando — migrado desde almacenamiento local |
 | Almacenamiento archivos (código local anterior) | backend/almacenamiento/ | 🗄️ Comentado en documentos/services.py, no se borró (rollback disponible) |
@@ -18,10 +19,11 @@
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
 | Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
-| App móvil | React Native (Expo) — APK Android | 🔄 Fases 1-3, 4A, 4B.1 y 4B.2 completadas (setup base + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos) |
-| OCR | Tesseract 5.5.0 + OpenCV (filtrado HSV de sellos de color) | ✅ Funcionando — precisión mejorada |
+| App móvil | React Native (Expo SDK 54) — APK Android | 🔄 Fases 1-3, 4A, 4B.1 y 4B.2 completadas (setup base + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos) |
+| OCR | Tesseract 5.x + OpenCV (filtrado HSV de sellos de color) — instalado vía apt en Docker de producción, en `C:\Program Files\Tesseract-OCR\` en local | ✅ Funcionando en producción y en local |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
+| Despliegue ML en producción | Modal (Free tier $30/mes de crédito, requiere tarjeta) | ⏳ Decidido, no iniciado |
 | Autenticación | JWT + bcrypt | ✅ Funcionando |
 | RBAC | 2 capas (BD + decoradores) | ✅ Funcionando |
 
@@ -33,23 +35,25 @@
 | Supabase | ✅ Activo | Proyecto: villeda-juridico, región us-east-2 |
 | GitHub | ✅ Activo | Repo: Audias22/sistema-villeda (privado) |
 | Cloudflare R2 | ✅ Activo | Bucket villeda-archivos |
-| Render.com | ✅ Activo | Backend desplegado — https://sistema-villeda-backend-v2.onrender.com |
+| Render.com — backend v2 (Docker) | ✅ Activo | https://sistema-villeda-backend-v2.onrender.com |
+| Render.com — backend v1 (nativo) | ⏸️ Suspendido | https://sistema-villeda-backend.onrender.com — conservado, no eliminado, por si hace falta consultar logs históricos |
 | Vercel | ✅ Activo | Panel web desplegado — https://sistema-villeda-panel.vercel.app |
+| Modal | ⏳ No creado | Se usará para servir BETO/RoBERTa como microservicio serverless cuando llegue la Fase 7/8 |
 
 ---
 
 ## DEPLOY EN PRODUCCIÓN
 | Item | Estado | Notas |
 |------|--------|-------|
-| Backend en Render.com | ✅ Completado | https://sistema-villeda-backend-v2.onrender.com |
-| Frontend en Vercel | ✅ Completado | https://sistema-villeda-panel.vercel.app |
+| Backend en Render.com (v2 con Docker) | ✅ Completado | https://sistema-villeda-backend-v2.onrender.com |
+| Frontend en Vercel | ✅ Completado | https://sistema-villeda-panel.vercel.app (variable `VITE_API_URL` apunta al backend v2) |
 | Fix seguridad — debugger de Flask | ✅ Completado | `debug` ahora depende de `FLASK_ENV` (desactivado en producción, activo en local) |
 | Fix codificación — requirements.txt | ✅ Completado | Convertido de UTF-16 a UTF-8 sin BOM, sin cambios de dependencias |
 | Ping anti-pausa (Render free tier) | ✅ Activo | Hilo en background solo si `FLASK_ENV=production`, ping cada 14 min a /health. URL configurable vía `SELF_PING_URL` (opcional — si no está definida, usa el default apuntando a `sistema-villeda-backend-v2.onrender.com/health`); antes estaba hardcodeada al servicio v1 ya suspendido |
-| Prueba end-to-end en producción | ✅ Exitosa | Subida de documento + OCR + almacenamiento en R2 + descarga vía URL firmada, todo contra el backend desplegado |
-| Dockerización del backend (Tesseract + Poppler en Render) | ✅ Completado | `backend/Dockerfile` (imagen `python:3.13-slim`, instala `tesseract-ocr`, `tesseract-ocr-spa` y `poppler-utils` vía apt) + `backend/.dockerignore`. Se eliminaron los hardcodes de rutas de Windows en `ocr/services.py`: `tesseract_cmd` y `POPPLER_PATH` ahora se leen de las variables de entorno `TESSERACT_CMD`/`POPPLER_PATH` (opcionales — si no están definidas, pytesseract y pdf2image usan lo que encuentren en el PATH del sistema, que es el caso dentro del contenedor Linux). Verificado localmente: build y ejecución del contenedor Docker con OCR funcionando correctamente |
+| Dockerización del backend (Tesseract + Poppler en Render) | ✅ Completado | `backend/Dockerfile` (imagen `python:3.13-slim`, instala `tesseract-ocr`, `tesseract-ocr-spa` y `poppler-utils` vía apt) + `backend/.dockerignore`. Se eliminaron los hardcodes de rutas de Windows en `ocr/services.py`: `tesseract_cmd` y `POPPLER_PATH` ahora se leen de las variables de entorno `TESSERACT_CMD`/`POPPLER_PATH` (opcionales — si no están definidas, pytesseract y pdf2image usan lo que encuentren en el PATH del sistema, que es el caso dentro del contenedor Linux). Verificado localmente: build y ejecución del contenedor Docker con OCR funcionando correctamente. Verificado en producción: JPG subido en producción → OCR real vía Tesseract 5.x → almacenamiento en R2 con key UUID limpia → apertura en navegador sin errores |
+| Prueba end-to-end en producción (backend v2) | ✅ Exitosa | Login + subida de documento + OCR real + almacenamiento en R2 + descarga vía URL firmada + apertura del archivo, todo contra `sistema-villeda-backend-v2.onrender.com` |
 
-**Migración a servicio nuevo en Render (`sistema-villeda-backend-v2.onrender.com`):** Render no permite cambiar el runtime de un servicio existente de nativo (buildpack de Python) a Docker, así que se creó un servicio nuevo (`sistema-villeda-backend-v2`) con runtime Docker apuntando al mismo repo. El servicio anterior (`sistema-villeda-backend.onrender.com`) quedó **suspendido, no eliminado**, por si hace falta consultar sus logs históricos. La app móvil (`app-movil/.env`, `EXPO_PUBLIC_API_URL`) y el panel web ya apuntan al servicio nuevo.
+**Migración a servicio nuevo en Render (`sistema-villeda-backend-v2.onrender.com`):** Render no permite cambiar el runtime de un servicio existente de nativo (buildpack de Python) a Docker desde el dashboard, así que se creó un servicio nuevo (`sistema-villeda-backend-v2`) con runtime Docker apuntando al mismo repo. El servicio anterior (`sistema-villeda-backend.onrender.com`) quedó **suspendido, no eliminado**, por si hace falta consultar sus logs históricos. La app móvil (`app-movil/.env`, `EXPO_PUBLIC_API_URL`) y el panel web (`panel-web` en Vercel, variable `VITE_API_URL`) ya apuntan al servicio nuevo.
 
 **El bug de PNG/JPG en el visor móvil (documentado antes como "pendiente" en Bugs conocidos) quedó resuelto como efecto secundario de la investigación de R2**, no de un cambio en el visor: era un problema de datos históricos — los documentos 1 y 2 del expediente NOT-2026-0001 se cargaron antes de la migración a Cloudflare R2 y su `ruta_almacenamiento` guardó una ruta local de Windows en vez de una key de R2, por lo que el archivo nunca existió en el bucket (confirmado con `list_objects_v2`, sin resultados para esos hashes). Los documentos cargados después de la migración a R2 suben con key UUID limpia y se abren correctamente en cualquier navegador — no hubo que tocar `expo-web-browser` ni el Content-Type. Los dos documentos huérfanos siguen en la base de datos (ver "MEJORAS FUTURAS PENDIENTES" más abajo).
 
@@ -60,10 +64,11 @@
 |----------|--------|
 | DATABASE_URL | ✅ Configurada (Session Pooler Supabase) |
 | JWT_SECRET_KEY | ✅ Configurada |
-| FLASK_ENV | ✅ Configurada (development) |
-| PORT | ✅ Configurada (5000) |
-| TESSERACT_CMD | ⏳ Opcional — sin definir en local todavía (usa PATH del sistema si no está definida; en Docker/Render no hace falta) |
-| POPPLER_PATH | ⏳ Opcional — sin definir en local todavía (usa PATH del sistema si no está definida; en Docker/Render no hace falta) |
+| FLASK_ENV | ✅ Configurada (development en local, production en Render) |
+| PORT | ✅ Configurada (5000 en local; Render inyecta la suya) |
+| TESSERACT_CMD | ✅ Configurada en local (Windows, `C:\Program Files\Tesseract-OCR\tesseract.exe`); no definida en Docker/Render (usa PATH del sistema) |
+| POPPLER_PATH | ✅ Configurada en local (Windows, `C:\poppler\bin`); no definida en Docker/Render (usa PATH del sistema) |
+| SELF_PING_URL | ⏳ Opcional — si se define, override del default `sistema-villeda-backend-v2.onrender.com/health` |
 | R2_ACCOUNT_ID | ✅ Configurada |
 | R2_ACCESS_KEY_ID | ✅ Configurada |
 | R2_SECRET_ACCESS_KEY | ✅ Configurada |
@@ -93,7 +98,7 @@
 | `tipos_expediente` poblada con 13 tipos base (4 Notarial, 4 Civil, 3 Laboral, 3 Penal) — **PENDIENTE validar con Lic. Villeda** | ⚠️ Provisional |
 | 1 cliente real de prueba creado (id_cliente: 1) | ✅ |
 | 1 expediente real de prueba creado (id_expediente: 1, numero: NOT-2026-0001) | ✅ |
-| 2 documentos reales de prueba creados (id_documento: 1 y 2 — el 2 es duplicado detectado del 1) | ✅ |
+| Documentos de prueba en NOT-2026-0001 | ✅ (2 PNG huérfanos previos a R2 + varios PDF/JPG posteriores con key UUID limpia). Se limpiarán junto con el expediente cuando arranque la carga en limpio |
 | 4 búsquedas reales registradas con TBR (promedio 105.50 ms, rango 93-117 ms) | ✅ |
 | 1 exportación Excel real generada y descargada exitosamente | ✅ |
 
@@ -150,7 +155,7 @@ backend/
 
 │   │   ├── routes.py        ✅ POST /api/v1/ocr/procesar
 
-│   │   └── services.py      ✅ procesar_archivo(), calcular_hash(), preprocesar_imagen() — filtrado de color HSV con OpenCV para eliminar sellos (rojo, azul, dorado) antes de Tesseract
+│   │   └── services.py      ✅ procesar_archivo(), calcular_hash(), preprocesar_imagen() — filtrado de color HSV con OpenCV para eliminar sellos (rojo, azul, dorado) antes de Tesseract. `tesseract_cmd` y `POPPLER_PATH` se leen de `os.getenv()` (opcionales)
 
 │   ├── clientes/
 
@@ -184,7 +189,7 @@ backend/
 
 │   │   ├── schemas.py       ✅ DocumentoUploadSchema, DocumentoUpdateSchema
 
-│   │   ├── services.py      ✅ cargar_documento() integra OCR+pdfplumber+hash+almacenamiento local
+│   │   ├── services.py      ✅ cargar_documento() integra OCR+pdfplumber+hash+subida a R2
 
 │   │   └── routes.py        ✅ POST, GET por expediente, GET detalle (con texto), PUT estado_fisico
 
@@ -232,13 +237,17 @@ backend/
 
 ├── venv/                    ✅ Entorno virtual activo
 
-├── .env                     ✅ Variables configuradas (parcial — faltan R2)
+├── .env                     ✅ Variables configuradas (DATABASE_URL, JWT_SECRET_KEY, FLASK_ENV, PORT, TESSERACT_CMD, POPPLER_PATH, R2_*)
 
-├── requirements.txt         ✅ Actualizado con marshmallow + pdfplumber (regenerado correctamente en backend/)
+├── requirements.txt         ✅ Actualizado con marshmallow + pdfplumber
 
-├── run.py                   ✅ Punto de entrada con /health y endpoint de prueba
+├── Dockerfile               ✅ Imagen python:3.13-slim + apt de tesseract-ocr, tesseract-ocr-spa y poppler-utils
 
-└── Procfile                 ✅ Para Render.com
+├── .dockerignore            ✅ Excluye venv/, .env, almacenamiento/, scripts de prueba locales, cachés y archivos de editor/OS
+
+├── run.py                   ✅ Punto de entrada con /health, endpoint de prueba, y ping_propio() con SELF_PING_URL opcional
+
+└── Procfile                 ✅ Conservado (no usado en runtime Docker, no borra)
 
 ---
 
@@ -299,7 +308,7 @@ backend/
 
 **Estructura:** componentes comunes reutilizables (Button, Card, Input, Modal, Table, Badge, Pagination, Skeleton, EmptyState), layout con Sidebar + TopBar, rutas protegidas (ProtectedRoute), contexto de autenticación (AuthContext), hooks (useAuth, useFetch), capa de servicios (api.js) que centraliza las llamadas al backend Flask.
 
-**Desplegado en Vercel, con variables de entorno de producción configuradas y prueba end-to-end contra el backend desplegado en Render.com exitosa.**
+**Desplegado en Vercel, con la variable `VITE_API_URL` apuntando a `https://sistema-villeda-backend-v2.onrender.com/api/v1`. Prueba end-to-end contra el backend v2 en producción exitosa (subida de JPG + OCR real + R2 + descarga).**
 
 ---
 
@@ -372,6 +381,8 @@ backend/
 
 **Bug resuelto — apertura de .png/.jpg desde `ExpedienteDetalleScreen` (21 de julio de 2026):** la hipótesis original de este bug ("Content-Type incorrecto en R2 para imágenes") era incorrecta. La causa real: los dos documentos PNG del expediente de prueba NOT-2026-0001 se cargaron antes de la migración a Cloudflare R2 y su `ruta_almacenamiento` quedó como una ruta local de Windows en vez de una key de R2 — el archivo nunca existió en el bucket, por eso la URL firmada devolvía `NoSuchKey`. No era un bug del visor (`expo-web-browser`) ni del Content-Type. Ver nota completa en "DEPLOY EN PRODUCCIÓN". Los documentos cargados después de la migración a R2 (con key UUID) se abren correctamente.
 
+**Verificación pendiente en producción (móvil):** al 22 de julio, la app móvil apuntando a `sistema-villeda-backend-v2.onrender.com/api/v1` se probó únicamente con login desde Expo Go vía `--tunnel` (la red local aparentemente tiene aislamiento de cliente activado). Falta probar los flujos de subida y visualización de archivos desde móvil contra el backend v2.
+
 ---
 
 ## FASES DE DESARROLLO
@@ -381,11 +392,12 @@ backend/
 | Fase 2 | GitHub + estructura carpetas | ✅ Completa |
 | Fase 3 | Backend Flask esqueleto | ✅ Completa |
 | Fase 4 | JWT + RBAC | ✅ Completa |
-| Fase 5 | OCR Tesseract | ✅ Completa |
+| Fase 5 | OCR Tesseract | ✅ Completa (en producción vía Docker en Render) |
 | Fase 5.5 | Backend completo (clientes, expedientes, documentos, busquedas, reportes) | ✅ Completa |
 | Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
+| Fase 8.5 | Despliegue del modelo ML en Modal (microservicio serverless) | ⏳ Decidido, no iniciado |
 | Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3, 4A, 4B.1 y 4B.2 (setup Expo + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos) completadas |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
@@ -409,6 +421,8 @@ backend/
 - marshmallow 4.3.0
 - pdfplumber 0.11.10
 
+En Docker de producción, además de las dependencias Python de arriba, el sistema operativo del contenedor tiene instalados vía apt: `tesseract-ocr`, `tesseract-ocr-spa`, `poppler-utils`, `libgl1`, `libglib2.0-0`.
+
 ---
 
 ## FLUJO END-TO-END VALIDADO
@@ -416,16 +430,22 @@ backend/
 
 Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expediente NOT-2026-0001, texto extraído correctamente con Tesseract, segunda carga del mismo archivo detectada como duplicado exacto del documento ID 1, búsqueda por número de expediente y por contenido (con y sin tildes) funcionando, 4 búsquedas registradas con TBR real entre 93-117 ms, dashboard mostrando todos los totales y distribuciones correctamente, archivo Excel descargado con formato profesional (encabezados con color, filtros automáticos, panel congelado).
 
-**Prueba end-to-end en producción (11 de julio de 2026):** el mismo flujo (subida de documento + OCR + almacenamiento en Cloudflare R2 + descarga vía URL firmada) se repitió contra el backend ya desplegado en Render.com y el panel web desplegado en Vercel, con resultado exitoso.
+**Prueba end-to-end en producción (11 de julio de 2026, backend v1 nativo):** el mismo flujo (subida de documento + OCR + almacenamiento en Cloudflare R2 + descarga vía URL firmada) se repitió contra el backend ya desplegado en Render.com y el panel web desplegado en Vercel, con resultado exitoso. **Aclaración post-hoc (21 de julio):** el archivo usado en esa prueba fue un PDF digital procesado con pdfplumber (id_formato=2), no un PDF escaneado ni imagen — así que el OCR real vía Tesseract NO se ejercitó en producción con el entorno nativo. El bug de OCR en Linux (rutas hardcodeadas de Windows) recién se detectó cuando se intentó subir un PNG a producción, disparando la migración a Docker.
+
+**Prueba end-to-end en producción (21 de julio de 2026, backend v2 Docker):** login + subida real de JPG desde el panel de Vercel → OCR real vía Tesseract 5.x instalado por apt en el contenedor → almacenamiento en R2 con key UUID limpia → apertura del archivo en el navegador vía URL firmada, todo contra `sistema-villeda-backend-v2.onrender.com`. Este es el primer OCR real ejercitado exitosamente en producción.
 
 ---
 
 ## PENDIENTES INMEDIATOS
-1. ⏳ App móvil React Native (APK Android) — Fases 1-3, 4A, 4B.1 y 4B.2 (setup Expo + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos) completadas, faltan Fase 4B.3 (Reportes) y Fase 5 (funcionalidades nativas)
-2. ⏳ Migración a gunicorn en Render (actualmente warning de development server de Flask — no urgente, no bloquea uso)
-3. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para el dataset de ML (Fase 6-8) y el Capítulo V
+1. ⏳ Probar flujos de subida y visualización de archivos en app móvil (Expo Go vía `--tunnel`) contra el backend v2. Al 22 de julio solo se probó el login.
+2. ⏳ Fase 4B.3 móvil — Pantalla de Reportes (con exportar PDF y compartir usando `expo-print` + `expo-sharing` + `expo-file-system`).
+3. ⏳ Aplicar las mejoras UX pendientes en panel web (marca visual de documentos duplicados + botón "Quitar archivo").
+4. ⏳ Redactar 4.5.1 / 4.5.2 / 4.6.1 de la tesis (describir sistema construido, pruebas end-to-end reales, despliegue en Render/Docker/Vercel/Supabase/R2/Expo).
+5. ⏳ Migración de Flask dev server a `gunicorn` en Docker de producción (warning en logs, no urgente).
+6. ⏳ Rotar contraseña de Supabase (se expuso en captura en una sesión anterior — higiene de seguridad).
+7. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para dataset ML (Fase 6-8), despliegue en Modal (Fase 8.5), Capítulo V, y 4.6.2 Prueba de Aceptación.
 
-**Completado:** deploy de backend (Render.com) y frontend (Vercel), fix de seguridad del debugger de Flask, fix de codificación de requirements.txt, ping anti-pausa activo, y prueba end-to-end en producción (subida + OCR + almacenamiento R2 + descarga vía URL firmada) exitosa. Además, el nombre de archivo en la tabla "Documentos" de ExpedienteDetalle.jsx ya es un link que llama a GET /api/v1/documentos/\<id\>/descarga y abre la URL firmada de R2 en pestaña nueva.
+**Completado en la sesión del 21 de julio de 2026:** dockerización completa del backend (Tesseract + Poppler funcionando en producción), migración a servicio nuevo `sistema-villeda-backend-v2` (el anterior quedó suspendido), fix del `self-ping` (ahora configurable vía `SELF_PING_URL`), fix del AuthContext móvil ante token expirado (pub/sub + Alert), fix de los 8 catches para ignorar `SESSION_EXPIRED`, y verificación end-to-end en producción con OCR real. También se identificó que el bug de PNG/JPG del visor móvil era en realidad un problema de datos históricos, no del código.
 
 ---
 
@@ -433,14 +453,17 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 1. ⏳ **UX botón "Quitar archivo" en pantalla Cargar Documento** — cuando el backend devuelve el aviso de "Documento duplicado del documento ID X", el archivo queda listado sin forma de removerlo salvo salir y volver a la pantalla. Agregar un botón que reinicie el formulario. Aplica en `CargarDocumento` del panel-web y `CargarDocumentoScreen.js` del app-movil.
 2. ⏳ **Marca visual de documentos duplicados en el listado** — en la tabla "Documentos" del detalle de expediente, agregar ícono ⚠️ o chip al lado del nombre cuando `es_duplicado_exacto=True`, con tooltip "Duplicado del documento ID X". Aplica en `ExpedienteDetalle.jsx` del panel-web y `ExpedienteDetalleScreen.js` del app-movil.
 3. ⏳ **Limpiar el expediente de prueba NOT-2026-0001 completo** (incluyendo los 2 PNG huérfanos con `ruta_almacenamiento` como ruta local de Windows, previos a la migración a R2) cuando empiece la carga en limpio con los expedientes reales del Licenciado.
+4. ⏳ **Nombre real de la app + ícono + splash screen + build de APK real con EAS** (parte de Fase 5 móvil).
+5. ⏳ **Migración de Flask dev server a gunicorn** en el Docker de producción — warning actual, no urgente.
 
 ---
 
-## DECISIÓN IMPORTANTE TOMADA
+## DECISIONES IMPORTANTES TOMADAS
+
 **No existe dataset público de expedientes jurídicos guatemaltecos** descargable y anonimizado (se investigó SICEJ, jurisprudencia.oj.gob.gt, CC Guatemala, y datasets legales internacionales — ninguno aplica). Se decidió:
-- Esperar a conseguir los 197 expedientes reales (esta semana)
-- Mientras tanto, avanzar el backend completo (expedientes, documentos, búsquedas, reportes) que no depende del dataset
-- Panel web y app móvil se construyen DESPUÉS de tener el backend completo, no antes — para evitar pantallas sin datos reales
+- Esperar a conseguir los 197 expedientes reales.
+- Mientras tanto, avanzar el backend completo (expedientes, documentos, búsquedas, reportes) que no depende del dataset.
+- Panel web y app móvil se construyen DESPUÉS de tener el backend completo, no antes — para evitar pantallas sin datos reales.
 
 **Diferenciación PDF digital vs escaneado:** se decidió detectar automáticamente con pdfplumber si un PDF tiene texto extraíble (id_formato=2, sin OCR) o es escaneado (id_formato=1, requiere OCR con Tesseract), en lugar de asumir siempre un solo tipo. Esto preserva la precisión de las métricas de OCR para el Capítulo V.
 
@@ -449,6 +472,14 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 **Búsqueda insensible a acentos:** se detectó que ILIKE de PostgreSQL no ignora tildes ("jurídico" ≠ "juridico"), lo cual afectaría la usabilidad real en la oficina. Se resolvió con la extensión `unaccent` de PostgreSQL aplicada en los criterios de búsqueda por nombre de cliente y por contenido OCR.
 
 **Reporte Excel priorizado sobre PDF:** se decidió construir primero el listado de expedientes en Excel (más útil para uso diario del Lic. Villeda y demuestra integración de 4 tablas) y dejar la exportación PDF individual para después, ya que tiene menor prioridad para el Capítulo V que el panel web.
+
+**Dockerización del backend (21 de julio de 2026):** Render no permite instalar paquetes de sistema como `tesseract-ocr` o `poppler-utils` vía apt en su entorno nativo (buildpacks de Python), y esto se confirmó con soporte oficial de Render en su foro público. La única alternativa oficialmente soportada es dockerizar. Se descartaron: (a) buscar un binario portable de Tesseract (frágil por dependencias compartidas), (b) reemplazar Tesseract por un servicio de OCR en la nube (invalidaría el marco teórico ya escrito), (c) migrar a otro proveedor (esfuerzo desproporcionado sin razón para abandonar Render). Docker Free tier en Render no tiene costo adicional. La imagen usa `python:3.13-slim` (no 3.14.3 como en desarrollo local) por disponibilidad de wheels precompilados para Linux.
+
+**Migración a servicio nuevo `sistema-villeda-backend-v2` (21 de julio de 2026):** Render no permite cambiar el runtime de un servicio existente de nativo a Docker desde el dashboard. Por eso se creó un servicio nuevo con runtime Docker apuntando al mismo repo, y el servicio anterior quedó suspendido (no eliminado) por si hace falta consultar sus logs históricos.
+
+**Despliegue del modelo ML en Modal (21 de julio de 2026, decisión):** el modelo ML (BETO baseline → RoBERTa-base-bne final) sí correrá en producción, no solo en Colab para la tesis. Se servirá como microservicio serverless en Modal.com. Modal ofrece Free tier con $30/mes de crédito de cómputo (requiere tarjeta para verificación de cuenta, no cobra bajo el crédito). Arquitectura: backend Flask en Render (Docker) → llamada HTTP a Modal para clasificar → respuesta al panel/móvil. Razones para elegir Modal sobre otras alternativas: (a) Render Free tier tiene solo 512 MB RAM, insuficiente para BETO/RoBERTa cargados en memoria; (b) Modal cobra por segundos de cómputo real, no por uptime, lo cual encaja bien con el volumen bajo de la oficina; (c) 4.6.1 Despliegue queda mejor documentado con esta arquitectura defendible; (d) el backend, panel y app siguen en Free tier con costo cero, y Modal se activa solo cuando llegue la Fase 8.5.
+
+**Duplicados de documento tratados como AVISO** (201 con `documento.aviso`), NO como error, para preservar la posibilidad de asociar el mismo documento a varios expedientes (útil legalmente para copias de DPI, poderes, etc.). Marca visual en el UI queda pendiente como mejora futura.
 
 ---
 
@@ -460,11 +491,12 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 - Conexión BD usa Session Pooler (compatible con IPv4 de Render.com)
 - Supabase se pausa tras 7 días sin actividad — reactivar manualmente con "Resume project"
 - Identity del JWT se serializa como JSON string (compatibilidad flask-jwt-extended 4.7.4)
-- Token JWT expira en 15 minutos — si una petición da "Token has expired", simplemente hacer login de nuevo
-- Tesseract instalado en C:\Program Files\Tesseract-OCR\ con idioma spa
-- Poppler instalado en C:\poppler\bin
-- OCR probado con imagen PNG de texto jurídico guatemalteco — resultado exitoso
-- SIEMPRE verificar que el venv esté activo antes de pip install o pip freeze (confirmar con: python -c "import sys; print(sys.executable)")
+- Token JWT expira en 15 minutos — si una petición da "Token has expired", simplemente hacer login de nuevo. En la app móvil, el AuthContext ahora muestra un Alert automático y redirige a login sin necesidad de reiniciar
+- Tesseract en local instalado en `C:\Program Files\Tesseract-OCR\` con idioma spa; en Docker se instala vía apt (`tesseract-ocr` + `tesseract-ocr-spa`)
+- Poppler en local instalado en `C:\poppler\bin`; en Docker se instala vía apt (`poppler-utils`)
+- `TESSERACT_CMD` y `POPPLER_PATH` en `backend/.env` son opcionales: se leen con `os.getenv()`; si no están definidas, pytesseract y pdf2image usan lo que encuentren en el PATH del sistema (caso del contenedor Docker en Render)
+- OCR probado con imagen PNG de texto jurídico guatemalteco (local y producción) — resultado exitoso
+- SIEMPRE verificar que el venv esté activo antes de pip install o pip freeze (confirmar con: `python -c "import sys; print(sys.executable)"`)
 - tipo_persona en clientes: 1 = Natural (requiere primer_nombre + primer_apellido), 2 = Jurídica (requiere razon_social)
 - numero_expediente se genera automático con formato [PREFIJO-AREA]-[AÑO]-[SECUENCIA] (ej: NOT-2026-0001). Prefijos: NOT=Notarial, CIV=Civil, LAB=Laboral, PEN=Penal
 - Transiciones de estado de expediente: Activo(1)↔EnRevisión(2)↔Pendiente(3)→Cerrado(4)→Archivado(5). Cerrado y Archivado son finales (no editables salvo Cerrado→Archivado)
@@ -476,8 +508,21 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 - Si el primer "git push origin main" da error "src refspec main does not match any", simplemente repetir el comando — es un glitch de timing, no un problema real
 - El .env de panel-web NUNCA se sube a GitHub — está en .gitignore (solo panel-web/.env.example se sube como plantilla)
 - panel-web/node_modules/ y panel-web/dist/ NUNCA se suben a GitHub — están en .gitignore de la raíz
+- El .env de app-movil NUNCA se sube a GitHub — misma convención que backend y panel-web
 - preprocesar_imagen() en ocr/services.py convierte a espacio HSV y elimina sellos rojos, azules y dorados (reemplazándolos con blanco) antes de pasar la imagen a Tesseract — mejora la precisión del OCR en documentos escaneados con sellos oficiales
 - Almacenamiento migrado a Cloudflare R2: `cargar_documento()` en documentos/services.py ahora sube cada archivo con `subir_archivo()` (app/services/r2_service.py) y guarda el nombre_key resultante en la columna `ruta_almacenamiento` (se reutilizó la columna existente, no se renombró, para evitar migración de esquema en Supabase)
 - `guardar_archivo_local()` se dejó comentada (no borrada) en documentos/services.py como respaldo por si algo falla con R2
 - Para servir el archivo original al frontend se agregó GET /api/v1/documentos/\<id\>/descarga, que devuelve una URL firmada de R2 (expira en 1 hora) en vez de leer el archivo desde disco
 - Probado end-to-end: subida real a R2, generación de URL firmada, descarga del contenido vía esa URL, y eliminación del objeto de prueba — las credenciales del .env funcionan correctamente
+- El backend v2 corre en un contenedor Docker con `python:3.13-slim` como imagen base, Tesseract y Poppler instalados vía apt, y Flask arrancando con `python run.py` (migración a gunicorn pendiente). El Procfile del repo NO se usa cuando el runtime es Docker — se mantuvo en el repo por si algún día se hiciera rollback al entorno nativo, pero funcionalmente es inerte hoy
+- `ping_propio()` en `run.py` lee la URL desde `SELF_PING_URL` con `os.getenv()`; si la variable no está definida, usa el fallback `https://sistema-villeda-backend-v2.onrender.com/health`. Esto reemplaza al hardcodeo anterior que apuntaba al servicio v1 suspendido
+
+---
+
+## CONVENCIONES DE COMMITS
+- Mensajes en español simple, sin prefijos convencionales (nada de `feat`, `fix`, `chore`) y sin punto y coma.
+- Ejemplos válidos:
+  - `backend: dockerizar para ejecutar tesseract y poppler en render`
+  - `movil: sincronizar estado de autenticacion cuando expira el token`
+  - `panel: agregar marca visual de documentos duplicados en detalle de expediente`
+- Bajo NINGUNA circunstancia se agrega "Co-Authored-By: Claude" ni ninguna mención de Claude como colaborador.
