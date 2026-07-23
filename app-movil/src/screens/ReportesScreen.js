@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -95,32 +96,55 @@ export default function ReportesScreen() {
     }
   }
 
-  function construirHtmlReporte() {
+  async function obtenerLogoBase64() {
+    const asset = Image.resolveAssetSource(require('../assets/logo-villeda.jpg'))
+    const destino = new File(Paths.cache, 'logo-villeda-reporte.jpg')
+    const archivoLogo = await File.downloadFileAsync(asset.uri, destino, { idempotent: true })
+    return archivoLogo.base64()
+  }
+
+  function construirHtmlReporte(logoBase64) {
     const filasTabla = (items, campoNombre) =>
       items.map((item) => `<tr><td>${item[campoNombre]}</td><td>${item.total}</td></tr>`).join('')
 
     return `
       <html>
-        <body style="font-family: sans-serif;">
-          <h1>Reporte — Sistema Villeda</h1>
+        <head>
+          <style>
+            @page { margin: 1cm; }
+            body { font-family: sans-serif; font-size: 11px; margin: 0; }
+            .encabezado { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+            .encabezado img { width: 45px; height: 45px; }
+            h1 { font-size: 15px; margin: 0; }
+            h2 { font-size: 12px; margin: 8px 0 3px; }
+            p { margin: 1px 0; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 4px; page-break-inside: avoid; }
+            th, td { border: 1px solid #999; padding: 3px 6px; font-size: 10px; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <div class="encabezado">
+            <img src="data:image/jpeg;base64,${logoBase64}" />
+            <h1>Reporte — Sistema Villeda</h1>
+          </div>
           <p>Expedientes: ${datos.totales?.expedientes ?? 0}</p>
           <p>Documentos: ${datos.totales?.documentos ?? 0}</p>
           <p>Documentos duplicados: ${datos.documentos_duplicados ?? 0}</p>
 
           <h2>Por área jurídica</h2>
-          <table border="1" cellpadding="6" cellspacing="0">
+          <table>
             <tr><th>Área</th><th>Cantidad</th></tr>
             ${filasTabla(datos.expedientes_por_area || [], 'area')}
           </table>
 
           <h2>Por estado</h2>
-          <table border="1" cellpadding="6" cellspacing="0">
+          <table>
             <tr><th>Estado</th><th>Cantidad</th></tr>
             ${filasTabla(datos.expedientes_por_estado || [], 'estado')}
           </table>
 
           <h2>Por mes</h2>
-          <table border="1" cellpadding="6" cellspacing="0">
+          <table>
             <tr><th>Mes</th><th>Cantidad</th></tr>
             ${filasTabla(datos.expedientes_por_mes || [], 'mes')}
           </table>
@@ -134,10 +158,11 @@ export default function ReportesScreen() {
     `
   }
 
-  async function descargarPdf() {
+  async function generarPdf() {
     setGenerandoPdf(true)
     try {
-      const html = construirHtmlReporte()
+      const logoBase64 = await obtenerLogoBase64()
+      const html = construirHtmlReporte(logoBase64)
       const { uri } = await Print.printToFileAsync({ html })
 
       const nombreArchivo = `reporte-villeda-${formatearFechaISO(new Date())}.pdf`
@@ -284,11 +309,11 @@ export default function ReportesScreen() {
             <Text style={styles.filaLista}>Mínimo: {datos.tbr?.minimo_ms ?? 0} ms</Text>
             <Text style={styles.filaLista}>Máximo: {datos.tbr?.maximo_ms ?? 0} ms</Text>
 
-            <TouchableOpacity style={styles.botonCargar} onPress={descargarPdf} disabled={generandoPdf}>
+            <TouchableOpacity style={styles.botonCargar} onPress={generarPdf} disabled={generandoPdf}>
               {generandoPdf ? (
                 <ActivityIndicator color={colors.navy} />
               ) : (
-                <Text style={styles.botonCargarTexto}>Descargar PDF</Text>
+                <Text style={styles.botonCargarTexto}>Generar PDF</Text>
               )}
             </TouchableOpacity>
 
