@@ -471,6 +471,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 3. ⏳ **Limpiar el expediente de prueba NOT-2026-0001 completo** (incluyendo los 2 PNG huérfanos con `ruta_almacenamiento` como ruta local de Windows, previos a la migración a R2) cuando empiece la carga en limpio con los expedientes reales del Licenciado.
 4. ⏳ **Nombre real de la app + ícono + splash screen + build de APK real con EAS** (parte de Fase 5 móvil).
 5. ⏳ **Migración de Flask dev server a gunicorn** en el Docker de producción — warning actual, no urgente.
+6. ⏳ **Aclarar y/o construir el flujo real de "carga masiva"** — la pantalla actual de Cargar Documento (panel-web y app-movil) es de un archivo a la vez por diseño (`POST /api/v1/documentos` recibe un solo campo `archivo` por petición) — esto es correcto para el uso diario del despacho, no es un bug. Existe un concepto de carga masiva planeado para cuando se digitalicen los ~300 expedientes físicos del Lic. Villeda (tablas `CARGAS_MASIVAS`/`DETALLE_CARGA_MASIVA` ya creadas en Supabase, y la convención ya definida de cliente placeholder "Cliente NNN" para esos documentos), pero no está confirmado si ese mecanismo ya está construido en el backend o si solo existen las tablas esperando esa fase. Confirmar y/o construir cuando llegue el momento de la digitalización masiva — no antes.
 
 ---
 
