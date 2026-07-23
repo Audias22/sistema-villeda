@@ -212,7 +212,19 @@ export default function ExpedienteDetalleScreen({ route, navigation }) {
             onPress={() => abrirDocumento(doc)}
             disabled={abriendoId === doc.id_documento}
           >
-            <Text style={styles.nombreDocumento}>{doc.nombre_archivo_original}</Text>
+            <View style={styles.filaDocumentoTitulo}>
+              <Text style={styles.nombreDocumento}>{doc.nombre_archivo_original}</Text>
+              {doc.es_duplicado_exacto && (
+                <TouchableOpacity
+                  style={[styles.chip, { backgroundColor: TONOS.advertencia.fondo }]}
+                  onPress={() =>
+                    Alert.alert('Documento duplicado', `Duplicado del documento ID ${doc.id_documento_original}`)
+                  }
+                >
+                  <Text style={[styles.chipTexto, { color: TONOS.advertencia.color }]}>⚠️ Duplicado</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.filaDocumentoInfo}>
               <Text style={styles.infoDocumento}>
                 {doc.num_paginas ?? '—'} páginas · {formatearTamano(doc.tamano_bytes)} ·{' '}
@@ -325,11 +337,16 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  filaDocumentoTitulo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   nombreDocumento: {
     fontFamily: fontFamily.semiBold,
     fontSize: fontSize.body,
     color: '#185FA5',
-    marginBottom: 4,
   },
   filaDocumentoInfo: {
     flexDirection: 'row',
