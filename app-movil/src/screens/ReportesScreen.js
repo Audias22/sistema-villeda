@@ -150,6 +150,7 @@ export default function ReportesScreen() {
       archivoTemporal.move(destino)
 
       setPdfUri(destino.uri)
+      Alert.alert('PDF generado', 'El reporte está listo. Usa "Compartir" para guardarlo o enviarlo.')
     } catch (err) {
       Alert.alert('Error', 'No pudimos generar el PDF. Intenta de nuevo.')
     } finally {
