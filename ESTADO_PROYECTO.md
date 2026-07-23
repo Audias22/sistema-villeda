@@ -452,11 +452,12 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 ## PENDIENTES INMEDIATOS
 1. ✅ Flujos de subida y visualización de archivos en app móvil (Expo Go vía `--tunnel`) probados contra el backend v2 (22 de julio): ver expediente con todos sus documentos, cargar una imagen nueva — ambos funcionando. Pantalla de Reportes también verificada end-to-end en dispositivo real: generar reporte, generar PDF (con logo y una sola página), compartir por WhatsApp — todo exitoso.
 2. ✅ Fase 4B.3 móvil — Pantalla de Reportes completada (filtros + métricas + exportar PDF con `expo-print` + compartir con `expo-sharing`/`expo-file-system`).
-3. ⏳ Aplicar las mejoras UX pendientes en panel web (marca visual de documentos duplicados + botón "Quitar archivo").
-4. ⏳ Redactar 4.5.1 / 4.5.2 / 4.6.1 de la tesis (describir sistema construido, pruebas end-to-end reales, despliegue en Render/Docker/Vercel/Supabase/R2/Expo).
-5. ⏳ Migración de Flask dev server a `gunicorn` en Docker de producción (warning en logs, no urgente).
-6. ⏳ Rotar contraseña de Supabase (se expuso en captura en una sesión anterior — higiene de seguridad).
-7. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para dataset ML (Fase 6-8), despliegue en Modal (Fase 8.5), Capítulo V, y 4.6.2 Prueba de Aceptación.
+3. ⏳ Aplicar las mejoras UX pendientes en panel web y app móvil (marca visual de documentos duplicados + botón "Quitar archivo"). Aplica en `ExpedienteDetalle.jsx`/`CargarDocumento` del panel-web y `ExpedienteDetalleScreen.js`/`CargarDocumentoScreen.js` del app-movil.
+4. ⏳ Fase 5 móvil — funcionalidades nativas (cámara para escaneo con `expo-camera`, notificaciones push con `expo-notifications`, biometría opcional con `expo-local-authentication`, nombre real de la app + ícono + splash screen, build de APK real con EAS).
+5. ⏳ Redactar 4.5.1 / 4.5.2 / 4.6.1 de la tesis (describir sistema construido, pruebas end-to-end reales, despliegue en Render/Docker/Vercel/Supabase/R2/Expo). **Movido a último a propósito:** las pantallas de Expediente/Detalle y Cargar Documento (panel-web y app-movil) van a cambiar visualmente con la mejora UX del punto 3, y Fase 5 móvil (punto 4) agrega pantallas nuevas — redactar el capítulo de interfaz después de ambas evita repetir capturas y texto ya escrito.
+6. ⏳ Migración de Flask dev server a `gunicorn` en Docker de producción (warning en logs, no urgente).
+7. ⏳ Rotar contraseña de Supabase (se expuso en captura en una sesión anterior — higiene de seguridad).
+8. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para dataset ML (Fase 6-8), despliegue en Modal (Fase 8.5), Capítulo V, y 4.6.2 Prueba de Aceptación.
 
 **Completado en la sesión del 21 de julio de 2026:** dockerización completa del backend (Tesseract + Poppler funcionando en producción), migración a servicio nuevo `sistema-villeda-backend-v2` (el anterior quedó suspendido), fix del `self-ping` (ahora configurable vía `SELF_PING_URL`), fix del AuthContext móvil ante token expirado (pub/sub + Alert), fix de los 8 catches para ignorar `SESSION_EXPIRED`, y verificación end-to-end en producción con OCR real. También se identificó que el bug de PNG/JPG del visor móvil era en realidad un problema de datos históricos, no del código.
 
