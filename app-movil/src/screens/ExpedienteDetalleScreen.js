@@ -300,6 +300,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+    flexShrink: 0,
   },
   chipTexto: {
     fontFamily: fontFamily.semiBold,
@@ -339,6 +340,7 @@ const styles = StyleSheet.create({
   },
   filaDocumentoTitulo: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
     marginBottom: 4,
@@ -347,6 +349,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
     fontSize: fontSize.body,
     color: '#185FA5',
+    flexShrink: 1,
   },
   filaDocumentoInfo: {
     flexDirection: 'row',
