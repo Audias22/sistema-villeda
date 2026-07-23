@@ -177,6 +177,11 @@ function ExpedienteDetalle() {
                   >
                     {doc.nombre_archivo_original}
                   </button>
+                  {doc.es_duplicado_exacto && (
+                    <Badge tono="advertencia" titulo={`Duplicado del documento ID ${doc.id_documento_original}`}>
+                      ⚠️ Duplicado
+                    </Badge>
+                  )}
                 </td>
                 <td>{doc.num_paginas ?? '—'}</td>
                 <td>{doc.tamano_bytes ? `${Math.round(doc.tamano_bytes / 1024)} KB` : '—'}</td>

@@ -54,6 +54,13 @@ function CargarDocumento() {
     setResultado(null)
   }
 
+  const quitarArchivo = () => {
+    setArchivo(null)
+    setResultado(null)
+    setProgreso(0)
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
   const handleDrop = (e) => {
     e.preventDefault()
     setArrastrando(false)
@@ -163,6 +170,9 @@ function CargarDocumento() {
             <FileText size={18} />
             <span>{archivo.name}</span>
             <span className="label">{Math.round(archivo.size / 1024)} KB</span>
+            <Button variant="secundario" onClick={quitarArchivo} style={{ marginLeft: 'auto' }}>
+              Quitar archivo
+            </Button>
           </div>
         )}
 

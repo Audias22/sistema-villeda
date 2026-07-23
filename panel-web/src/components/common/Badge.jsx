@@ -14,9 +14,9 @@ const TONOS_ESTADO = {
   info: 'info',
 }
 
-function Badge({ children, tono = 'info' }) {
+function Badge({ children, tono = 'info', titulo }) {
   const clase = TONOS_AREA[tono] || TONOS_ESTADO[tono] || 'info'
-  return <span className={`badge badge-${clase}`}>{children}</span>
+  return <span className={`badge badge-${clase}`} title={titulo}>{children}</span>
 }
 
 export default Badge
