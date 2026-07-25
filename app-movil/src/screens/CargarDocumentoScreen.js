@@ -60,6 +60,15 @@ export default function CargarDocumentoScreen({ route, navigation }) {
   }, [idExpedientePreseleccionado])
 
   useEffect(() => {
+    const escaneado = route.params?.archivoEscaneado
+    if (!escaneado) return
+
+    setArchivo(escaneado)
+    setErrorArchivo(null)
+    navigation.setParams({ archivoEscaneado: undefined })
+  }, [route.params?.archivoEscaneado])
+
+  useEffect(() => {
     if (busqueda.trim().length < 3) {
       setResultadosBusqueda([])
       return
@@ -233,6 +242,19 @@ export default function CargarDocumentoScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
 
+        {!archivo && (
+          <TouchableOpacity
+            style={styles.botonEscanear}
+            onPress={() =>
+              navigation.navigate('EscanearDocumento', {
+                id_expediente: expedienteSeleccionado?.id_expediente,
+              })
+            }
+          >
+            <Text style={styles.botonEscanearTexto}>📷 Escanear con cámara</Text>
+          </TouchableOpacity>
+        )}
+
         {errorArchivo && <Text style={styles.errorTextoArchivo}>{errorArchivo}</Text>}
 
         {archivo && (
@@ -381,6 +403,19 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     fontSize: fontSize.small,
     color: colors.textSecondary,
+  },
+  botonEscanear: {
+    borderWidth: 1,
+    borderColor: colors.gold,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  botonEscanearTexto: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: fontSize.body,
+    color: colors.gold,
   },
   errorTextoArchivo: {
     fontFamily: fontFamily.regular,

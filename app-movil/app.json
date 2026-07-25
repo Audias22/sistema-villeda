@@ -27,6 +27,13 @@
       "@react-native-community/datetimepicker",
       "expo-web-browser",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Oficina Villeda usa la cámara para escanear documentos del expediente.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
