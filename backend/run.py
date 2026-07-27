@@ -2,10 +2,13 @@ import os
 import threading
 import requests
 import time
+import logging
 from flask import jsonify
 from flask_jwt_extended import jwt_required
 from app import create_app
 from app.common.decorators import require_permission
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 app = create_app()
 

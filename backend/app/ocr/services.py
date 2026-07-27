@@ -6,7 +6,7 @@ import time
 import cv2
 import numpy as np
 from PIL import Image
-from pdf2image import convert_from_bytes
+from pdf2image import convert_from_bytes, pdfinfo_from_bytes
 
 # Configuración condicional: en local (Windows) leemos las rutas de .env;
 # en Docker/Linux con Tesseract y Poppler instalados vía apt, los binarios
@@ -43,6 +43,7 @@ def preprocesar_imagen(imagen_pil):
         return Image.fromarray(img_rgb)
 
     img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+    del img_rgb
     hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
 
     # --- Máscara para rojo (sellos SAT, escudo de Guatemala) ---
@@ -61,9 +62,11 @@ def preprocesar_imagen(imagen_pil):
     mascara_dorado = cv2.inRange(
         hsv, np.array([15, 80, 60]), np.array([35, 255, 255])
     )
+    del hsv
 
     # Combinar todas las máscaras
     mascara_color = mascara_rojo | mascara_azul | mascara_dorado
+    del mascara_rojo, mascara_azul, mascara_dorado
 
     # Dilatar para cubrir bordes difusos de los sellos
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -71,11 +74,18 @@ def preprocesar_imagen(imagen_pil):
 
     # Reemplazar zonas coloreadas con blanco
     img_limpia = img_bgr.copy()
+    del img_bgr
     img_limpia[mascara_color > 0] = [255, 255, 255]
+    del mascara_color
 
     # Convertir a escala de grises
     gris = cv2.cvtColor(img_limpia, cv2.COLOR_BGR2GRAY)
+    del img_limpia
 
+    # gris NO se libera acá: Image.fromarray() para modo 'L' comparte el
+    # buffer de memoria en vez de copiarlo (confirmado en el código fuente
+    # de Pillow — usa frombuffer con mapeo directo), así que el arreglo
+    # debe seguir vivo mientras la Image resultante esté en uso.
     return Image.fromarray(gris)
 
 
@@ -87,18 +97,34 @@ def extraer_texto_imagen(imagen_bytes):
 
 
 def extraer_texto_pdf(pdf_bytes):
-    _pdf_kwargs = {'dpi': 300}
-    if POPPLER_PATH:
-        _pdf_kwargs['poppler_path'] = POPPLER_PATH
-    paginas = convert_from_bytes(pdf_bytes, **_pdf_kwargs)
+    """
+    Procesa el PDF página por página (rasteriza, extrae texto, libera) en vez
+    de convertir todas las páginas a la vez: un PDF de varias fotos de cámara
+    puede pesar demasiado en memoria si se mantienen todas las páginas
+    rasterizadas simultáneamente en un contenedor con RAM limitada (Render).
+    size=3000 es una cota de seguridad sobre el lado largo de la imagen —
+    no afecta el DPI=300 normal de una página carta (~2550px), solo protege
+    contra páginas de tamaño físico inusualmente grande.
+    """
+    _pdf_kwargs = {'poppler_path': POPPLER_PATH} if POPPLER_PATH else {}
+
+    total_paginas = pdfinfo_from_bytes(pdf_bytes, **_pdf_kwargs)['Pages']
+
     texto_completo = ''
     textos_por_pagina = []
 
-    for i, pagina in enumerate(paginas):
-        pagina = preprocesar_imagen(pagina)
+    for i in range(1, total_paginas + 1):
+        pagina_cruda = convert_from_bytes(
+            pdf_bytes, dpi=300, first_page=i, last_page=i, size=3000, **_pdf_kwargs
+        )[0]
+        pagina = preprocesar_imagen(pagina_cruda)
+        del pagina_cruda
+
         texto_pagina = pytesseract.image_to_string(pagina, lang='spa')
+        del pagina
+
         textos_por_pagina.append({
-            'numero_pagina': i + 1,
+            'numero_pagina': i,
             'texto': texto_pagina.strip()
         })
         texto_completo += texto_pagina + ' '

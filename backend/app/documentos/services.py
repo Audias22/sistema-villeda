@@ -2,11 +2,28 @@ import os
 import uuid
 import pdfplumber
 import io
+import logging
+
+try:
+    import resource  # solo Unix — no existe en Windows (entorno de desarrollo local)
+except ImportError:
+    resource = None
 
 from app import db
 from app.documentos.models import Documento
 from app.ocr.services import calcular_hash, procesar_archivo
 from app.services.r2_service import subir_archivo, obtener_url_firmada
+
+
+def _log_memoria(etapa):
+    """Log de bajo costo del pico de RSS del proceso — permite comparar el
+    consumo de memoria entre documentos sin necesidad de otro crash real
+    para confirmarlo. No disponible en Windows (desarrollo local), donde
+    no existe el módulo resource; en ese caso no hace nada."""
+    if resource is None:
+        return
+    uso_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    logging.info(f"[memoria] {etapa} — RSS pico del proceso: {uso_kb} KB")
 
 
 EXTENSIONES_PERMITIDAS = {'pdf', 'jpg', 'jpeg', 'png'}
@@ -94,6 +111,8 @@ def cargar_documento(archivo_bytes, nombre_original, id_expediente, id_usuario, 
 
     id_formato = determinar_id_formato(extension, archivo_bytes)
 
+    _log_memoria(f"antes de procesar {nombre_original}")
+
     if extension == 'pdf' and id_formato == 2:
         texto, num_paginas = extraer_texto_pdf_digital(archivo_bytes)
     else:
@@ -102,7 +121,10 @@ def cargar_documento(archivo_bytes, nombre_original, id_expediente, id_usuario, 
         num_paginas = resultado_ocr['num_paginas']
 
         if not resultado_ocr['exitoso']:
+            _log_memoria(f"después de procesar {nombre_original} (con error)")
             return None, f"Error al procesar el documento: {resultado_ocr['mensaje_error']}"
+
+    _log_memoria(f"después de procesar {nombre_original}")
 
     nombre_sistema = f"{uuid.uuid4().hex}.{extension}"
     content_type = MAPEO_CONTENT_TYPE.get(extension, 'application/octet-stream')
