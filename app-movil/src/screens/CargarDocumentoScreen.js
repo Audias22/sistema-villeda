@@ -138,6 +138,7 @@ export default function CargarDocumentoScreen({ route, navigation }) {
     try {
       const { data } = await api.post('/documentos', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
       })
 
       const aviso = data.documento?.aviso
@@ -150,7 +151,9 @@ export default function CargarDocumentoScreen({ route, navigation }) {
       if (err.code === 'SESSION_EXPIRED') {
         return
       }
-      if (err.code === 'NETWORK_ERROR') {
+      if (err.code === 'TIMEOUT_ERROR') {
+        setErrorSubida('La subida tardó demasiado. Revisa tu conexión o intenta de nuevo.')
+      } else if (err.code === 'NETWORK_ERROR') {
         setErrorSubida('Sin conexión. Revisa tu WiFi o datos móviles')
       } else if (err.response?.data?.error?.includes('10 MB')) {
         setErrorSubida('El archivo excede los 10 MB permitidos')

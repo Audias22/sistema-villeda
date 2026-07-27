@@ -16,6 +16,13 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (error.code === 'ECONNABORTED') {
+      const timeoutError = new Error('TIMEOUT_ERROR')
+      timeoutError.code = 'TIMEOUT_ERROR'
+      timeoutError.original = error
+      return Promise.reject(timeoutError)
+    }
+
     if (!error.response) {
       const networkError = new Error('NETWORK_ERROR')
       networkError.code = 'NETWORK_ERROR'

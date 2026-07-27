@@ -6,6 +6,7 @@ import {
   Linking,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native'
@@ -19,6 +20,7 @@ import { colors } from '../theme/colors'
 import { fontFamily, fontSize } from '../theme/typography'
 
 const ANCHO_MAXIMO_PAGINA = 2000
+const TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024
 
 export default function EscanearDocumentoScreen({ route, navigation }) {
   const idExpediente = route.params?.id_expediente
@@ -29,6 +31,7 @@ export default function EscanearDocumentoScreen({ route, navigation }) {
   const [paginas, setPaginas] = useState([])
   const [capturando, setCapturando] = useState(false)
   const [generando, setGenerando] = useState(false)
+  const [nombreDocumento, setNombreDocumento] = useState('')
 
   async function tomarFoto() {
     if (capturando || !cameraRef.current) return
@@ -39,7 +42,7 @@ export default function EscanearDocumentoScreen({ route, navigation }) {
       const reducida = await ImageManipulator.manipulateAsync(
         foto.uri,
         [{ resize: { width: ANCHO_MAXIMO_PAGINA } }],
-        { format: ImageManipulator.SaveFormat.JPEG }
+        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.85 }
       )
       setPaginas((prev) => [...prev, { uri: reducida.uri }])
     } catch (err) {
@@ -83,7 +86,18 @@ export default function EscanearDocumentoScreen({ route, navigation }) {
 
       const { uri } = await Print.printToFileAsync({ html })
       const archivoPdf = new File(uri)
-      const nombreArchivo = `escaneo-${Date.now()}.pdf`
+
+      if (archivoPdf.size > TAMANO_MAXIMO_BYTES) {
+        const tamanoMb = (archivoPdf.size / (1024 * 1024)).toFixed(1)
+        Alert.alert(
+          'Documento muy pesado',
+          `El PDF generado pesa ${tamanoMb} MB y supera el límite de 10 MB. Repite el escaneo con menos páginas.`
+        )
+        return
+      }
+
+      const nombreBase = nombreDocumento.trim() || `escaneo-${Date.now()}`
+      const nombreArchivo = nombreBase.toLowerCase().endsWith('.pdf') ? nombreBase : `${nombreBase}.pdf`
 
       navigation.navigate('CargarDocumento', {
         ...(idExpediente ? { id_expediente: idExpediente } : {}),
@@ -171,6 +185,18 @@ export default function EscanearDocumentoScreen({ route, navigation }) {
             )}
           </TouchableOpacity>
         </View>
+
+        {paginas.length > 0 && (
+          <TextInput
+            style={styles.inputNombre}
+            placeholder="Nombre del documento"
+            placeholderTextColor={colors.textSecondary}
+            value={nombreDocumento}
+            onChangeText={setNombreDocumento}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        )}
 
         <TouchableOpacity
           style={[styles.botonFinalizar, (paginas.length === 0 || generando) && styles.botonFinalizarDeshabilitado]}
@@ -273,6 +299,16 @@ const styles = StyleSheet.create({
   },
   filaAcciones: {
     alignItems: 'center',
+    marginBottom: 12,
+  },
+  inputNombre: {
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: fontFamily.regular,
+    fontSize: fontSize.body,
+    color: colors.navy,
     marginBottom: 12,
   },
   botonCapturar: {
