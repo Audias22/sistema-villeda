@@ -3,10 +3,12 @@ import pytesseract
 import hashlib
 import io
 import time
+import tempfile
+import shutil
 import cv2
 import numpy as np
 from PIL import Image
-from pdf2image import convert_from_bytes, pdfinfo_from_bytes
+from pdf2image import convert_from_bytes
 
 # Configuración condicional: en local (Windows) leemos las rutas de .env;
 # en Docker/Linux con Tesseract y Poppler instalados vía apt, los binarios
@@ -98,38 +100,42 @@ def extraer_texto_imagen(imagen_bytes):
 
 def extraer_texto_pdf(pdf_bytes):
     """
-    Procesa el PDF página por página (rasteriza, extrae texto, libera) en vez
-    de convertir todas las páginas a la vez: un PDF de varias fotos de cámara
-    puede pesar demasiado en memoria si se mantienen todas las páginas
-    rasterizadas simultáneamente en un contenedor con RAM limitada (Render).
-    size=3000 es una cota de seguridad sobre el lado largo de la imagen —
-    no afecta el DPI=300 normal de una página carta (~2550px), solo protege
-    contra páginas de tamaño físico inusualmente grande.
+    Rasteriza el PDF completo en una sola llamada a Poppler (paths_only=True),
+    escribiendo cada página como archivo temporal en vez de mantener todas las
+    páginas cargadas como objetos PIL en memoria simultáneamente — un PDF de
+    varias fotos de cámara puede pesar demasiado en RAM si se cargan todas a
+    la vez en un contenedor con memoria limitada (Render). Cada imagen se abre,
+    procesa y libera una por una dentro del loop.
     """
     _pdf_kwargs = {'poppler_path': POPPLER_PATH} if POPPLER_PATH else {}
 
-    total_paginas = pdfinfo_from_bytes(pdf_bytes, **_pdf_kwargs)['Pages']
+    carpeta_temporal = tempfile.mkdtemp()
+    try:
+        rutas = convert_from_bytes(
+            pdf_bytes, dpi=300, output_folder=carpeta_temporal,
+            paths_only=True, timeout=60, **_pdf_kwargs
+        )
 
-    texto_completo = ''
-    textos_por_pagina = []
+        texto_completo = ''
+        textos_por_pagina = []
 
-    for i in range(1, total_paginas + 1):
-        pagina_cruda = convert_from_bytes(
-            pdf_bytes, dpi=300, first_page=i, last_page=i, size=3000, **_pdf_kwargs
-        )[0]
-        pagina = preprocesar_imagen(pagina_cruda)
-        del pagina_cruda
+        for i, ruta in enumerate(rutas, start=1):
+            pagina_cruda = Image.open(ruta)
+            pagina = preprocesar_imagen(pagina_cruda)
+            del pagina_cruda
 
-        texto_pagina = pytesseract.image_to_string(pagina, lang='spa')
-        del pagina
+            texto_pagina = pytesseract.image_to_string(pagina, lang='spa', timeout=60)
+            del pagina
 
-        textos_por_pagina.append({
-            'numero_pagina': i,
-            'texto': texto_pagina.strip()
-        })
-        texto_completo += texto_pagina + ' '
+            textos_por_pagina.append({
+                'numero_pagina': i,
+                'texto': texto_pagina.strip()
+            })
+            texto_completo += texto_pagina + ' '
 
-    return texto_completo.strip(), textos_por_pagina
+        return texto_completo.strip(), textos_por_pagina
+    finally:
+        shutil.rmtree(carpeta_temporal, ignore_errors=True)
 
 
 def procesar_archivo(archivo_bytes, extension):
