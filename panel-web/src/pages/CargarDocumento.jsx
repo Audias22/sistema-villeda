@@ -88,6 +88,7 @@ function CargarDocumento() {
     try {
       const { data } = await api.post('/documentos', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
         onUploadProgress: (evento) => {
           setProgreso(Math.round((evento.loaded * 100) / evento.total))
         },

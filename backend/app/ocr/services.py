@@ -3,6 +3,7 @@ import pytesseract
 import hashlib
 import io
 import time
+import logging
 import tempfile
 import shutil
 import cv2
@@ -113,7 +114,7 @@ def extraer_texto_pdf(pdf_bytes):
     try:
         rutas = convert_from_bytes(
             pdf_bytes, dpi=300, output_folder=carpeta_temporal,
-            paths_only=True, timeout=60, **_pdf_kwargs
+            paths_only=True, timeout=120, **_pdf_kwargs
         )
 
         texto_completo = ''
@@ -124,7 +125,10 @@ def extraer_texto_pdf(pdf_bytes):
             pagina = preprocesar_imagen(pagina_cruda)
             del pagina_cruda
 
-            texto_pagina = pytesseract.image_to_string(pagina, lang='spa', timeout=60)
+            inicio_pagina = time.perf_counter()
+            texto_pagina = pytesseract.image_to_string(pagina, lang='spa', timeout=120)
+            duracion_pagina = round(time.perf_counter() - inicio_pagina, 2)
+            logging.info(f"[tiempo] pagina {i} de {len(rutas)} — tesseract tardo {duracion_pagina}s")
             del pagina
 
             textos_por_pagina.append({
