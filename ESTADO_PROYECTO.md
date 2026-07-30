@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 22 de julio de 2026
+**Última actualización:** 30 de julio de 2026
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232
 
 ---
@@ -19,7 +19,7 @@
 | Exportación Excel | openpyxl | ✅ Funcionando |
 | Exportación PDF | reportlab | ⏳ Instalado, no usado todavía |
 | Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
-| App móvil | React Native (Expo SDK 54) — APK Android | 🔄 Fases 1-3, 4A, 4B.1, 4B.2 y 4B.3 completadas (setup base + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos + reportes con exportación PDF y compartir) |
+| App móvil | React Native (Expo SDK 54) — APK Android | 🔄 Fases 1-3, 4A, 4B.1, 4B.2 y 4B.3 completadas + Fase 5 en progreso (nombre/ícono/splash y escaneo con cámara listos; notificaciones, biometría y build EAS pendientes) |
 | OCR | Tesseract 5.x + OpenCV (filtrado HSV de sellos de color) — instalado vía apt en Docker de producción, en `C:\Program Files\Tesseract-OCR\` en local | ✅ Funcionando en producción y en local |
 | Modelo baseline | BETO | ⏳ No iniciado |
 | Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
@@ -35,7 +35,7 @@
 | Supabase | ✅ Activo | Proyecto: villeda-juridico, región us-east-2 |
 | GitHub | ✅ Activo | Repo: Audias22/sistema-villeda (privado) |
 | Cloudflare R2 | ✅ Activo | Bucket villeda-archivos |
-| Render.com — backend v2 (Docker) | ✅ Activo | https://sistema-villeda-backend-v2.onrender.com |
+| Render.com — backend v2 (Docker) | ✅ Activo | https://sistema-villeda-backend-v2.onrender.com — Plan Starter ($7/mes, 0.5 CPU / 512MB RAM) desde 30 de julio de 2026 — antes Free tier |
 | Render.com — backend v1 (nativo) | ⏸️ Suspendido | https://sistema-villeda-backend.onrender.com — conservado, no eliminado, por si hace falta consultar logs históricos |
 | Vercel | ✅ Activo | Panel web desplegado — https://sistema-villeda-panel.vercel.app |
 | Modal | ⏳ No creado | Se usará para servir BETO/RoBERTa como microservicio serverless cuando llegue la Fase 7/8 |
@@ -95,7 +95,7 @@
 | Esquema de `formatos_documento` verificado (6 formatos: PDF escaneado=1, PDF digital=2, Word=3, Excel=4, JPG=5, PNG=6) | ✅ |
 | `criterios_busqueda` verificado (5 criterios: nombre_cliente=1, fecha=2, area=3, contenido=4, numero_expediente=5) | ✅ |
 | `estados_fisico_doc` ajustada a 3 niveles (Deteriorado=1, Regular=2, Bueno=3) según marco metodológico (variable EFD) | ✅ |
-| `tipos_expediente` poblada con 13 tipos base (4 Notarial, 4 Civil, 3 Laboral, 3 Penal) — **PENDIENTE validar con Lic. Villeda** | ⚠️ Provisional |
+| `tipos_expediente`: catálogo Notarial corregido a 6 tipos reales (Compraventa, Mandato, Donación, Declaración Jurada, Matrimonio, Otro), confirmados con la secretaria del Lic. Villeda (30 de julio de 2026) — Civil/Laboral/Penal sin cambios (14 tipos originales, aún sin validar, ver nota de alcance abajo) | 🔄 Notarial confirmado, resto pendiente |
 | 1 cliente real de prueba creado (id_cliente: 1) | ✅ |
 | 1 expediente real de prueba creado (id_expediente: 1, numero: NOT-2026-0001) | ✅ |
 | Documentos de prueba en NOT-2026-0001 | ✅ (2 PNG huérfanos previos a R2 + varios PDF/JPG posteriores con key UUID limpia). Se limpiarán junto con el expediente cuando arranque la carga en limpio |
@@ -322,7 +322,7 @@ backend/
 | Fase 4B.1 | 5 tabs + Stack anidado de Expedientes + lista paginada | ✅ Completada |
 | Fase 4B.2 | Detalle de expediente + carga de documentos | ✅ Completada |
 | Fase 4B.3 | Pantalla de Reportes (con exportar PDF) | ✅ Completada |
-| Fase 5 | Funcionalidades nativas (cámara, notificaciones, biometría) | 🔄 En progreso — nombre/ícono/splash de marca completados, resto pendiente |
+| Fase 5 | Funcionalidades nativas (cámara, notificaciones, biometría) | 🔄 En progreso — nombre/ícono/splash y escaneo con cámara completados; notificaciones push, biometría y build EAS pendientes |
 
 **Fase 1 — detalle:**
 - Proyecto creado con `create-expo-app` (template blank), JavaScript puro (sin TypeScript), consistente con el panel web — SDK 54 (bajado desde SDK 57 por compatibilidad con la versión de Expo Go disponible en Play Store)
@@ -396,11 +396,17 @@ backend/
 - Instalado `expo-splash-screen`, configurado como plugin en `app.json` (imagen = `splash-icon.png`, `imageWidth: 200`, `backgroundColor` cream). En `App.js` se agregó `SplashScreen.preventAutoHideAsync()` a nivel de módulo y `SplashScreen.hideAsync()` en un `useEffect` cuando `fontsLoaded || fontError` — el bloque existente de "Cargando..." (Fase 2) se dejó intacto como fallback.
 - **Pendiente de verificación visual:** ninguno de estos cambios (ícono, nombre, splash) se puede ver en Expo Go — Expo Go es un contenedor genérico que no refleja estos assets. Se van a ver reales recién en el primer build de desarrollo con EAS (siguiente paso de Fase 5).
 
+**Fase 5 — detalle adicional (30 de julio de 2026): escaneo con cámara y estabilización del backend**
+- `EscanearDocumentoScreen.js` (nuevo): captura multipágina con `expo-camera`, cada foto procesada con `expo-image-manipulator` (resize a 2000px de ancho máximo, sin comprimir agresivo para no perjudicar el OCR), páginas armadas en un solo PDF vía `Print.printToFileAsync()` (mismo mecanismo que Fase 4B.3), con campo de texto para nombrar el archivo antes de generar.
+- **Bug de memoria descubierto y corregido:** el pipeline de OCR (`extraer_texto_pdf()` en `ocr/services.py`) cargaba todas las páginas del PDF en memoria simultáneamente vía `convert_from_bytes()`, causando OOM en Render con documentos de varias páginas (confirmado con crash real en producción y logs de Render). Corregido usando `paths_only=True` de `pdf2image` (una sola llamada a Poppler, escribiendo cada página a disco en vez de mantenerlas todas en RAM), procesando página por página con `del` explícitos. Se mantiene `dpi=300` sin degradar — verificado que el texto extraído es idéntico al de antes del fix.
+- **Bug de clasificación de errores corregido:** `ECONNABORTED` (timeout propio de axios) y `ERR_NETWORK` (conexión cortada por túnel/proxy) se confundían como el mismo "sin conexión". Se agregó `TIMEOUT_ERROR` como código separado, y se subieron los timeouts a 120s (Tesseract, Poppler, y cliente HTTP en móvil y panel web) tras medir tiempos reales de 60-95s por página en el plan gratuito de Render.
+- `threaded=True` agregado a `app.run()` en `run.py` para que `/health` siga respondiendo mientras una petición de OCR está en curso.
+- Se eliminó `app-movil/AGENTS.md`, un archivo con una instrucción desactualizada (referenciaba Expo SDK 57) que contradecía la decisión ya tomada de usar SDK 54.
+- **Render actualizado de Free a Starter ($7/mes):** las mediciones reales mostraron que la CPU del plan gratuito (0.1 vCPU) era insuficiente incluso después del fix de memoria — Starter da 5x más CPU (0.5 vCPU) manteniendo la misma RAM, y elimina el "dormir" tras 15 min de inactividad.
+
 **Fix — sincronización de sesión ante token expirado (12 de julio de 2026):** el interceptor de `src/services/api.js` limpiaba el storage físico (`clearAll()`) al detectar un 401 fuera de `/auth/login`, pero no tenía forma de actualizar el estado de React de `AuthContext.js` (`isAuthenticated` se calcula como `!!token`, en memoria). Resultado: `RootNavigator` seguía mostrando el stack autenticado hasta reiniciar la app manualmente. Se agregó `src/services/authEvents.js`, un pub/sub minimalista sin librerías nuevas (`onSessionExpired` / `emitSessionExpired`). `api.js` llama a `emitSessionExpired()` justo después de `clearAll()` dentro del bloque de 401. `AuthContext.js` se suscribe con `onSessionExpired()` en un `useEffect` propio (independiente del que carga la sesión guardada); el callback pone `user`/`token` en `null` y muestra `Alert.alert('Sesión expirada', 'Tu sesión expiró, inicia sesión de nuevo.')`, protegido con un `useRef` (`sessionExpiredShown`) para no duplicar el aviso si llegan varios 401 casi simultáneos — el ref se resetea a `false` en `signIn()` y en `signOut()`. Además, los `catch` que originaban el request (`DashboardScreen.js`, `BusquedaScreen.js`, `ExpedientesScreen.js`, los dos de `ExpedienteDetalleScreen.js`, y los tres de `CargarDocumentoScreen.js`) ahora chequean `if (err.code === 'SESSION_EXPIRED') { return }` como primera condición, para no mostrar su mensaje genérico ("revisa tu conexión") como parpadeo antes de que el `Alert` de `AuthContext` tome control — en `CargarDocumentoScreen.js` esto obligó a cambiar dos `.catch(() => ...)` a `.catch((err) => ...)` para poder leer el código de error.
 
 **Bug resuelto — apertura de .png/.jpg desde `ExpedienteDetalleScreen` (21 de julio de 2026):** la hipótesis original de este bug ("Content-Type incorrecto en R2 para imágenes") era incorrecta. La causa real: los dos documentos PNG del expediente de prueba NOT-2026-0001 se cargaron antes de la migración a Cloudflare R2 y su `ruta_almacenamiento` quedó como una ruta local de Windows en vez de una key de R2 — el archivo nunca existió en el bucket, por eso la URL firmada devolvía `NoSuchKey`. No era un bug del visor (`expo-web-browser`) ni del Content-Type. Ver nota completa en "DEPLOY EN PRODUCCIÓN". Los documentos cargados después de la migración a R2 (con key UUID) se abren correctamente.
-
-**Verificación pendiente en producción (móvil):** al 22 de julio, la app móvil apuntando a `sistema-villeda-backend-v2.onrender.com/api/v1` se probó únicamente con login desde Expo Go vía `--tunnel` (la red local aparentemente tiene aislamiento de cliente activado). Falta probar los flujos de subida y visualización de archivos desde móvil contra el backend v2.
 
 ---
 
@@ -413,7 +419,7 @@ backend/
 | Fase 4 | JWT + RBAC | ✅ Completa |
 | Fase 5 | OCR Tesseract | ✅ Completa (en producción vía Docker en Render) |
 | Fase 5.5 | Backend completo (clientes, expedientes, documentos, busquedas, reportes) | ✅ Completa |
-| Fase 6 | Dataset etiquetado | ⏳ Pendiente — esperando 197 expedientes físicos |
+| Fase 6 | Dataset etiquetado | 🔄 158 expedientes separados y organizados; etiquetado (área/tipo por documento) con script propio (`etiquetar_expedientes.py`, fuera del repo) armado pero sin empezar |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
 | Fase 8.5 | Despliegue del modelo ML en Modal (microservicio serverless) | ⏳ Decidido, no iniciado |
@@ -459,11 +465,11 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 1. ✅ Flujos de subida y visualización de archivos en app móvil (Expo Go vía `--tunnel`) probados contra el backend v2 (22 de julio): ver expediente con todos sus documentos, cargar una imagen nueva — ambos funcionando. Pantalla de Reportes también verificada end-to-end en dispositivo real: generar reporte, generar PDF (con logo y una sola página), compartir por WhatsApp — todo exitoso.
 2. ✅ Fase 4B.3 móvil — Pantalla de Reportes completada (filtros + métricas + exportar PDF con `expo-print` + compartir con `expo-sharing`/`expo-file-system`).
 3. ✅ Mejoras UX de documentos duplicados y "Quitar archivo" completadas en panel web y app móvil (23 de julio) — ver detalle en "Completado en la sesión del 23 de julio de 2026" más abajo.
-4. ⏳ Fase 5 móvil — funcionalidades nativas (cámara para escaneo con `expo-camera`, notificaciones push con `expo-notifications`, biometría opcional con `expo-local-authentication`, nombre real de la app + ícono + splash screen, build de APK real con EAS).
+4. 🔄 Fase 5 móvil — completados: nombre/ícono/splash, escaneo con cámara multipágina. Pendientes: notificaciones push (`expo-notifications`), biometría (`expo-local-authentication`), build de APK real con EAS.
 5. ⏳ Redactar 4.5.1 / 4.5.2 / 4.6.1 de la tesis (describir sistema construido, pruebas end-to-end reales, despliegue en Render/Docker/Vercel/Supabase/R2/Expo). **Movido a último a propósito:** las pantallas de Expediente/Detalle y Cargar Documento (panel-web y app-movil) van a cambiar visualmente con la mejora UX del punto 3, y Fase 5 móvil (punto 4) agrega pantallas nuevas — redactar el capítulo de interfaz después de ambas evita repetir capturas y texto ya escrito.
 6. ⏳ Migración de Flask dev server a `gunicorn` en Docker de producción (warning en logs, no urgente).
 7. ⏳ Rotar contraseña de Supabase (se expuso en captura en una sesión anterior — higiene de seguridad).
-8. ⏳ Conseguir los 197 expedientes físicos del Lic. Villeda — bloqueante para dataset ML (Fase 6-8), despliegue en Modal (Fase 8.5), Capítulo V, y 4.6.2 Prueba de Aceptación.
+8. 🔄 158 expedientes físicos separados y organizados (ver Fase 6) — falta etiquetar antes de poder avanzar a Fase 7-8 (entrenamiento), Modal (Fase 8.5), Capítulo V, y 4.6.2 Prueba de Aceptación.
 
 **Completado en la sesión del 21 de julio de 2026:** dockerización completa del backend (Tesseract + Poppler funcionando en producción), migración a servicio nuevo `sistema-villeda-backend-v2` (el anterior quedó suspendido), fix del `self-ping` (ahora configurable vía `SELF_PING_URL`), fix del AuthContext móvil ante token expirado (pub/sub + Alert), fix de los 8 catches para ignorar `SESSION_EXPIRED`, y verificación end-to-end en producción con OCR real. También se identificó que el bug de PNG/JPG del visor móvil era en realidad un problema de datos históricos, no del código.
 
@@ -502,9 +508,11 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 
 **Migración a servicio nuevo `sistema-villeda-backend-v2` (21 de julio de 2026):** Render no permite cambiar el runtime de un servicio existente de nativo a Docker desde el dashboard. Por eso se creó un servicio nuevo con runtime Docker apuntando al mismo repo, y el servicio anterior quedó suspendido (no eliminado) por si hace falta consultar sus logs históricos.
 
-**Despliegue del modelo ML en Modal (21 de julio de 2026, decisión):** el modelo ML (BETO baseline → RoBERTa-base-bne final) sí correrá en producción, no solo en Colab para la tesis. Se servirá como microservicio serverless en Modal.com. Modal ofrece Free tier con $30/mes de crédito de cómputo (requiere tarjeta para verificación de cuenta, no cobra bajo el crédito). Arquitectura: backend Flask en Render (Docker) → llamada HTTP a Modal para clasificar → respuesta al panel/móvil. Razones para elegir Modal sobre otras alternativas: (a) Render Free tier tiene solo 512 MB RAM, insuficiente para BETO/RoBERTa cargados en memoria; (b) Modal cobra por segundos de cómputo real, no por uptime, lo cual encaja bien con el volumen bajo de la oficina; (c) 4.6.1 Despliegue queda mejor documentado con esta arquitectura defendible; (d) el backend, panel y app siguen en Free tier con costo cero, y Modal se activa solo cuando llegue la Fase 8.5.
+**Despliegue del modelo ML en Modal (21 de julio de 2026, decisión):** el modelo ML (BETO baseline → RoBERTa-base-bne final) sí correrá en producción, no solo en Colab para la tesis. Se servirá como microservicio serverless en Modal.com. Modal ofrece Free tier con $30/mes de crédito de cómputo (requiere tarjeta para verificación de cuenta, no cobra bajo el crédito). Arquitectura: backend Flask en Render (Docker) → llamada HTTP a Modal para clasificar → respuesta al panel/móvil. Razones para elegir Modal sobre otras alternativas: (a) Render Free tier tiene solo 512 MB RAM, insuficiente para BETO/RoBERTa cargados en memoria; (b) Modal cobra por segundos de cómputo real, no por uptime, lo cual encaja bien con el volumen bajo de la oficina; (c) 4.6.1 Despliegue queda mejor documentado con esta arquitectura defendible; (d) el backend pasó a Starter ($7/mes) por necesidad real de CPU para OCR — panel y app siguen en Free tier con costo cero — y Modal se activa solo cuando llegue la Fase 8.5.
 
 **Duplicados de documento tratados como AVISO** (201 con `documento.aviso`), NO como error, para preservar la posibilidad de asociar el mismo documento a varios expedientes (útil legalmente para copias de DPI, poderes, etc.). Marca visual en el UI queda pendiente como mejora futura.
+
+**Alcance del dataset físico acotado a Notarial (30 de julio de 2026):** de los 158 expedientes escaneados (protocolo notarial del Lic. Villeda, ya separados y organizados con `separar_expedientes.py` en `expedientes_separados/`, numerados `2021-001.pdf` a `2021-158.pdf`), una revisión manual de ~50 no encontró ningún caso de Civil, Laboral o Penal — consistente con que un libro de protocolo notarial, por definición legal, solo puede contener actos notariales. Esto acota el alcance realista del Capítulo V y la clasificación ML a los tipos dentro de Notarial, no a las 4 áreas completas. Decisión pendiente de confirmación 100% directa con el Lic. Villeda (se confirmó con su secretaria), pero con evidencia fuerte a favor. Los 158 archivos viven fuera del repo (carpeta de escritorio local), no se commitean.
 
 ---
 
