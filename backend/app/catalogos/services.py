@@ -1,3 +1,4 @@
+from sqlalchemy import case
 from app.common.models import AreaJuridica, EstadoExpediente, TipoExpediente, Prioridad, Rol
 from app.busquedas.models import CriterioBusqueda
 
@@ -18,7 +19,9 @@ def listar_tipos_expediente(id_area=None):
     query = TipoExpediente.query.filter_by(activo=True)
     if id_area:
         query = query.filter_by(id_area=id_area)
-    return query.order_by(TipoExpediente.nombre).all()
+    # "Otro" siempre al final; el resto en orden alfabético
+    orden_otro = case((TipoExpediente.nombre == 'Otro', 1), else_=0)
+    return query.order_by(orden_otro, TipoExpediente.nombre).all()
 
 
 def listar_prioridades():
