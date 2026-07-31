@@ -419,7 +419,7 @@ backend/
 | Fase 4 | JWT + RBAC | ✅ Completa |
 | Fase 5 | OCR Tesseract | ✅ Completa (en producción vía Docker en Render) |
 | Fase 5.5 | Backend completo (clientes, expedientes, documentos, busquedas, reportes) | ✅ Completa |
-| Fase 6 | Dataset etiquetado | 🔄 158 expedientes separados y organizados; etiquetado (área/tipo por documento) con script propio (`etiquetar_expedientes.py`, fuera del repo) armado pero sin empezar |
+| Fase 6 | Dataset etiquetado | 🔄 158 expedientes separados y organizados; etiquetado (área/tipo por documento) con script propio (`etiquetar_expedientes.py`, fuera del repo) creado el 30 de julio de 2026, sin correr todavía |
 | Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
 | Fase 8.5 | Despliegue del modelo ML en Modal (microservicio serverless) | ⏳ Decidido, no iniciado |
