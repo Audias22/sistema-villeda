@@ -79,7 +79,7 @@
 ## BASE DE DATOS — Supabase
 | Item | Estado |
 |------|--------|
-| 28 tablas creadas | ✅ |
+| 28 tablas creadas (confirmado el 31 de julio de 2026: la BD real tiene 44 tablas + 4 vistas = 48 objetos, no 28 — drift acumulado sin documentar) | ✅ |
 | 5 vistas creadas | ✅ |
 | 5 triggers creados | ✅ |
 | Datos seed (roles, permisos, áreas, etc.) | ✅ |
@@ -470,6 +470,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 6. ⏳ Migración de Flask dev server a `gunicorn` en Docker de producción (warning en logs, no urgente).
 7. ⏳ Rotar contraseña de Supabase (se expuso en captura en una sesión anterior — higiene de seguridad).
 8. 🔄 158 expedientes físicos separados y organizados (ver Fase 6) — falta etiquetar antes de poder avanzar a Fase 7-8 (entrenamiento), Modal (Fase 8.5), Capítulo V, y 4.6.2 Prueba de Aceptación.
+9. ⏳ **Versionar los scripts SQL del esquema de la base de datos** — se confirmó (31 de julio de 2026) que ningún script `.sql` de creación del esquema está en el repo; los que existen (`villeda_db.sql`, `villeda_legal_v2.sql`, `02_CREATE_villeda_db_CORREGIDO.sql`) viven sueltos en carpetas locales (Downloads/Desktop), fuera de control de versiones. Esto explica también por qué el esquema real de Supabase pudo derivar de esos scripts sin que se note (ej. la tabla `entidades_nlp` normalizada con FK en la BD real, vs. columna `VARCHAR` en línea en los scripts locales). Subir una versión actualizada al repo (carpeta `backend/sql/` o similar) para no depender de archivos locales sin respaldo. Prioridad baja, no urgente.
 
 **Completado en la sesión del 21 de julio de 2026:** dockerización completa del backend (Tesseract + Poppler funcionando en producción), migración a servicio nuevo `sistema-villeda-backend-v2` (el anterior quedó suspendido), fix del `self-ping` (ahora configurable vía `SELF_PING_URL`), fix del AuthContext móvil ante token expirado (pub/sub + Alert), fix de los 8 catches para ignorar `SESSION_EXPIRED`, y verificación end-to-end en producción con OCR real. También se identificó que el bug de PNG/JPG del visor móvil era en realidad un problema de datos históricos, no del código.
 
@@ -513,6 +514,10 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 **Duplicados de documento tratados como AVISO** (201 con `documento.aviso`), NO como error, para preservar la posibilidad de asociar el mismo documento a varios expedientes (útil legalmente para copias de DPI, poderes, etc.). Marca visual en el UI queda pendiente como mejora futura.
 
 **Alcance del dataset físico acotado a Notarial (30 de julio de 2026):** de los 158 expedientes escaneados (protocolo notarial del Lic. Villeda, ya separados y organizados con `separar_expedientes.py` en `expedientes_separados/`, numerados `2021-001.pdf` a `2021-158.pdf`), una revisión manual de ~50 no encontró ningún caso de Civil, Laboral o Penal — consistente con que un libro de protocolo notarial, por definición legal, solo puede contener actos notariales. Esto acota el alcance realista del Capítulo V y la clasificación ML a los tipos dentro de Notarial, no a las 4 áreas completas. Decisión pendiente de confirmación 100% directa con el Lic. Villeda (se confirmó con su secretaria), pero con evidencia fuerte a favor. Los 158 archivos viven fuera del repo (carpeta de escritorio local), no se commitean.
+
+**Extracción de entidades (NER) confirmada fuera de alcance (31 de julio de 2026):** se verificó que la tabla `entidades_nlp` existe en Supabase pero está vacía (0 filas), sin ningún modelo SQLAlchemy ni referencia en todo el código (confirmado con búsqueda exhaustiva en .py, .js, .jsx, .sql y .md de backend, panel-web y app-movil) — es infraestructura del diseño original que nunca se conectó a nada. La Guía de Desarrollo confirma que Fase 6-8 son exclusivamente clasificación de documento completo (`BertForSequenceClassification`/`RobertaForSequenceClassification`, `num_labels=4`), no reconocimiento de entidades (nombres, fechas, montos) — esa sería una tarea NLP completamente distinta (token-classification), sin librerías instaladas para ello. El etiquetado actual (área/tipo por documento) es todo lo que se necesita para el alcance real de la tesis.
+
+**Modelo ML reformulado: 6 tipos Notarial en vez de 4 áreas (31 de julio de 2026, decisión):** la Guía de Desarrollo especificaba clasificación de 4 clases (civil/penal/laboral/notarial, `num_labels=4`), pero el dataset físico disponible (158 expedientes) es 100% Notarial — sin ningún ejemplo real de las otras 3 áreas, entrenar con 4 clases habría sido inválido (el modelo no puede aprender a distinguir clases que nunca vio). Se decidió reformular BETO/RoBERTa para clasificar los **6 tipos dentro de Notarial** (Compraventa, Donación, Declaración Jurada, Mandato, Matrimonio, Otro) en vez de las 4 áreas jurídicas — `num_labels=6`, no 4. Esto afecta directamente Fase 7-8 (fine-tuning) y debe reflejarse también en el Capítulo V de la tesis cuando se redacte. La clasificación por área jurídica queda descartada como objetivo del modelo (todo el dataset es Notarial de todas formas), no solo pospuesta.
 
 ---
 
