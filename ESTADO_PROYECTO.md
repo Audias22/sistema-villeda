@@ -79,7 +79,7 @@
 ## BASE DE DATOS — Supabase
 | Item | Estado |
 |------|--------|
-| 28 tablas creadas (confirmado el 31 de julio de 2026: la BD real tiene 44 tablas + 4 vistas = 48 objetos, no 28 — drift acumulado sin documentar) | ✅ |
+| 28 tablas creadas (confirmado el 31 de julio de 2026: la BD real tiene 43 tablas + 5 vistas = 48 objetos, no 28 — drift acumulado sin documentar) | ✅ |
 | 5 vistas creadas | ✅ |
 | 5 triggers creados | ✅ |
 | Datos seed (roles, permisos, áreas, etc.) | ✅ |
@@ -518,6 +518,10 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 **Extracción de entidades (NER) confirmada fuera de alcance (31 de julio de 2026):** se verificó que la tabla `entidades_nlp` existe en Supabase pero está vacía (0 filas), sin ningún modelo SQLAlchemy ni referencia en todo el código (confirmado con búsqueda exhaustiva en .py, .js, .jsx, .sql y .md de backend, panel-web y app-movil) — es infraestructura del diseño original que nunca se conectó a nada. La Guía de Desarrollo confirma que Fase 6-8 son exclusivamente clasificación de documento completo (`BertForSequenceClassification`/`RobertaForSequenceClassification`, `num_labels=4`), no reconocimiento de entidades (nombres, fechas, montos) — esa sería una tarea NLP completamente distinta (token-classification), sin librerías instaladas para ello. El etiquetado actual (área/tipo por documento) es todo lo que se necesita para el alcance real de la tesis.
 
 **Modelo ML reformulado: 6 tipos Notarial en vez de 4 áreas (31 de julio de 2026, decisión):** la Guía de Desarrollo especificaba clasificación de 4 clases (civil/penal/laboral/notarial, `num_labels=4`), pero el dataset físico disponible (158 expedientes) es 100% Notarial — sin ningún ejemplo real de las otras 3 áreas, entrenar con 4 clases habría sido inválido (el modelo no puede aprender a distinguir clases que nunca vio). Se decidió reformular BETO/RoBERTa para clasificar los **6 tipos dentro de Notarial** (Compraventa, Donación, Declaración Jurada, Mandato, Matrimonio, Otro) en vez de las 4 áreas jurídicas — `num_labels=6`, no 4. Esto afecta directamente Fase 7-8 (fine-tuning) y debe reflejarse también en el Capítulo V de la tesis cuando se redacte. La clasificación por área jurídica queda descartada como objetivo del modelo (todo el dataset es Notarial de todas formas), no solo pospuesta.
+
+**Desajuste confirmado: sistema real tiene 43 tablas, no 28 (31 de julio de 2026):** se verificó directamente en Supabase (consulta sobre information_schema.tables, confirmada por el propio usuario ejecutándola en el SQL Editor) que el sistema real tiene 43 tablas + 5 vistas = 48 objetos. Las 15 tablas que en mayo de 2026 se habían eliminado en una base de datos MySQL local (villeda_db, para el diagrama del Capítulo IV) nunca se aplicaron al sistema real construido en Supabase — el backend usa esas 15 tablas de catálogo como modelos SQLAlchemy reales (EstadoExpediente, Prioridad, FormatoDocumento, etc.), no como texto suelto. Decisión: actualizar el Capítulo IV a 43 tablas (describir el sistema real), no reducir la base de datos de producción para que coincida con la tesis ya escrita — evita el riesgo de tocar un sistema que ya funciona con documentos reales.
+
+**Plan para el diagrama ER del Capítulo IV (pendiente, para la etapa de redacción):** en vez de un diagrama único con las 43 tablas y todos sus campos (ilegible, ya rechazado antes por el asesor con la versión de 28), se hará un diagrama conceptual con solo el nombre de cada tabla y las líneas de relación entre ellas, sin detalle de campos — el detalle de columnas queda en la Tabla 12 (texto), separado del diagrama. Esto también evita el problema de reordenar el índice automático de figuras de Word, al ser una sola figura nueva en el mismo lugar de la anterior (Figura 12), no varias figuras nuevas.
 
 ---
 
