@@ -10,6 +10,9 @@ class ClienteSchema(Schema):
     dpi              = fields.String(allow_none=True, validate=validate.Length(max=20))
     nit              = fields.String(allow_none=True, validate=validate.Length(max=20))
     fecha_nacimiento = fields.Date(allow_none=True)
+    telefono         = fields.String(allow_none=True, validate=validate.Length(max=20))
+    email            = fields.Email(allow_none=True, validate=validate.Length(max=100))
+    direccion        = fields.String(allow_none=True, validate=validate.Length(max=255))
 
     @validates('tipo_persona')
     def validar_consistencia_persona(self, value, **kwargs):

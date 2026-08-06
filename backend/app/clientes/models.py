@@ -14,6 +14,9 @@ class Cliente(db.Model):
     dpi                = db.Column(db.String)
     nit                = db.Column(db.String)
     fecha_nacimiento   = db.Column(db.Date)
+    telefono           = db.Column(db.String)
+    email              = db.Column(db.String)
+    direccion          = db.Column(db.String)
     activo             = db.Column(db.Boolean, nullable=False, default=True)
     fecha_registro     = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     registrado_por     = db.Column(db.Integer, db.ForeignKey('usuarios.id_usuario'))
@@ -31,6 +34,9 @@ class Cliente(db.Model):
             'dpi':              self.dpi,
             'nit':              self.nit,
             'fecha_nacimiento': self.fecha_nacimiento.isoformat() if self.fecha_nacimiento else None,
+            'telefono':         self.telefono,
+            'email':            self.email,
+            'direccion':        self.direccion,
             'activo':           self.activo,
             'fecha_registro':   self.fecha_registro.isoformat() if self.fecha_registro else None,
             'registrado_por':   self.registrado_por,

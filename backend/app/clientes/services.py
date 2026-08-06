@@ -76,6 +76,9 @@ def crear_cliente(datos, id_usuario):
         dpi=datos.get('dpi'),
         nit=datos.get('nit'),
         fecha_nacimiento=datos.get('fecha_nacimiento'),
+        telefono=datos.get('telefono'),
+        email=datos.get('email'),
+        direccion=datos.get('direccion'),
         activo=True,
         registrado_por=id_usuario
     )
@@ -135,7 +138,8 @@ def actualizar_cliente(id_cliente, datos):
     campos_permitidos = [
         'tipo_persona', 'primer_nombre', 'segundo_nombre',
         'primer_apellido', 'segundo_apellido', 'razon_social',
-        'dpi', 'nit', 'fecha_nacimiento', 'activo'
+        'dpi', 'nit', 'fecha_nacimiento',
+        'telefono', 'email', 'direccion', 'activo'
     ]
 
     for campo in campos_permitidos:
