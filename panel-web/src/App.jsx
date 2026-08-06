@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Expedientes from './pages/Expedientes'
 import Clientes from './pages/Clientes'
+import ClienteDetalle from './pages/ClienteDetalle'
 import ExpedienteDetalle from './pages/ExpedienteDetalle'
 import CargarDocumento from './pages/CargarDocumento'
 import Busqueda from './pages/Busqueda'
@@ -56,6 +57,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Clientes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clientes/:id"
+          element={
+            <ProtectedRoute>
+              <ClienteDetalle />
             </ProtectedRoute>
           }
         />
