@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 5 de agosto de 2026
+**Última actualización:** 6 de agosto de 2026
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232
 
 ---
@@ -91,7 +91,7 @@
 | Índice GIN texto_completo | ✅ |
 | Usuario ovilleda creado | ✅ |
 | Permisos asignados a los 5 roles | ✅ |
-| Esquema de `clientes` verificado (14 columnas) | ✅ |
+| Esquema de `clientes` verificado (17 columnas — el 6 de agosto de 2026 se agregaron `telefono` VARCHAR(20), `email` VARCHAR(100) y `direccion` VARCHAR(255), las 3 nullable, con ALTER TABLE manual en el SQL Editor de Supabase) | ✅ |
 | Esquema de `expedientes` verificado (18 columnas) | ✅ |
 | Esquema de `documentos` verificado (16 columnas) | ✅ |
 | Esquema de `busquedas` verificado (8 columnas) | ✅ |
@@ -262,13 +262,13 @@ backend/
 | POST | /api/v1/auth/logout | ✅ Funcionando | No |
 | GET | /api/v1/test/protegido | ✅ Funcionando | Sí — ver_dashboard |
 | POST | /api/v1/ocr/procesar | ✅ Funcionando | Sí — cargar_documento |
-| POST | /api/v1/clientes | ✅ Funcionando | Sí — gestionar_clientes |
-| GET | /api/v1/clientes | ✅ Funcionando (paginado + búsqueda) | Sí — gestionar_clientes |
+| POST | /api/v1/clientes | ✅ Funcionando (409 con id_cliente si el DPI o NIT ya existe) | Sí — gestionar_clientes |
+| GET | /api/v1/clientes | ✅ Funcionando (paginado + búsqueda + solo_activos) | Sí — gestionar_clientes |
 | GET | /api/v1/clientes/\<id\> | ✅ Funcionando | Sí — gestionar_clientes |
-| PUT | /api/v1/clientes/\<id\> | ✅ Funcionando | Sí — gestionar_clientes |
+| PUT | /api/v1/clientes/\<id\> | ✅ Funcionando (mismo 409 que POST) | Sí — gestionar_clientes |
 | DELETE | /api/v1/clientes/\<id\> | ✅ Funcionando (soft delete) | Sí — gestionar_clientes |
 | POST | /api/v1/expedientes | ✅ Funcionando (numero_expediente automático) | Sí — gestionar_expedientes |
-| GET | /api/v1/expedientes | ✅ Funcionando (paginado + filtros área/estado/usuario) | Sí — buscar_expediente |
+| GET | /api/v1/expedientes | ✅ Funcionando (paginado + filtros área/estado/usuario/cliente — `?id_cliente=X` agregado el 6 de agosto de 2026 para el detalle de cliente) | Sí — buscar_expediente |
 | GET | /api/v1/expedientes/\<id\> | ✅ Funcionando | Sí — ver_expediente |
 | PUT | /api/v1/expedientes/\<id\> | ✅ Funcionando (bloqueado si cerrado/archivado) | Sí — gestionar_expedientes |
 | PUT | /api/v1/expedientes/\<id\>/estado | ✅ Funcionando (transiciones controladas) | Sí — gestionar_expedientes |
@@ -303,13 +303,14 @@ backend/
 |----------|------|--------|
 | Login | /login | ✅ Autenticación JWT con AuthContext |
 | Dashboard | /dashboard | ✅ Totales, distribución por área/estado, TBR, gráficas (Area/Pie) |
-| Expedientes (lista + detalle) | /expedientes, /expedientes/:id | ✅ Listado paginado, filtros, detalle con documentos, modal de nuevo expediente |
+| Expedientes (lista + detalle) | /expedientes, /expedientes/:id | ✅ Listado paginado, filtros, detalle con documentos, modal de nuevo expediente (permite crear el cliente al vuelo si la búsqueda no lo encuentra) |
+| Clientes (lista + detalle) | /clientes, /clientes/:id | ✅ Listado paginado con búsqueda y filtro activos/todos, modal crear/editar, detalle con datos de contacto y sus expedientes, desactivación con confirmación |
 | Cargar documento | /cargar | ✅ Subida de archivo con OCR/pdfplumber automático |
 | Búsqueda | /busqueda | ✅ Búsqueda por los 5 criterios con medición de TBR |
 | Usuarios | /usuarios | ✅ CRUD conectado a /api/v1/usuarios |
 | Reportes | /reportes | ✅ Dashboard de reportes + exportación Excel |
 
-**Estructura:** componentes comunes reutilizables (Button, Card, Input, Modal, Table, Badge, Pagination, Skeleton, EmptyState), layout con Sidebar + TopBar, rutas protegidas (ProtectedRoute), contexto de autenticación (AuthContext), hooks (useAuth, useFetch), capa de servicios (api.js) que centraliza las llamadas al backend Flask.
+**Estructura:** componentes comunes reutilizables (Button, Card, Input, Modal, Table, Badge, Pagination, Skeleton, EmptyState), un componente de dominio compartido (`ClienteFormulario`, con prop `compacto` para el alta al vuelo), layout con Sidebar + TopBar, rutas protegidas (ProtectedRoute), contexto de autenticación (AuthContext), hooks (useAuth, useFetch), capa de servicios (api.js) que centraliza las llamadas al backend Flask.
 
 **Desplegado en Vercel, con la variable `VITE_API_URL` apuntando a `https://sistema-villeda-backend-v2.onrender.com/api/v1`. Prueba end-to-end contra el backend v2 en producción exitosa (subida de JPG + OCR real + R2 + descarga).**
 
@@ -524,6 +525,10 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 
 **Desajuste confirmado: sistema real tiene 43 tablas, no 28 (31 de julio de 2026):** se verificó directamente en Supabase (consulta sobre information_schema.tables, confirmada por el propio usuario ejecutándola en el SQL Editor) que el sistema real tiene 43 tablas + 5 vistas = 48 objetos. Las 15 tablas que en mayo de 2026 se habían eliminado en una base de datos MySQL local (villeda_db, para el diagrama del Capítulo IV) nunca se aplicaron al sistema real construido en Supabase — el backend usa esas 15 tablas de catálogo como modelos SQLAlchemy reales (EstadoExpediente, Prioridad, FormatoDocumento, etc.), no como texto suelto. Decisión: actualizar el Capítulo IV a 43 tablas (describir el sistema real), no reducir la base de datos de producción para que coincida con la tesis ya escrita — evita el riesgo de tocar un sistema que ya funciona con documentos reales.
 
+**Duplicados de cliente responden 409 Conflict con el id del existente (6 de agosto de 2026, decisión):** al construir la gestión de clientes se detectó que un DPI repetido devolvía 400 con solo el mensaje de error, sin el `id_cliente` del que ya existía. Eso dejaba sin salida al caso más común del alta al vuelo desde Nuevo expediente: la secretaria escribe un cliente, el sistema le dice que el DPI ya está registrado, y no había forma de ofrecerle usar ese cliente sin abandonar el modal y perder el expediente a medio llenar. Se cambió a **409 Conflict** con cuerpo `{"error": "...", "id_cliente": N, "cliente": {...}}`, tanto en POST como en PUT. El 409 es además el código semánticamente correcto (conflicto con el estado actual del recurso), a diferencia del 400 que sugiere datos mal formados. En el panel, `ClienteFormulario` atrapa ese 409 y muestra un botón "Usar el cliente existente" que selecciona al cliente ya registrado y continúa el flujo. Se aprovechó para agregar la **validación de NIT duplicado que no existía** (solo se validaba el DPI), aplicada únicamente a personas Jurídicas: una persona Natural puede compartir NIT con su empresa legítimamente, así que bloquearlo habría sido incorrecto. `crear_cliente` y `actualizar_cliente` pasaron a devolver 3 valores `(cliente, error, existente)` — se verificó antes que nadie más los llamaba fuera de sus rutas.
+
+**Nunca anidar `<form>` en el panel web (6 de agosto de 2026):** el mini formulario de cliente dentro del modal de Nuevo expediente no se puede renderizar dentro del `<form>` del expediente, porque un formulario anidado es HTML inválido — el navegador descarta el interno y su botón de submit termina enviando el formulario externo. La solución fue renderizarlo como **hermano**, ocultando el formulario del expediente con `display: none` en vez de desmontarlo, para que no se pierda lo que el usuario ya había escrito. Aplica a cualquier otro formulario dentro de formulario que se quiera agregar después.
+
 **Plan para el diagrama ER del Capítulo IV (pendiente, para la etapa de redacción):** en vez de un diagrama único con las 43 tablas y todos sus campos (ilegible, ya rechazado antes por el asesor con la versión de 28), se hará un diagrama conceptual con solo el nombre de cada tabla y las líneas de relación entre ellas, sin detalle de campos — el detalle de columnas queda en la Tabla 12 (texto), separado del diagrama. Esto también evita el problema de reordenar el índice automático de figuras de Word, al ser una sola figura nueva en el mismo lugar de la anterior (Figura 12), no varias figuras nuevas.
 
 ---
@@ -537,6 +542,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 - Supabase se pausa tras 7 días sin actividad — reactivar manualmente con "Resume project"
 - Identity del JWT se serializa como JSON string (compatibilidad flask-jwt-extended 4.7.4)
 - Token JWT expira en 15 minutos — si una petición da "Token has expired", simplemente hacer login de nuevo. En la app móvil, el AuthContext ahora muestra un Alert automático y redirige a login sin necesidad de reiniciar. En el panel web pasa lo mismo desde el fix del 404 de Vercel: el AuthContext valida `exp` al arrancar y escucha `authEvents` para redirigir con React Router, mostrando un toast de sesión expirada
+- El backend corriendo en local escribe en la MISMA base de Supabase de producción (`DATABASE_URL` apunta al pooler de Supabase, no hay base de pruebas separada). Cualquier prueba que cree registros deja datos reales — usar nombres identificables tipo "TEST ..." y borrarlos con DELETE, porque el endpoint de borrado es soft delete y solo los desactiva
 - En el panel web NUNCA usar `window.location.href` ni `window.location.reload()` para redirigir — siempre `navigate()` de React Router o `<Navigate>`. Una recarga completa hace que Vercel busque la ruta como archivo real en el servidor, y eso fue exactamente lo que causó el 404 NOT_FOUND
 - `panel-web/vercel.json` SÍ se sube a GitHub (a diferencia de los .env) — sin ese rewrite catch-all, cualquier carga directa de una ruta que no sea `/` da 404 en Vercel
 - Tesseract en local instalado en `C:\Program Files\Tesseract-OCR\` con idioma spa; en Docker se instala vía apt (`tesseract-ocr` + `tesseract-ocr-spa`)
