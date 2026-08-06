@@ -106,7 +106,7 @@ def crear_expediente(datos, id_usuario):
 
 
 def listar_expedientes(pagina=1, por_pagina=20, id_area=None, id_estado=None,
-                        id_usuario_asignado=None, busqueda=None):
+                        id_usuario_asignado=None, id_cliente=None, busqueda=None):
     query = Expediente.query
 
     if id_area:
@@ -117,6 +117,9 @@ def listar_expedientes(pagina=1, por_pagina=20, id_area=None, id_estado=None,
 
     if id_usuario_asignado:
         query = query.filter_by(id_usuario_asignado=id_usuario_asignado)
+
+    if id_cliente:
+        query = query.filter_by(id_cliente=id_cliente)
 
     if busqueda:
         termino = f"%{busqueda}%"

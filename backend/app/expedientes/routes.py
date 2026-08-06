@@ -45,6 +45,7 @@ def listar():
     id_area = request.args.get('id_area', type=int)
     id_estado = request.args.get('id_estado', type=int)
     id_usuario_asignado = request.args.get('id_usuario_asignado', type=int)
+    id_cliente = request.args.get('id_cliente', type=int)
     busqueda = request.args.get('busqueda', None)
 
     resultado = listar_expedientes(
@@ -53,6 +54,7 @@ def listar():
         id_area=id_area,
         id_estado=id_estado,
         id_usuario_asignado=id_usuario_asignado,
+        id_cliente=id_cliente,
         busqueda=busqueda
     )
 
