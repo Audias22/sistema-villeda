@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Expedientes from './pages/Expedientes'
+import Clientes from './pages/Clientes'
 import ExpedienteDetalle from './pages/ExpedienteDetalle'
 import CargarDocumento from './pages/CargarDocumento'
 import Busqueda from './pages/Busqueda'
@@ -47,6 +48,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ExpedienteDetalle />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clientes"
+          element={
+            <ProtectedRoute>
+              <Clientes />
             </ProtectedRoute>
           }
         />

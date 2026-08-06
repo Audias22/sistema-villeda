@@ -5,6 +5,7 @@ import {
   Upload,
   Search,
   Users,
+  UserRound,
   BarChart3,
   LogOut,
 } from 'lucide-react'
@@ -14,6 +15,7 @@ import './Sidebar.css'
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/expedientes', label: 'Expedientes', icon: FolderOpen },
+  { to: '/clientes', label: 'Clientes', icon: UserRound },
   { to: '/cargar', label: 'Cargar documento', icon: Upload },
   { to: '/busqueda', label: 'Búsqueda', icon: Search },
   { to: '/usuarios', label: 'Usuarios', icon: Users, rol: 'Administrador' },
