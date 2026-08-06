@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import Modal from '../components/common/Modal'
 import Input from '../components/common/Input'
 import Button from '../components/common/Button'
+import ClienteFormulario from '../components/ClienteFormulario'
 import api from '../services/api'
 import { nombreCompletoCliente } from '../utils/formatters'
 
@@ -24,7 +25,9 @@ function NuevoExpedienteModal({ isOpen, onClose, onCreado }) {
   const [prioridades, setPrioridades] = useState([])
   const [busquedaCliente, setBusquedaCliente] = useState('')
   const [clientesEncontrados, setClientesEncontrados] = useState([])
+  const [buscoSinResultados, setBuscoSinResultados] = useState(false)
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null)
+  const [creandoCliente, setCreandoCliente] = useState(false)
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
@@ -33,6 +36,8 @@ function NuevoExpedienteModal({ isOpen, onClose, onCreado }) {
     setClienteSeleccionado(null)
     setBusquedaCliente('')
     setClientesEncontrados([])
+    setBuscoSinResultados(false)
+    setCreandoCliente(false)
 
     api.get('/catalogos/areas-juridicas').then((res) => setAreas(res.data.areas_juridicas))
     api.get('/catalogos/prioridades').then((res) => setPrioridades(res.data.prioridades))
@@ -51,18 +56,61 @@ function NuevoExpedienteModal({ isOpen, onClose, onCreado }) {
   useEffect(() => {
     if (!busquedaCliente || busquedaCliente.length < 2) {
       setClientesEncontrados([])
+      setBuscoSinResultados(false)
       return
     }
+    // Se limpia mientras se escribe para no ofrecer "crear" antes de tener respuesta
+    setBuscoSinResultados(false)
     const timeout = setTimeout(() => {
       api
         .get('/clientes', { params: { busqueda: busquedaCliente, por_pagina: 8 } })
-        .then((res) => setClientesEncontrados(res.data.clientes))
-        .catch(() => setClientesEncontrados([]))
+        .then((res) => {
+          setClientesEncontrados(res.data.clientes)
+          setBuscoSinResultados(res.data.clientes.length === 0)
+        })
+        .catch(() => {
+          setClientesEncontrados([])
+          setBuscoSinResultados(false)
+        })
     }, 300)
     return () => clearTimeout(timeout)
   }, [busquedaCliente])
 
   const actualizarCampo = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.value }))
+
+  const seleccionarCliente = (cliente) => {
+    setClienteSeleccionado(cliente)
+    setClientesEncontrados([])
+    setBuscoSinResultados(false)
+    setCreandoCliente(false)
+  }
+
+  // Reparte lo que el usuario ya escribió entre los campos del mini formulario:
+  // la primera palabra como nombre y el resto como apellido, o todo como razón
+  // social si cambia el tipo de persona a Jurídica
+  const datosPrecargados = () => {
+    const texto = busquedaCliente.trim()
+    const [primeraPalabra, ...resto] = texto.split(/\s+/)
+    return {
+      primer_nombre: primeraPalabra || '',
+      primer_apellido: resto.join(' '),
+      razon_social: texto,
+    }
+  }
+
+  const crearClienteAlVuelo = async (payload, opciones) => {
+    // El 409 lo maneja ClienteFormulario: si el usuario elige reutilizar, llega
+    // aquí el cliente que ya existía en vez de uno nuevo
+    if (opciones?.reutilizado) {
+      toast.success('Se usó el cliente que ya estaba registrado')
+      seleccionarCliente(payload)
+      return
+    }
+
+    const { data } = await api.post('/clientes', payload)
+    toast.success('Cliente creado')
+    seleccionarCliente(data.cliente)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -97,7 +145,12 @@ function NuevoExpedienteModal({ isOpen, onClose, onCreado }) {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Nuevo expediente">
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Mientras se crea el cliente el formulario del expediente se oculta sin
+          desmontarse, para no perder lo que ya se haya llenado */}
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: creandoCliente ? 'none' : 'flex', flexDirection: 'column', gap: 16 }}
+      >
         <Input
           id="titulo"
           label="Título"
@@ -119,19 +172,18 @@ function NuevoExpedienteModal({ isOpen, onClose, onCreado }) {
             }}
             required
           />
-          {clientesEncontrados.length > 0 && !clienteSeleccionado && (
+          {!clienteSeleccionado && (clientesEncontrados.length > 0 || buscoSinResultados) && (
             <ul className="cliente-dropdown">
               {clientesEncontrados.map((c) => (
-                <li
-                  key={c.id_cliente}
-                  onClick={() => {
-                    setClienteSeleccionado(c)
-                    setClientesEncontrados([])
-                  }}
-                >
+                <li key={c.id_cliente} onClick={() => seleccionarCliente(c)}>
                   {nombreCompletoCliente(c)}
                 </li>
               ))}
+              {buscoSinResultados && (
+                <li className="cliente-dropdown-crear" onClick={() => setCreandoCliente(true)}>
+                  + Crear cliente nuevo con &quot;{busquedaCliente}&quot;
+                </li>
+              )}
             </ul>
           )}
         </div>
@@ -217,6 +269,22 @@ function NuevoExpedienteModal({ isOpen, onClose, onCreado }) {
           {enviando ? 'Creando...' : 'Crear expediente'}
         </Button>
       </form>
+
+      {creandoCliente && (
+        <div>
+          <h4 style={{ marginBottom: 4 }}>Nuevo cliente</h4>
+          <p style={{ color: 'var(--texto-secundario)', fontSize: 14, marginBottom: 16 }}>
+            Solo lo esencial. El resto de los datos se pueden completar después en la pantalla de Clientes.
+          </p>
+          <ClienteFormulario
+            compacto
+            modo="crear"
+            datosIniciales={datosPrecargados()}
+            onSubmit={crearClienteAlVuelo}
+            onCancel={() => setCreandoCliente(false)}
+          />
+        </div>
+      )}
     </Modal>
   )
 }
