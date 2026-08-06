@@ -16,6 +16,16 @@ from .services import (
 clientes_bp = Blueprint('clientes', __name__)
 
 
+def respuesta_duplicado(error, existente):
+    """409 Conflict con el id del cliente que ya ocupa ese DPI o NIT, para que el
+    panel pueda ofrecer reutilizarlo en vez de dejar al usuario sin salida."""
+    return jsonify({
+        'error':      error,
+        'id_cliente': existente.id_cliente,
+        'cliente':    existente.to_dict()
+    }), 409
+
+
 @clientes_bp.route('/api/v1/clientes', methods=['POST'])
 @require_permission('gestionar_clientes')
 def crear():
@@ -27,9 +37,11 @@ def crear():
     except ValidationError as err:
         return jsonify({'error': 'Datos inválidos', 'detalles': err.messages}), 400
 
-    cliente, error = crear_cliente(datos, identity['id_usuario'])
+    cliente, error, existente = crear_cliente(datos, identity['id_usuario'])
 
     if error:
+        if existente:
+            return respuesta_duplicado(error, existente)
         return jsonify({'error': error}), 400
 
     return jsonify({'cliente': cliente.to_dict()}), 201
@@ -80,10 +92,13 @@ def actualizar(id_cliente):
     except ValidationError as err:
         return jsonify({'error': 'Datos inválidos', 'detalles': err.messages}), 400
 
-    cliente, error = actualizar_cliente(id_cliente, datos)
+    cliente, error, existente = actualizar_cliente(id_cliente, datos)
 
     if error:
-        return jsonify({'error': error}), 400 if error != "Cliente no encontrado" else 404
+        if existente:
+            return respuesta_duplicado(error, existente)
+        codigo = 404 if error == "Cliente no encontrado" else 400
+        return jsonify({'error': error}), codigo
 
     return jsonify({'cliente': cliente.to_dict()}), 200
 
