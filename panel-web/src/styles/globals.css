@@ -170,6 +170,27 @@ button {
   background: var(--dorado-suave);
 }
 
+.aviso-duplicado {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--advertencia-fondo);
+  border: 1px solid var(--advertencia);
+  border-radius: var(--radio-md);
+}
+
+.aviso-duplicado-texto {
+  font-size: 14px;
+  color: var(--advertencia);
+}
+
+.aviso-duplicado-nombre {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--texto-primario);
+}
+
 .filtros-barra {
   display: flex;
   align-items: flex-end;
