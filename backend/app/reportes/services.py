@@ -52,6 +52,17 @@ def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None):
         Expediente, db.and_(Expediente.id_estado == EstadoExpediente.id_estado, *filtro_expediente)
     ).group_by(EstadoExpediente.id_estado, EstadoExpediente.nombre).all()
 
+    expedientes_por_tipo_notarial = db.session.query(
+        TipoExpediente.id_tipo,
+        TipoExpediente.nombre,
+        func.count(Expediente.id_expediente).label('total')
+    ).outerjoin(
+        Expediente, db.and_(Expediente.id_tipo_expediente == TipoExpediente.id_tipo, *filtro_expediente)
+    ).filter(
+        TipoExpediente.activo.is_(True),
+        TipoExpediente.id_area == 1
+    ).group_by(TipoExpediente.id_tipo, TipoExpediente.nombre).order_by(TipoExpediente.id_tipo).all()
+
     expedientes_por_mes = db.session.query(
         func.to_char(Expediente.fecha_apertura, 'YYYY-MM').label('mes'),
         func.count(Expediente.id_expediente).label('total')
@@ -74,6 +85,10 @@ def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None):
         },
         'expedientes_por_area': [
             {'area': nombre, 'total': total} for nombre, total in expedientes_por_area
+        ],
+        'expedientes_por_tipo_notarial': [
+            {'id_tipo': id_tipo, 'nombre': nombre, 'cantidad': total}
+            for id_tipo, nombre, total in expedientes_por_tipo_notarial
         ],
         'expedientes_por_estado': [
             {'estado': nombre, 'total': total} for nombre, total in expedientes_por_estado
