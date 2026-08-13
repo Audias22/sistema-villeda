@@ -8,6 +8,7 @@ import Table from '../components/common/Table'
 import Badge from '../components/common/Badge'
 import PieChart from '../components/charts/PieChart'
 import AreaChart from '../components/charts/AreaChart'
+import BarChart from '../components/charts/BarChart'
 import { formatearFecha, areaClaseCss, estadoClaseCss } from '../utils/formatters'
 import './Dashboard.css'
 
@@ -90,6 +91,17 @@ function Dashboard() {
           cargando={cargandoDashboard}
         />
       </motion.div>
+
+      <div className="dashboard-grafica-ancha">
+        <Card>
+          <h3>Distribución por tipo notarial</h3>
+          {cargandoDashboard ? (
+            <Skeleton height="280px" />
+          ) : (
+            <BarChart datos={dashboard?.expedientes_por_tipo_notarial || []} />
+          )}
+        </Card>
+      </div>
 
       <div className="dashboard-graficas">
         <Card>
