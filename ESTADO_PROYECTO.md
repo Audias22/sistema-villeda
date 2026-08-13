@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 6 de agosto de 2026
+**Última actualización:** 12 de agosto de 2026
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232
 
 ---
@@ -280,7 +280,7 @@ backend/
 | POST | /api/v1/busquedas | ✅ Funcionando (mide y registra TBR real) | Sí — buscar_expediente |
 | GET | /api/v1/busquedas/historial | ✅ Funcionando (paginado + filtros usuario/criterio) | Sí — buscar_expediente |
 | GET | /api/v1/busquedas/metricas | ✅ Funcionando (promedio/min/max TBR) | Sí — ver_dashboard |
-| GET | /api/v1/reportes/dashboard | ✅ Funcionando (totales + por área + por estado + TBR + duplicados) | Sí — ver_dashboard |
+| GET | /api/v1/reportes/dashboard | ✅ Funcionando (totales + por área + por estado + por tipo notarial + por mes + TBR + duplicados) | Sí — ver_dashboard |
 | GET | /api/v1/reportes/expedientes/excel | ✅ Funcionando (descarga real .xlsx con filtros opcionales) | Sí — exportar_reporte |
 | GET | /api/v1/auditoria | ✅ Funcionando (paginado + filtros tabla/acción/usuario/fecha) | Sí — ver_auditoria |
 | GET | /api/v1/auditoria/\<id\> | ✅ Funcionando | Sí — ver_auditoria |
@@ -302,7 +302,7 @@ backend/
 | Pantalla | Ruta | Estado |
 |----------|------|--------|
 | Login | /login | ✅ Autenticación JWT con AuthContext |
-| Dashboard | /dashboard | ✅ Totales, distribución por área/estado, TBR, gráficas (Area/Pie) |
+| Dashboard | /dashboard | ✅ Totales, distribución por área/estado, TBR, gráficas (Bar/Pie/Area) |
 | Expedientes (lista + detalle) | /expedientes, /expedientes/:id | ✅ Listado paginado, filtros, detalle con documentos, modal de nuevo expediente (permite crear el cliente al vuelo si la búsqueda no lo encuentra) |
 | Clientes (lista + detalle) | /clientes, /clientes/:id | ✅ Listado paginado con búsqueda y filtro activos/todos, modal crear/editar, detalle con datos de contacto y sus expedientes, desactivación con confirmación |
 | Cargar documento | /cargar | ✅ Subida de archivo con OCR/pdfplumber automático |
@@ -311,6 +311,8 @@ backend/
 | Reportes | /reportes | ✅ Dashboard de reportes + exportación Excel |
 
 **Estructura:** componentes comunes reutilizables (Button, Card, Input, Modal, Table, Badge, Pagination, Skeleton, EmptyState), un componente de dominio compartido (`ClienteFormulario`, con prop `compacto` para el alta al vuelo), layout con Sidebar + TopBar, rutas protegidas (ProtectedRoute), contexto de autenticación (AuthContext), hooks (useAuth, useFetch), capa de servicios (api.js) que centraliza las llamadas al backend Flask.
+
+**Gráfica de distribución por tipo notarial (12 de agosto de 2026):** como el 100% de los expedientes reales son del área Notarial, la gráfica de subtipos es más informativa que la de áreas. Se agregó al endpoint `/reportes/dashboard` el campo `expedientes_por_tipo_notarial` — lista de `{id_tipo, nombre, cantidad}` con los 6 tipos notariales activos, incluidos los que están en cero. La query usa `outerjoin` con los filtros de área/fecha **dentro del `ON`** y no en el `WHERE`: así los tipos sin expedientes no se descartan y la gráfica siempre muestra las 6 barras. No hace falta `COALESCE` porque `COUNT(expedientes.id_expediente)` ya devuelve 0 en las filas que el LEFT JOIN rellena con NULL. El filtro de área es `TipoExpediente.id_area == 1` (id de Notarial) en vez de comparar por nombre, para no depender del texto del catálogo. En el panel se agregó `panel-web/src/components/charts/BarChart.jsx` (Recharts `BarChart` con `layout="vertical"`, color `#D4A853` igual que las otras gráficas), y en `Dashboard.jsx` se pinta en una fila propia de ancho completo (`.dashboard-grafica-ancha`) arriba de las dos gráficas existentes, que quedaron intactas. Al momento del cambio los datos reales eran Compraventa 2, Donación 1 y los otros 4 tipos en cero.
 
 **Desplegado en Vercel, con la variable `VITE_API_URL` apuntando a `https://sistema-villeda-backend-v2.onrender.com/api/v1`. Prueba end-to-end contra el backend v2 en producción exitosa (subida de JPG + OCR real + R2 + descarga).**
 
