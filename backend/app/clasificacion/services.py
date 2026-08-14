@@ -20,6 +20,10 @@ from app.clientes.models import Cliente
 from app.expedientes.models import Expediente
 from app.expedientes.services import generar_numero_expediente
 from app.common.models import TipoExpediente
+from app.notificaciones.services import crear_notificacion
+from app.notificaciones.models import (
+    TIPO_BAJA_CONFIANZA, TIPO_DUPLICADO, TIPO_CARGA_COMPLETADA, TIPO_ERROR
+)
 from .clasificador import clasificar, ID_AREA_NOTARIAL
 from .models import (
     TrabajoClasificacion, ClasificacionML, EstadoProcesamiento,
@@ -252,6 +256,20 @@ def _crear_expediente_automatico(trabajo, texto, num_paginas, id_formato, predic
             trabajo.requiere_confirmacion = False
             trabajo.fecha_fin_proceso = datetime.utcnow()
 
+            # Va dentro del loop: si hay reintento, el rollback también se
+            # lleva la notificación y hay que volver a crearla.
+            crear_notificacion(
+                id_usuario=trabajo.id_usuario,
+                id_tipo=TIPO_CARGA_COMPLETADA,
+                mensaje=(
+                    f"Documento clasificado como {nombre_tipo} ({porcentaje}%) "
+                    f"y guardado en expediente {numero_expediente}"
+                ),
+                id_expediente=expediente.id_expediente,
+                id_documento=documento.id_documento,
+                id_trabajo=trabajo.id_trabajo
+            )
+
             db.session.commit()
 
             logging.info(
@@ -300,6 +318,12 @@ def procesar_trabajo(id_trabajo):
         trabajo.id_estado = ESTADO_ERROR
         trabajo.mensaje_error = f"No se pudo descargar el archivo de R2: {e}"
         trabajo.fecha_fin_proceso = datetime.utcnow()
+        crear_notificacion(
+            id_usuario=trabajo.id_usuario,
+            id_tipo=TIPO_ERROR,
+            mensaje=f"No se pudo procesar el documento: {trabajo.mensaje_error}",
+            id_trabajo=trabajo.id_trabajo
+        )
         db.session.commit()
         logging.error(f"[worker] trabajo {id_trabajo} fallo al descargar de R2: {e}")
         return trabajo.to_dict(), trabajo.mensaje_error
@@ -317,6 +341,12 @@ def procesar_trabajo(id_trabajo):
             "(posiblemente un PDF de solo imágenes ilegibles)"
         )
         trabajo.fecha_fin_proceso = datetime.utcnow()
+        crear_notificacion(
+            id_usuario=trabajo.id_usuario,
+            id_tipo=TIPO_ERROR,
+            mensaje="No se pudo procesar el documento: OCR sin texto extraíble",
+            id_trabajo=trabajo.id_trabajo
+        )
         db.session.commit()
         logging.warning(f"[worker] trabajo {id_trabajo} sin texto extraible — marcado Error")
         return trabajo.to_dict(), trabajo.mensaje_error
@@ -334,6 +364,20 @@ def procesar_trabajo(id_trabajo):
             f"(expediente id={duplicado.id_expediente})"
         )
         trabajo.fecha_fin_proceso = datetime.utcnow()
+
+        expediente_original = Expediente.query.get(duplicado.id_expediente)
+        numero_original = (
+            expediente_original.numero_expediente if expediente_original
+            else f"id={duplicado.id_expediente}"
+        )
+        crear_notificacion(
+            id_usuario=trabajo.id_usuario,
+            id_tipo=TIPO_DUPLICADO,
+            mensaje=f"Documento duplicado exacto del expediente {numero_original}",
+            id_documento=duplicado.id_documento,
+            id_trabajo=trabajo.id_trabajo
+        )
+
         db.session.commit()
 
         # Después del commit: si el borrado falla, el trabajo ya quedó bien
@@ -360,6 +404,19 @@ def procesar_trabajo(id_trabajo):
         trabajo.id_estado = ESTADO_EXITOSO
         trabajo.requiere_confirmacion = True
         trabajo.fecha_fin_proceso = datetime.utcnow()
+
+        tipo_predicho = TipoExpediente.query.get(prediccion['id_tipo_predicho'])
+        nombre_predicho = tipo_predicho.nombre if tipo_predicho else 'Documento'
+        crear_notificacion(
+            id_usuario=trabajo.id_usuario,
+            id_tipo=TIPO_BAJA_CONFIANZA,
+            mensaje=(
+                f"Documento requiere confirmación: predicción {nombre_predicho} "
+                f"({int(round(prediccion['confianza'] * 100))}%) por debajo del umbral"
+            ),
+            id_trabajo=trabajo.id_trabajo
+        )
+
         db.session.commit()
         logging.info(
             f"[worker] trabajo {id_trabajo} con confianza {prediccion['confianza']} "
@@ -376,6 +433,12 @@ def procesar_trabajo(id_trabajo):
         trabajo_actual.id_estado = ESTADO_ERROR
         trabajo_actual.mensaje_error = error
         trabajo_actual.fecha_fin_proceso = datetime.utcnow()
+        crear_notificacion(
+            id_usuario=trabajo_actual.id_usuario,
+            id_tipo=TIPO_ERROR,
+            mensaje=f"No se pudo procesar el documento: {error}",
+            id_trabajo=trabajo_actual.id_trabajo
+        )
         db.session.commit()
         logging.error(f"[worker] trabajo {id_trabajo} fallo al crear el expediente: {error}")
         return trabajo_actual.to_dict(), error

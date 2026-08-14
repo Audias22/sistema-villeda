@@ -1,0 +1,144 @@
+.campana {
+  position: relative;
+}
+
+.campana-boton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto-secundario);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.campana-boton:hover {
+  background: var(--dorado-suave);
+  color: var(--texto-primario);
+}
+
+.campana-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--peligro);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: center;
+}
+
+.campana-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  max-height: 440px;
+  display: flex;
+  flex-direction: column;
+  background: var(--fondo-tarjeta);
+  border: 1px solid var(--borde-suave);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(27, 42, 74, 0.12);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.campana-popup-encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--borde-suave);
+}
+
+.campana-popup-titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--texto-primario);
+}
+
+.campana-marcar-todas {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--texto-secundario);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.campana-marcar-todas:hover {
+  color: var(--texto-primario);
+  text-decoration: underline;
+}
+
+.campana-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.campana-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--borde-suave);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.campana-item:last-child {
+  border-bottom: none;
+}
+
+.campana-item:hover {
+  background: var(--fondo-pagina);
+}
+
+.campana-item-nueva {
+  background: var(--dorado-suave);
+}
+
+.campana-item-icono {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.campana-item-cuerpo {
+  min-width: 0;
+}
+
+.campana-item-mensaje {
+  margin: 0 0 3px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--texto-primario);
+}
+
+.campana-item-tiempo {
+  font-size: 11px;
+  color: var(--texto-muted);
+}
+
+.campana-vacio {
+  padding: 28px 14px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--texto-muted);
+}

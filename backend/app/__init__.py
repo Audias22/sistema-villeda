@@ -32,6 +32,7 @@ def create_app():
         from app.clasificacion.models import (
             EstadoProcesamiento, ModeloML, TrabajoClasificacion, ClasificacionML
         )
+        from app.notificaciones.models import TipoNotificacion, Notificacion
 
     from app.auth.routes import auth_bp
     from app.ocr.routes import ocr_bp
@@ -44,6 +45,7 @@ def create_app():
     from app.usuarios.routes import usuarios_bp
     from app.catalogos.routes import catalogos_bp
     from app.clasificacion.routes import clasificacion_bp
+    from app.notificaciones.routes import notificaciones_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(ocr_bp)
@@ -56,5 +58,6 @@ def create_app():
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(catalogos_bp)
     app.register_blueprint(clasificacion_bp)
+    app.register_blueprint(notificaciones_bp)
 
     return app
