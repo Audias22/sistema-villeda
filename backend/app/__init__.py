@@ -29,6 +29,9 @@ def create_app():
         from app.documentos.models import Documento
         from app.busquedas.models import CriterioBusqueda, Busqueda
         from app.auditoria.models import Auditoria
+        from app.clasificacion.models import (
+            EstadoProcesamiento, ModeloML, TrabajoClasificacion, ClasificacionML
+        )
 
     from app.auth.routes import auth_bp
     from app.ocr.routes import ocr_bp
@@ -40,6 +43,7 @@ def create_app():
     from app.auditoria.routes import auditoria_bp
     from app.usuarios.routes import usuarios_bp
     from app.catalogos.routes import catalogos_bp
+    from app.clasificacion.routes import clasificacion_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(ocr_bp)
@@ -51,5 +55,6 @@ def create_app():
     app.register_blueprint(auditoria_bp)
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(catalogos_bp)
+    app.register_blueprint(clasificacion_bp)
 
     return app
