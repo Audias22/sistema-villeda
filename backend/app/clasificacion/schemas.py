@@ -1,4 +1,4 @@
-from marshmallow import Schema, EXCLUDE
+from marshmallow import Schema, fields, EXCLUDE
 
 
 class TrabajoCrearSchema(Schema):
@@ -13,3 +13,12 @@ class TrabajoCrearSchema(Schema):
     """
     class Meta:
         unknown = EXCLUDE
+
+
+class TrabajoConfirmarSchema(Schema):
+    """
+    Tipo con el que la persona decide crear el expediente. Puede ser el que
+    predijo el modelo o uno corregido; que pertenezca al área notarial y esté
+    activo se valida en services, contra el catálogo.
+    """
+    id_tipo_confirmado = fields.Integer(required=True)

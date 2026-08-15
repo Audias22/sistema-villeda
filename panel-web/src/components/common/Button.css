@@ -53,3 +53,21 @@
 .btn-acento:hover:not(:disabled) {
   background: var(--dorado-hover);
 }
+
+.btn-exito {
+  background: var(--exito);
+  color: #fff;
+}
+
+.btn-exito:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.btn-peligro {
+  background: var(--peligro);
+  color: #fff;
+}
+
+.btn-peligro:hover:not(:disabled) {
+  filter: brightness(1.15);
+}

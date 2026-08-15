@@ -1,3 +1,4 @@
+import os
 import random
 import logging
 
@@ -13,7 +14,12 @@ ID_AREA_NOTARIAL = 1
 ID_MODELO_MOCK = 3
 
 # Proporción de predicciones que caen por encima del umbral de confianza.
-PROPORCION_ALTA = 0.70
+#
+# En producción se deja en 0.70, que es el comportamiento que queremos simular.
+# En local conviene bajarla (por ejemplo MOCK_SESGO_ALTA_CONFIANZA=0.20) para
+# que casi todos los documentos caigan en baja confianza y se pueda probar el
+# modal de confirmación sin subir veinte archivos.
+PROPORCION_ALTA = float(os.getenv('MOCK_SESGO_ALTA_CONFIANZA', '0.70'))
 
 RANGO_CONFIANZA_ALTA = (0.70, 0.95)
 RANGO_CONFIANZA_BAJA = (0.40, 0.69)

@@ -22,6 +22,7 @@ from app.expedientes.services import generar_numero_expediente
 from app.common.models import TipoExpediente
 from app.notificaciones.services import crear_notificacion
 from app.notificaciones.models import (
+    Notificacion,
     TIPO_BAJA_CONFIANZA, TIPO_DUPLICADO, TIPO_CARGA_COMPLETADA, TIPO_ERROR
 )
 from .clasificador import clasificar, ID_AREA_NOTARIAL
@@ -169,6 +170,11 @@ def _crear_expediente_automatico(trabajo, texto, num_paginas, id_formato, predic
     Crea cliente placeholder + expediente + documento + fila de historial en un
     solo commit. Si algo falla, el rollback deja la base como estaba.
 
+    Esta es la vía automática, sin intervención humana: se usa cuando la
+    confianza del modelo supera el umbral. La confirmada a mano tiene su propia
+    función (_crear_expediente_desde_confirmacion) para que las dos historias
+    queden separadas y se puedan auditar distinto.
+
     Reintenta ante colisión del numero_expediente: se genera con count()+1, así
     que si alguien crea un expediente a mano en el mismo instante, los dos
     calculan el mismo número y el UNIQUE rechaza al segundo. Al reintentar, el
@@ -290,6 +296,234 @@ def _crear_expediente_automatico(trabajo, texto, num_paginas, id_formato, predic
                 return None, f"No se pudo generar un numero de expediente unico: {e.orig}"
 
     return None, "No se pudo crear el expediente"
+
+
+def _marcar_notificaciones_del_trabajo(id_trabajo):
+    """
+    Da por leída la notificación que había pedido la confirmación: una vez que
+    la persona decidió, el aviso ya no tiene nada que reclamar. Sin commit — lo
+    hace el llamador dentro de su propia transacción.
+    """
+    Notificacion.query.filter_by(id_trabajo=id_trabajo, leida=False).update(
+        {'leida': True, 'fecha_lectura': datetime.utcnow()}
+    )
+
+
+def _crear_expediente_desde_confirmacion(trabajo, id_tipo_final, id_usuario_confirmador):
+    """
+    Versión con intervención humana de la creación del expediente.
+
+    Deliberadamente separada de _crear_expediente_automatico aunque compartan
+    forma: son dos historias distintas y conviene poder auditarlas por separado.
+    Las diferencias reales están en el expediente, no en el trámite:
+
+      - se asigna a quien confirmó, no a quien subió el archivo, porque es quien
+        se hizo cargo de la decisión
+      - la descripción deja registrada la predicción original junto al tipo con
+        el que finalmente se guardó, para que se vea si hubo corrección
+      - marca la confirmación en el propio trabajo dentro del mismo commit
+
+    Devuelve (expediente, error).
+    """
+    tipo_final = TipoExpediente.query.get(id_tipo_final)
+    nombre_final = tipo_final.nombre if tipo_final else 'Documento'
+
+    tipo_predicho = TipoExpediente.query.get(trabajo.id_tipo_predicho)
+    nombre_predicho = tipo_predicho.nombre if tipo_predicho else 'sin predicción'
+
+    confianza = float(trabajo.confianza) if trabajo.confianza is not None else 0
+    porcentaje = int(round(confianza * 100))
+
+    for intento in range(1, MAX_INTENTOS_NUMERO_EXPEDIENTE + 1):
+        try:
+            # Igual que en la vía automática, se reasignan en cada vuelta: el
+            # rollback del reintento revierte también estos campos.
+            trabajo.id_tipo_confirmado = id_tipo_final
+            trabajo.confirmado_por = id_usuario_confirmador
+            trabajo.fecha_confirmacion = datetime.utcnow()
+            trabajo.requiere_confirmacion = False
+
+            cliente = obtener_o_crear_cliente_placeholder(id_usuario_confirmador)
+
+            numero_expediente = generar_numero_expediente(ID_AREA_NOTARIAL)
+            hoy = date.today()
+
+            expediente = Expediente(
+                id_cliente=cliente.id_cliente,
+                id_tipo_expediente=id_tipo_final,
+                id_area=ID_AREA_NOTARIAL,
+                id_estado=ESTADO_EXPEDIENTE_ACTIVO,
+                id_usuario_asignado=id_usuario_confirmador,
+                numero_expediente=numero_expediente,
+                titulo=f"{nombre_final} - {hoy.strftime('%d/%m/%Y')}",
+                descripcion=(
+                    f"Expediente creado por clasificación ML con confirmación humana. "
+                    f"Predicción: {nombre_predicho} ({porcentaje}%). "
+                    f"Confirmado como: {nombre_final}."
+                ),
+                fecha_apertura=hoy,
+                prioridad=PRIORIDAD_MEDIA,
+                es_duplicado_posible=False,
+                creado_por=id_usuario_confirmador
+            )
+            db.session.add(expediente)
+            db.session.flush()
+
+            documento = Documento(
+                id_expediente=expediente.id_expediente,
+                id_formato=trabajo.id_formato,
+                nombre_archivo_original=trabajo.nombre_archivo_original,
+                nombre_archivo_sistema=trabajo.nombre_archivo_sistema,
+                ruta_almacenamiento=trabajo.ruta_almacenamiento,
+                tamano_bytes=trabajo.tamano_bytes,
+                num_paginas=trabajo.num_paginas,
+                hash_archivo=trabajo.hash_archivo,
+                es_duplicado_exacto=False,
+                texto_completo=trabajo.texto_completo,
+                cargado_por=trabajo.id_usuario
+            )
+            db.session.add(documento)
+            db.session.flush()
+
+            clasificacion = ClasificacionML(
+                id_documento=documento.id_documento,
+                id_modelo=trabajo.id_modelo,
+                id_area_predicha=ID_AREA_NOTARIAL,
+                confianza=confianza,
+                # La predicción sí necesitó revisión: por eso llegó hasta acá.
+                requiere_revision=True,
+                umbral_confianza_usado=UMBRAL_CONFIANZA,
+                revisada=True,
+                revisado_por=id_usuario_confirmador,
+                fecha_revision=datetime.utcnow(),
+                id_tipo_predicho=trabajo.id_tipo_predicho,
+                # Solo se llena si hubo corrección real, para poder medir después
+                # cuántas veces el modelo se equivocó.
+                id_tipo_corregido=(
+                    id_tipo_final if id_tipo_final != trabajo.id_tipo_predicho else None
+                )
+            )
+            db.session.add(clasificacion)
+
+            trabajo.id_expediente_creado = expediente.id_expediente
+            trabajo.id_documento_creado = documento.id_documento
+            trabajo.id_estado = ESTADO_EXITOSO
+            trabajo.fecha_fin_proceso = datetime.utcnow()
+
+            _marcar_notificaciones_del_trabajo(trabajo.id_trabajo)
+
+            crear_notificacion(
+                id_usuario=id_usuario_confirmador,
+                id_tipo=TIPO_CARGA_COMPLETADA,
+                mensaje=(
+                    f"Documento confirmado como {nombre_final} "
+                    f"y guardado en expediente {numero_expediente}"
+                ),
+                id_expediente=expediente.id_expediente,
+                id_documento=documento.id_documento,
+                id_trabajo=trabajo.id_trabajo
+            )
+
+            db.session.commit()
+
+            logging.info(
+                f"[clasificacion] trabajo {trabajo.id_trabajo} confirmado por "
+                f"usuario {id_usuario_confirmador} como {nombre_final} "
+                f"(predijo {nombre_predicho}) — expediente {numero_expediente}"
+            )
+            return expediente, None
+
+        except IntegrityError as e:
+            db.session.rollback()
+            logging.warning(
+                f"[clasificacion] colision al confirmar "
+                f"(intento {intento} de {MAX_INTENTOS_NUMERO_EXPEDIENTE}): {e.orig}"
+            )
+            if intento == MAX_INTENTOS_NUMERO_EXPEDIENTE:
+                return None, f"No se pudo generar un numero de expediente unico: {e.orig}"
+
+    return None, "No se pudo crear el expediente"
+
+
+def confirmar_trabajo(id_trabajo, id_tipo_confirmado, id_usuario):
+    """
+    Crea el expediente de un trabajo que había quedado esperando decisión
+    humana, con el tipo que la persona eligió (el predicho o uno corregido).
+
+    Devuelve (datos, error).
+    """
+    trabajo = TrabajoClasificacion.query.get(id_trabajo)
+
+    if not trabajo:
+        return None, "Trabajo no encontrado"
+
+    if trabajo.id_estado != ESTADO_EXITOSO or not trabajo.requiere_confirmacion:
+        return None, "El trabajo no está esperando confirmación"
+
+    if trabajo.id_expediente_creado:
+        return None, "El trabajo ya tiene un expediente creado"
+
+    tipo = TipoExpediente.query.filter_by(
+        id_tipo=id_tipo_confirmado, id_area=ID_AREA_NOTARIAL, activo=True
+    ).first()
+
+    if not tipo:
+        return None, "El tipo indicado no es un tipo notarial activo"
+
+    expediente, error = _crear_expediente_desde_confirmacion(
+        trabajo, id_tipo_confirmado, id_usuario
+    )
+
+    if error:
+        return None, error
+
+    datos = trabajo.to_dict()
+    datos['numero_expediente'] = expediente.numero_expediente
+
+    return datos, None
+
+
+def descartar_trabajo(id_trabajo):
+    """
+    Borra un trabajo que estaba esperando decisión humana y que la persona
+    resolvió descartar.
+
+    Solo se aceptan trabajos con requiere_confirmacion activo. Los duplicados y
+    los errores no se borran aunque parezcan basura: son la evidencia de qué
+    pasó con un archivo que alguien subió, y esa traza tiene que quedar. Un
+    Pendiente o En proceso tampoco, porque el worker podría estar usándolo.
+
+    Devuelve (datos_borrados, error).
+    """
+    trabajo = TrabajoClasificacion.query.get(id_trabajo)
+
+    if not trabajo:
+        return None, "Trabajo no encontrado"
+
+    if not trabajo.requiere_confirmacion:
+        return None, "Solo se pueden descartar trabajos pendientes de confirmación humana."
+
+    datos = trabajo.to_dict()
+    key = trabajo.ruta_almacenamiento
+
+    _marcar_notificaciones_del_trabajo(id_trabajo)
+
+    # Las notificaciones apuntan al trabajo con una FK, así que hay que soltar
+    # la referencia antes de borrar la fila o el DELETE lo rechaza.
+    Notificacion.query.filter_by(id_trabajo=id_trabajo).update({'id_trabajo': None})
+
+    db.session.delete(trabajo)
+    db.session.commit()
+
+    # Después del commit: si el borrado en R2 falla, la fila ya se fue y lo
+    # único que queda es un objeto huérfano en el bucket.
+    try:
+        eliminar_archivo(key)
+        logging.info(f"[clasificacion] trabajo {id_trabajo} descartado, objeto R2 borrado: {key}")
+    except Exception as e:
+        logging.error(f"[clasificacion] trabajo {id_trabajo} descartado pero R2 fallo: {e}")
+
+    return datos, None
 
 
 def procesar_trabajo(id_trabajo):

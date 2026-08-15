@@ -11,9 +11,14 @@ import {
 } from 'lucide-react'
 import usePolling from '../../hooks/usePolling'
 import api from '../../services/api'
+import ModalConfirmarClasificacion from './ModalConfirmarClasificacion'
 import './CampanaNotificaciones.css'
 
 const INTERVALO_MS = 15000
+
+// Espeja tipos_notificacion de la base.
+const TIPO_BAJA_CONFIANZA = 1
+const TIPO_CARGA_COMPLETADA = 3
 
 // El ícono viene de la base (tipos_notificacion.icono) en kebab-case.
 const ICONOS = {
@@ -46,6 +51,8 @@ function tiempoRelativo(fechaIso) {
 function CampanaNotificaciones() {
   const navigate = useNavigate()
   const [abierto, setAbierto] = useState(false)
+  const [modalConfirmarAbierto, setModalConfirmarAbierto] = useState(false)
+  const [idTrabajoConfirmar, setIdTrabajoConfirmar] = useState(null)
   const contenedorRef = useRef(null)
 
   const traerNotificaciones = useCallback(async () => {
@@ -80,20 +87,36 @@ function CampanaNotificaciones() {
     }
   }
 
-  const alHacerClic = async (notificacion) => {
+  const marcarComoLeida = async (notificacion) => {
+    if (notificacion.leida) return
     try {
-      if (!notificacion.leida) {
-        await api.put(`/notificaciones/${notificacion.id_notificacion}/leida`)
-        recargar()
-      }
+      await api.put(`/notificaciones/${notificacion.id_notificacion}/leida`)
+      recargar()
     } catch {
       // Ver comentario de marcarTodas.
     }
+  }
 
-    if (notificacion.id_expediente) {
+  const alHacerClic = async (notificacion) => {
+    // Baja confianza: hay una decisión pendiente, así que se abre el modal en
+    // vez de navegar. No se marca leída todavía — eso ocurre al aceptar o
+    // descartar, para que cancelar deje la notificación tal como estaba.
+    if (notificacion.id_tipo === TIPO_BAJA_CONFIANZA && notificacion.id_trabajo) {
+      setIdTrabajoConfirmar(notificacion.id_trabajo)
+      setModalConfirmarAbierto(true)
+      setAbierto(false)
+      return
+    }
+
+    await marcarComoLeida(notificacion)
+
+    // Carga completada: el expediente ya existe, se puede ir a verlo.
+    if (notificacion.id_tipo === TIPO_CARGA_COMPLETADA && notificacion.id_expediente) {
       setAbierto(false)
       navigate(`/expedientes/${notificacion.id_expediente}`)
     }
+
+    // Duplicados y errores no llevan a ningún lado: solo quedan leídos.
   }
 
   return (
@@ -152,6 +175,13 @@ function CampanaNotificaciones() {
           </ul>
         </div>
       )}
+
+      <ModalConfirmarClasificacion
+        isOpen={modalConfirmarAbierto}
+        idTrabajo={idTrabajoConfirmar}
+        onClose={() => setModalConfirmarAbierto(false)}
+        onExito={recargar}
+      />
     </div>
   )
 }

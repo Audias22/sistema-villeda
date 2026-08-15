@@ -8,6 +8,7 @@ import Clientes from './pages/Clientes'
 import ClienteDetalle from './pages/ClienteDetalle'
 import ExpedienteDetalle from './pages/ExpedienteDetalle'
 import CargarDocumento from './pages/CargarDocumento'
+import ClasificarConIA from './pages/ClasificarConIA'
 import Busqueda from './pages/Busqueda'
 import Usuarios from './pages/Usuarios'
 import Reportes from './pages/Reportes'
@@ -73,6 +74,14 @@ function App() {
           element={
             <ProtectedRoute>
               <CargarDocumento />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clasificar"
+          element={
+            <ProtectedRoute>
+              <ClasificarConIA />
             </ProtectedRoute>
           }
         />

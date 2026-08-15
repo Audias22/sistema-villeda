@@ -7,6 +7,7 @@ import {
   Users,
   UserRound,
   BarChart3,
+  Sparkles,
   LogOut,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/expedientes', label: 'Expedientes', icon: FolderOpen },
   { to: '/clientes', label: 'Clientes', icon: UserRound },
   { to: '/cargar', label: 'Cargar documento', icon: Upload },
+  { to: '/clasificar', label: 'Clasificar con IA', icon: Sparkles },
   { to: '/busqueda', label: 'Búsqueda', icon: Search },
   { to: '/usuarios', label: 'Usuarios', icon: Users, rol: 'Administrador' },
   { to: '/reportes', label: 'Reportes', icon: BarChart3 },
