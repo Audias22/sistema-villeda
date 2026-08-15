@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 12 de agosto de 2026
+**Última actualización:** 14 de agosto de 2026
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232
 
 ---
@@ -220,9 +220,37 @@ backend/
 
 │   │   ├── init.py
 
-│   │   └── r2_service.py    ✅ Cliente boto3 para Cloudflare R2 — subir_archivo(), obtener_url_firmada()
+│   │   └── r2_service.py    ✅ Cliente boto3 para Cloudflare R2 — subir_archivo(), descargar_archivo(), eliminar_archivo(), obtener_url_firmada()
 
-│   ├── ml/                  ⏳ Vacío
+│   ├── clasificacion/       ✅ Completo — cola de trabajos ML, worker y confirmación humana
+
+│   │   ├── init.py      ✅ Exporta clasificacion_bp
+
+│   │   ├── models.py        ✅ EstadoProcesamiento, ModeloML, TrabajoClasificacion (26 columnas), ClasificacionML
+
+│   │   ├── schemas.py       ✅ TrabajoCrearSchema, TrabajoConfirmarSchema
+
+│   │   ├── clasificador.py  ✅ Mock aislado — clasificar(texto) devuelve {id_tipo_predicho, confianza, id_modelo}
+
+│   │   ├── worker.py        ✅ Daemon thread: claim atómico, recuperación de zombis, loop cada 5s
+
+│   │   ├── services.py      ✅ encolar_trabajo(), obtener_trabajo(), procesar_trabajo(), confirmar_trabajo(), descartar_trabajo()
+
+│   │   └── routes.py        ✅ POST /trabajos, GET /trabajos/\<id\>, POST /trabajos/\<id\>/confirmar, DELETE /trabajos/\<id\>
+
+│   ├── notificaciones/      ✅ Completo
+
+│   │   ├── init.py      ✅ Exporta notificaciones_bp
+
+│   │   ├── models.py        ✅ TipoNotificacion, Notificacion + constantes TIPO_*
+
+│   │   ├── schemas.py       ✅ NotificacionListarSchema
+
+│   │   ├── services.py      ✅ crear_notificacion() sin commit, listar_notificaciones(), marcar_leida(), marcar_todas_leidas()
+
+│   │   └── routes.py        ✅ GET /notificaciones, PUT /\<id\>/leida, PUT /marcar-todas-leidas
+
+│   ├── ml/                  ⏳ Vacío (carpeta sin uso — la funcionalidad ML vive en clasificacion/)
 
 │   └── auditoria/           ✅ Completo
 
@@ -281,6 +309,13 @@ backend/
 | GET | /api/v1/busquedas/historial | ✅ Funcionando (paginado + filtros usuario/criterio) | Sí — buscar_expediente |
 | GET | /api/v1/busquedas/metricas | ✅ Funcionando (promedio/min/max TBR) | Sí — ver_dashboard |
 | GET | /api/v1/reportes/dashboard | ✅ Funcionando (totales + por área + por estado + por tipo notarial + por mes + TBR + duplicados) | Sí — ver_dashboard |
+| POST | /api/v1/clasificacion/trabajos | ✅ Funcionando (encola y responde 202 sin procesar) | Sí — cargar_documento |
+| GET | /api/v1/clasificacion/trabajos/\<id\> | ✅ Funcionando (estado del trabajo en la cola) | Sí — cargar_documento |
+| POST | /api/v1/clasificacion/trabajos/\<id\>/confirmar | ✅ Funcionando (crea el expediente con el tipo confirmado) | Sí — revisar_clasificacion |
+| DELETE | /api/v1/clasificacion/trabajos/\<id\> | ✅ Funcionando (solo trabajos pendientes de confirmación) | Sí — revisar_clasificacion |
+| GET | /api/v1/notificaciones | ✅ Funcionando (20 más recientes + conteo de no leídas) | Sí — ver_notificaciones |
+| PUT | /api/v1/notificaciones/\<id\>/leida | ✅ Funcionando (valida pertenencia al usuario del token) | Sí — ver_notificaciones |
+| PUT | /api/v1/notificaciones/marcar-todas-leidas | ✅ Funcionando | Sí — ver_notificaciones |
 | GET | /api/v1/reportes/expedientes/excel | ✅ Funcionando (descarga real .xlsx con filtros opcionales) | Sí — exportar_reporte |
 | GET | /api/v1/auditoria | ✅ Funcionando (paginado + filtros tabla/acción/usuario/fecha) | Sí — ver_auditoria |
 | GET | /api/v1/auditoria/\<id\> | ✅ Funcionando | Sí — ver_auditoria |
@@ -306,11 +341,39 @@ backend/
 | Expedientes (lista + detalle) | /expedientes, /expedientes/:id | ✅ Listado paginado, filtros, detalle con documentos, modal de nuevo expediente (permite crear el cliente al vuelo si la búsqueda no lo encuentra) |
 | Clientes (lista + detalle) | /clientes, /clientes/:id | ✅ Listado paginado con búsqueda y filtro activos/todos, modal crear/editar, detalle con datos de contacto y sus expedientes, desactivación con confirmación |
 | Cargar documento | /cargar | ✅ Subida de archivo con OCR/pdfplumber automático |
+| Clasificar con IA | /clasificar | ✅ Sube un documento suelto sin elegir expediente: el worker lo clasifica y crea el expediente solo. Responde de inmediato y el resultado llega por la campanita |
 | Búsqueda | /busqueda | ✅ Búsqueda por los 5 criterios con medición de TBR |
 | Usuarios | /usuarios | ✅ CRUD conectado a /api/v1/usuarios |
 | Reportes | /reportes | ✅ Dashboard de reportes + exportación Excel |
 
 **Estructura:** componentes comunes reutilizables (Button, Card, Input, Modal, Table, Badge, Pagination, Skeleton, EmptyState), un componente de dominio compartido (`ClienteFormulario`, con prop `compacto` para el alta al vuelo), layout con Sidebar + TopBar, rutas protegidas (ProtectedRoute), contexto de autenticación (AuthContext), hooks (useAuth, useFetch), capa de servicios (api.js) que centraliza las llamadas al backend Flask.
+
+**Funcionalidad "Clasificar con IA" — completa (14 de agosto de 2026, 4 fases):** la secretaria sube un documento suelto en `/clasificar` sin elegir expediente, y el sistema le crea el expediente correspondiente. El panel responde de inmediato y el resultado llega por la campanita del header. Se construyó en cuatro fases: cola vacía → worker con creación automática → notificaciones → pantalla y confirmación manual.
+
+**Migración de base de datos:** tabla nueva `trabajos_clasificacion` (26 columnas), más `id_tipo_predicho`/`id_tipo_corregido` agregadas a `clasificaciones_ml` e `id_trabajo` agregada a `notificaciones`. Las tablas `clasificaciones_ml`, `probabilidades_clasificacion`, `modelos_ml`, `notificaciones` y `tipos_notificacion` **ya existían** desde el diseño original (con `tipos_notificacion` sembrada con sus 5 tipos), pero estaban modeladas para clasificar por **área jurídica** (4 clases) y esta funcionalidad clasifica por **tipo notarial** (6 clases) — de ahí las columnas nuevas. En `clasificaciones_ml` la columna `id_area_predicha` es NOT NULL y se llena siempre con 1 (Notarial), que es cierto por construcción; el dato con significado real va en `id_tipo_predicho`.
+
+**Por qué existe una tabla de cola separada:** `documentos.id_expediente` es NOT NULL, así que un documento suelto no puede vivir en `documentos` antes de que exista su expediente, y `clasificaciones_ml.id_documento` tampoco admite clasificar sin documento. `trabajos_clasificacion` guarda el archivo, su texto y su predicción hasta que el expediente existe. En el caso de baja confianza eso puede durar días, hasta que una persona decida.
+
+**Decisiones de diseño:**
+
+- **Worker como daemon thread** en el mismo proceso Flask (patrón de `ping_propio` en `run.py`), con polling cada 5 segundos. Se descartó Celery/Redis y un servicio worker aparte en Render por el volumen real de la oficina (un usuario) y el costo. Arranca solo si `FLASK_ENV=production`, o en local con `FORZAR_WORKER=true`. Lleva un chequeo de `WERKZEUG_RUN_MAIN` porque con `debug=True` el reloader de Flask levanta dos procesos y sin eso habría dos workers compitiendo por la misma cola.
+- **Claim atómico** con `UPDATE ... WHERE id_trabajo = (SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING`. Hoy corre un solo worker, pero esto es lo que permitiría moverlo a un proceso aparte sin cambiar nada.
+- **Umbral de confianza 0.70**: por encima el expediente se crea solo; por debajo el trabajo queda en `requiere_confirmacion=TRUE` y espera que una persona acepte o corrija el tipo. El OCR y el modelo igual terminaron bien, así que el estado sigue siendo Exitoso.
+- **Mock del clasificador** (`clasificador.py`, aislado y reemplazable por la llamada HTTP a Modal sin cambiar la firma): elige al azar entre los 6 tipos notariales activos leídos del catálogo, con la confianza sesgada 70% alta / 30% baja. El sesgo se controla con `MOCK_SESGO_ALTA_CONFIANZA` (default 0.70); en local se puede bajar a 0.10 para probar el modal de confirmación sin subir veinte archivos. Registrado en `modelos_ml` con `id_modelo=3` y `num_clases=6` — los modelos 1 (BETO) y 2 (RoBERTa-bne) del marco teórico quedaron intactos con sus 4 clases.
+- **Duplicados por hash** contra la tabla `documentos`: el trabajo queda en estado 5 (Duplicado), se borra el objeto de R2 para no acumular copias, se guarda el id del documento original en `mensaje_error` y no se crea nada.
+- **OCR sin texto** (PDF de solo imágenes ilegibles): estado 4 (Error), no se llama al clasificador y el archivo **se conserva** en R2 para poder revisarlo a mano.
+- **Cliente placeholder "Cliente NNN"** secuencial (001, 002...), tipo_persona Natural. Un documento suelto no trae con qué identificar a su dueño, así que siempre se crea uno nuevo y la secretaria le pone el nombre real después editando el cliente.
+- **Trabajos zombi**: al arrancar, el worker devuelve a la cola los que quedaron En proceso más de 15 minutos (un deploy o un OOM a mitad del OCR), sumando un intento. A los 3 intentos pasan a Error para que un archivo que rompe el pipeline no gire para siempre.
+- **Retry del `numero_expediente`**: se genera con `count()+1`, que no es atómico, así que si alguien crea un expediente a mano en el mismo instante los dos calculan el mismo número y el UNIQUE rechaza al segundo. Hasta 3 reintentos. Ojo al leer el código: el `rollback` del reintento revierte **también** los campos ya asignados al trabajo, por eso se reasignan dentro del loop y no antes.
+- **La confirmación humana usa una función paralela** (`_crear_expediente_desde_confirmacion`) en vez de parametrizar la automática, para que las dos historias queden separadas y auditables por separado. Diferencias reales: el expediente se asigna a quien confirmó (no a quien subió el archivo), la descripción deja registrada la predicción original junto al tipo final, y en `clasificaciones_ml` se llena `id_tipo_corregido` solo cuando hubo corrección real — así se puede medir después cuántas veces se equivocó el modelo.
+- **Descartar solo aplica a trabajos pendientes de confirmación.** Los duplicados y los errores no se borran aunque parezcan basura: son la evidencia de qué pasó con un archivo que alguien subió.
+- **Todas las notificaciones se crean sin commit propio** (`crear_notificacion()` hace `add` y nada más), para que viajen en la misma transacción que el expediente. Si la creación falla y hace rollback, no queda el aviso de algo que nunca ocurrió.
+
+**Panel web:** pantalla `/clasificar` (drag & drop, reutiliza el CSS de `/cargar`), campanita `CampanaNotificaciones` montada en el TopBar de todas las pantallas con polling cada 15s, `ModalConfirmarClasificacion` para el caso de baja confianza (dropdown con los 6 tipos preseleccionado en el predicho, más Aceptar / Descartar / Cancelar), y hook reutilizable `usePolling`. Al hacer clic en una notificación: la de baja confianza abre el modal, la de carga completada navega al expediente, y las de duplicado y error solo se marcan leídas. Dos detalles resueltos en el camino: el backend guarda las fechas en UTC sin sufijo de zona, así que el tiempo relativo le agrega la `Z` antes de parsear (sin eso toda notificación reciente diría "hace 6 horas"); y como las notificaciones no desaparecen al resolverse, el modal avisa "este documento ya fue resuelto" si se llega a él desde una notificación vieja.
+
+**⚠️ Pendiente conocido — trigger `trg_notificacion_baja_confianza`:** existe en Supabase desde el diseño original un trigger sobre `clasificaciones_ml` que inserta una notificación de baja confianza cuando `confianza < 0.70`. Estuvo dormido hasta la Fase 4, porque hasta entonces un trabajo de baja confianza nunca llegaba a insertar una clasificación. Ahora, cada confirmación manual dispara **una notificación fantasma** ("El documento tiene una confianza de clasificación de X%. Requiere revisión manual.") que además viene sin `id_expediente` ni `id_trabajo`. La aplicación ya maneja estas notificaciones mejor que el trigger, así que la salida limpia es `DROP TRIGGER trg_notificacion_baja_confianza ON clasificaciones_ml; DROP FUNCTION fn_notificacion_baja_confianza();`. **No ejecutado todavía — falta decidirlo.** Mientras tanto, el modal ignora las notificaciones sin `id_trabajo`, así que la fantasma no rompe nada: solo ensucia la bandeja.
+
+**Otros triggers preexistentes descubiertos (14 de agosto de 2026):** además del anterior hay cuatro de auditoría (`fn_auditar_expediente_insert/update`, `fn_auditar_documento_insert`, `fn_auditar_clasificacion_update`) que escriben en `auditoria` por su cuenta — o sea que todo lo que crea el worker **ya queda auditado por la base**, sin llamar a `registrar_auditoria()` desde el código. Y `trg_detectar_duplicado`, un BEFORE INSERT sobre `documentos` que pisa `es_duplicado_exacto` e `id_documento_original` comparando el hash: ese campo lo decide la base, no el código.
 
 **Gráfica de distribución por tipo notarial (12 de agosto de 2026):** como el 100% de los expedientes reales son del área Notarial, la gráfica de subtipos es más informativa que la de áreas. Se agregó al endpoint `/reportes/dashboard` el campo `expedientes_por_tipo_notarial` — lista de `{id_tipo, nombre, cantidad}` con los 6 tipos notariales activos, incluidos los que están en cero. La query usa `outerjoin` con los filtros de área/fecha **dentro del `ON`** y no en el `WHERE`: así los tipos sin expedientes no se descartan y la gráfica siempre muestra las 6 barras. No hace falta `COALESCE` porque `COUNT(expedientes.id_expediente)` ya devuelve 0 en las filas que el LEFT JOIN rellena con NULL. El filtro de área es `TipoExpediente.id_area == 1` (id de Notarial) en vez de comparar por nombre, para no depender del texto del catálogo. En el panel se agregó `panel-web/src/components/charts/BarChart.jsx` (Recharts `BarChart` con `layout="vertical"`, color `#D4A853` igual que las otras gráficas), y en `Dashboard.jsx` se pinta en una fila propia de ancho completo (`.dashboard-grafica-ancha`) arriba de las dos gráficas existentes, que quedaron intactas. Cada barra muestra su cantidad al final con un `LabelList` (`position="right"`, color navy `#1B2A4A`, con el `margin.right` del gráfico subido a 40 para que el número no se corte). El `<Bar>` lleva `minPointSize={1}` a propósito: sin eso Recharts no dibuja el rectángulo de las barras con valor 0 y, al no haber rectángulo, tampoco genera su etiqueta — los cuatro "0" simplemente no aparecían. Con `minPointSize={1}` las 6 barras existen (las de cero con 1px, imperceptible contra el eje) y los 6 números se renderizan siempre. Al momento del cambio los datos reales eran Compraventa 2, Donación 1 y los otros 4 tipos en cero.
 
