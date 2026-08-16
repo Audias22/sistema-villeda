@@ -62,6 +62,10 @@ class TrabajoClasificacion(db.Model):
     id_formato              = db.Column(db.Integer, db.ForeignKey('formatos_documento.id_formato'))
     num_paginas             = db.Column(db.Integer)
     texto_completo          = db.Column(db.Text)
+    # Segundos que tardó la extracción del texto. Se guarda acá y no solo en el
+    # documento porque en el camino de confirmación manual el documento se crea
+    # mucho después, en otra petición, cuando la medición ya no existe en memoria.
+    tiempo_ocr_seg          = db.Column(db.Numeric(6, 2))
 
     id_estado               = db.Column(db.Integer, db.ForeignKey('estados_procesamiento.id_estado'),
                                         nullable=False, default=ESTADO_PENDIENTE)
@@ -102,6 +106,7 @@ class TrabajoClasificacion(db.Model):
             'id_formato':              self.id_formato,
             'num_paginas':             self.num_paginas,
             'num_caracteres_texto':    len(self.texto_completo) if self.texto_completo else 0,
+            'tiempo_ocr_seg':          float(self.tiempo_ocr_seg) if self.tiempo_ocr_seg is not None else None,
             'id_estado':               self.id_estado,
             'intentos':                self.intentos,
             'mensaje_error':           self.mensaje_error,

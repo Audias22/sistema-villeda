@@ -143,7 +143,10 @@ def extraer_texto_pdf(pdf_bytes):
 
 
 def procesar_archivo(archivo_bytes, extension):
-    inicio = time.time()
+    # perf_counter y no time.time: es un reloj monotónico, no lo afectan los
+    # ajustes de hora del sistema. Es el mismo que mide el TBR de las búsquedas,
+    # y este valor se persiste en documentos.tiempo_ocr_seg.
+    inicio = time.perf_counter()
     texto = ''
     paginas = []
     exitoso = False
@@ -165,7 +168,7 @@ def procesar_archivo(archivo_bytes, extension):
         mensaje_error = str(e)
         exitoso = False
 
-    tiempo_seg = round(time.time() - inicio, 3)
+    tiempo_seg = round(time.perf_counter() - inicio, 3)
     num_caracteres = len(texto)
     num_palabras = len(texto.split()) if texto else 0
 

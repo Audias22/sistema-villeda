@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 14 de agosto de 2026
+**Última actualización:** 15 de agosto de 2026
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232
 
 ---
@@ -347,6 +347,30 @@ backend/
 | Reportes | /reportes | ✅ Dashboard de reportes + exportación Excel |
 
 **Estructura:** componentes comunes reutilizables (Button, Card, Input, Modal, Table, Badge, Pagination, Skeleton, EmptyState), un componente de dominio compartido (`ClienteFormulario`, con prop `compacto` para el alta al vuelo), layout con Sidebar + TopBar, rutas protegidas (ProtectedRoute), contexto de autenticación (AuthContext), hooks (useAuth, useFetch), capa de servicios (api.js) que centraliza las llamadas al backend Flask.
+
+**Persistencia del tiempo de extracción de texto — variable TPO (15 de agosto de 2026):** el tiempo que tarda el OCR ya se calculaba en `procesar_archivo()`, pero se descartaba: ningún llamador lo guardaba. Ahora se persiste, porque es la variable TPO del Capítulo III de la tesis.
+
+**Migraciones (ejecutadas manualmente en Supabase):**
+```sql
+ALTER TABLE documentos              ADD COLUMN tiempo_ocr_seg NUMERIC(6,2);
+ALTER TABLE trabajos_clasificacion  ADD COLUMN tiempo_ocr_seg NUMERIC(6,2);
+```
+
+**Qué mide exactamente (definición para la matriz de operacionalización):** segundos que tarda **únicamente la extracción del texto**. Incluye el rasterizado del PDF con Poppler, el preprocesamiento HSV de sellos y el reconocimiento de Tesseract; o, en el camino digital, la lectura de la capa de texto con pdfplumber. **No incluye** la detección del formato (`determinar_id_formato()`, que abre el PDF para ver si trae capa de texto), la descarga del archivo desde R2, el cálculo del hash, la clasificación del modelo ni ninguna escritura en la base. La definición está escrita en el docstring de `_extraer_texto()` en `clasificacion/services.py` para que código y tesis no se desincronicen.
+
+**Un solo instrumento de medición:** `procesar_archivo()` medía con `time.time()` mientras el TBR de búsquedas usa `time.perf_counter()`. Se unificó todo en `perf_counter` (reloj monotónico, inmune a los ajustes de hora del sistema), para poder declarar un único instrumento en la matriz de operacionalización. El único consumidor de `tiempo_seg` fuera de los logs es el endpoint `POST /api/v1/ocr/procesar`, que no lo llama ningún cliente y cuyo contrato no cambia: sigue devolviendo segundos transcurridos con el mismo nombre.
+
+**Dónde se guarda.** Hay tres lugares que construyen un `Documento` y los tres registran el tiempo:
+
+| Origen | De dónde sale el valor |
+|---|---|
+| `documentos/services.py` — carga manual | se mide ahí mismo. El camino de PDF digital **antes no medía nada**, y son el 78% de los expedientes reales (124 de 158), así que sin esto la variable quedaba casi vacía |
+| `clasificacion/services.py` — creación automática | viaja desde `_extraer_texto()` dentro de la misma ejecución del worker |
+| `clasificacion/services.py` — confirmación manual | se copia de `trabajos_clasificacion.tiempo_ocr_seg` |
+
+El tercer caso es el motivo de la segunda migración: en el camino de baja confianza el texto se extrae cuando el worker procesa el trabajo, pero el documento recién se crea **cuando una persona confirma el tipo**, en otra petición HTTP y quizá días después. La medición ya no existe en memoria, y recalcularla ahí daría un número falso porque en la confirmación no se vuelve a hacer OCR. Por eso el worker guarda el tiempo en el propio trabajo apenas lo mide — antes de cualquier bifurcación, así queda registrado también en los trabajos que terminan en Error o Duplicado — y la confirmación lo copia al documento.
+
+Los documentos y trabajos anteriores a este cambio quedan en NULL, sin inventar valores. Verificado con los cuatro caminos en local: carga manual de PDF digital (0.14 s), carga manual de PDF escaneado por Tesseract (5.42 s, 2 páginas), creación automática, y confirmación manual (el valor viaja del trabajo al documento entre dos peticiones distintas).
 
 **Funcionalidad "Clasificar con IA" — completa (14 de agosto de 2026, 4 fases):** la secretaria sube un documento suelto en `/clasificar` sin elegir expediente, y el sistema le crea el expediente correspondiente. El panel responde de inmediato y el resultado llega por la campanita del header. Se construyó en cuatro fases: cola vacía → worker con creación automática → notificaciones → pantalla y confirmación manual.
 

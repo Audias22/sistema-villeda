@@ -1,5 +1,6 @@
 import os
 import uuid
+import time
 import pdfplumber
 import io
 import logging
@@ -113,12 +114,19 @@ def cargar_documento(archivo_bytes, nombre_original, id_expediente, id_usuario, 
 
     _log_memoria(f"antes de procesar {nombre_original}")
 
+    # tiempo_ocr_seg mide SOLO la extracción del texto: no incluye la detección
+    # de formato de arriba, ni el cálculo del hash, ni la subida a R2. El PDF
+    # digital se cronometra acá porque extraer_texto_pdf_digital() no mide nada
+    # por su cuenta; el escaneado trae su propia medición desde procesar_archivo().
     if extension == 'pdf' and id_formato == 2:
+        inicio_extraccion = time.perf_counter()
         texto, num_paginas = extraer_texto_pdf_digital(archivo_bytes)
+        tiempo_ocr_seg = round(time.perf_counter() - inicio_extraccion, 2)
     else:
         resultado_ocr = procesar_archivo(archivo_bytes, extension)
         texto = resultado_ocr['texto']
         num_paginas = resultado_ocr['num_paginas']
+        tiempo_ocr_seg = resultado_ocr['tiempo_seg']
 
         if not resultado_ocr['exitoso']:
             _log_memoria(f"después de procesar {nombre_original} (con error)")
@@ -143,6 +151,7 @@ def cargar_documento(archivo_bytes, nombre_original, id_expediente, id_usuario, 
         es_duplicado_exacto=es_duplicado,
         id_documento_original=id_original,
         texto_completo=texto,
+        tiempo_ocr_seg=tiempo_ocr_seg,
         cargado_por=id_usuario
     )
 

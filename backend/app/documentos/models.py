@@ -18,6 +18,10 @@ class Documento(db.Model):
     es_duplicado_exacto     = db.Column(db.Boolean, nullable=False, default=False)
     id_documento_original   = db.Column(db.Integer, db.ForeignKey('documentos.id_documento'))
     texto_completo          = db.Column(db.Text)
+    # Segundos que tardó la extracción del texto, sin contar la detección de
+    # formato ni la subida a R2. Nulo en los documentos cargados antes de que
+    # se empezara a medir.
+    tiempo_ocr_seg          = db.Column(db.Numeric(6, 2))
     fecha_carga             = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     cargado_por             = db.Column(db.Integer, db.ForeignKey('usuarios.id_usuario'), nullable=False)
 
@@ -36,6 +40,7 @@ class Documento(db.Model):
             'estado_fisico':           self.estado_fisico,
             'es_duplicado_exacto':     self.es_duplicado_exacto,
             'id_documento_original':   self.id_documento_original,
+            'tiempo_ocr_seg':          float(self.tiempo_ocr_seg) if self.tiempo_ocr_seg is not None else None,
             'fecha_carga':             self.fecha_carga.isoformat() if self.fecha_carga else None,
             'cargado_por':             self.cargado_por
         }

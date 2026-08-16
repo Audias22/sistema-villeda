@@ -139,7 +139,20 @@ def _extraer_texto(archivo_bytes, extension):
     """
     Saca el texto del archivo con el mismo criterio que usa la carga manual:
     pdfplumber si el PDF ya trae texto digital, Tesseract en cualquier otro
-    caso. Devuelve (texto, num_paginas, id_formato, error).
+    caso. Devuelve (texto, num_paginas, id_formato, tiempo_seg, error).
+
+    QUÉ ABARCA tiempo_seg (es el valor que se guarda en documentos.tiempo_ocr_seg,
+    o sea la variable TPO): mide ÚNICAMENTE la extracción del texto.
+
+      incluye     rasterizado del PDF con Poppler, preprocesamiento HSV de
+                  sellos y el reconocimiento de Tesseract; o, en el camino
+                  digital, la lectura de la capa de texto con pdfplumber
+      NO incluye  la detección del formato (determinar_id_formato, que abre el
+                  PDF para ver si trae capa de texto), la descarga del archivo
+                  desde R2, el cálculo del hash, la clasificación del modelo ni
+                  ninguna escritura en la base
+
+    Se mide con time.perf_counter(), el mismo reloj que usa el TBR de búsquedas.
     """
     id_formato = determinar_id_formato(extension, archivo_bytes)
 
@@ -147,25 +160,27 @@ def _extraer_texto(archivo_bytes, extension):
 
     if extension == 'pdf' and id_formato == FORMATO_PDF_DIGITAL:
         texto, num_paginas = extraer_texto_pdf_digital(archivo_bytes)
+        tiempo_seg = round(time.perf_counter() - inicio, 2)
         logging.info(
             f"[worker] texto extraido con pdfplumber en "
-            f"{round(time.perf_counter() - inicio, 2)}s — {len(texto)} caracteres"
+            f"{tiempo_seg}s — {len(texto)} caracteres"
         )
-        return texto, num_paginas, id_formato, None
+        return texto, num_paginas, id_formato, tiempo_seg, None
 
     resultado = procesar_archivo(archivo_bytes, extension)
+    tiempo_seg = resultado['tiempo_seg']
     logging.info(
-        f"[worker] OCR termino en {resultado['tiempo_seg']}s — "
+        f"[worker] OCR termino en {tiempo_seg}s — "
         f"{resultado['num_caracteres']} caracteres, {resultado['num_paginas']} paginas"
     )
 
     if not resultado['exitoso']:
-        return None, None, id_formato, resultado['mensaje_error']
+        return None, None, id_formato, tiempo_seg, resultado['mensaje_error']
 
-    return resultado['texto'], resultado['num_paginas'], id_formato, None
+    return resultado['texto'], resultado['num_paginas'], id_formato, tiempo_seg, None
 
 
-def _crear_expediente_automatico(trabajo, texto, num_paginas, id_formato, prediccion):
+def _crear_expediente_automatico(trabajo, texto, num_paginas, id_formato, tiempo_ocr_seg, prediccion):
     """
     Crea cliente placeholder + expediente + documento + fila de historial en un
     solo commit. Si algo falla, el rollback deja la base como estaba.
@@ -192,6 +207,7 @@ def _crear_expediente_automatico(trabajo, texto, num_paginas, id_formato, predic
             trabajo.id_formato = id_formato
             trabajo.texto_completo = texto
             trabajo.num_paginas = num_paginas
+            trabajo.tiempo_ocr_seg = tiempo_ocr_seg
             trabajo.id_modelo = prediccion['id_modelo']
             trabajo.id_tipo_predicho = prediccion['id_tipo_predicho']
             trabajo.confianza = confianza
@@ -236,6 +252,7 @@ def _crear_expediente_automatico(trabajo, texto, num_paginas, id_formato, predic
                 hash_archivo=trabajo.hash_archivo,
                 es_duplicado_exacto=False,
                 texto_completo=texto,
+                tiempo_ocr_seg=tiempo_ocr_seg,
                 cargado_por=trabajo.id_usuario
             )
             db.session.add(documento)
@@ -380,6 +397,12 @@ def _crear_expediente_desde_confirmacion(trabajo, id_tipo_final, id_usuario_conf
                 hash_archivo=trabajo.hash_archivo,
                 es_duplicado_exacto=False,
                 texto_completo=trabajo.texto_completo,
+                # Se copia del trabajo: el texto se extrajo cuando el worker lo
+                # procesó, quizá días antes, y esa medición quedó guardada ahí.
+                # Recalcularla acá daría un número falso, porque en la
+                # confirmación no se vuelve a hacer OCR. Queda en NULL si el
+                # trabajo es anterior a que se empezara a medir.
+                tiempo_ocr_seg=trabajo.tiempo_ocr_seg,
                 cargado_por=trabajo.id_usuario
             )
             db.session.add(documento)
@@ -562,8 +585,13 @@ def procesar_trabajo(id_trabajo):
         logging.error(f"[worker] trabajo {id_trabajo} fallo al descargar de R2: {e}")
         return trabajo.to_dict(), trabajo.mensaje_error
 
-    texto, num_paginas, id_formato, error_ocr = _extraer_texto(archivo_bytes, extension)
+    texto, num_paginas, id_formato, tiempo_ocr_seg, error_ocr = _extraer_texto(archivo_bytes, extension)
     trabajo.id_formato = id_formato
+    # Se guarda apenas se mide, antes de cualquier bifurcación: así queda
+    # registrado también en los trabajos que terminan en Error o Duplicado, y
+    # sobre todo queda disponible para el camino de confirmación manual, que
+    # crea el documento en otra petición.
+    trabajo.tiempo_ocr_seg = tiempo_ocr_seg
 
     # Un texto vacío no es clasificable: sin contenido no hay nada que predecir,
     # y crear un expediente a ciegas sería peor que fallar. El archivo se deja
@@ -659,7 +687,7 @@ def procesar_trabajo(id_trabajo):
         return trabajo.to_dict(), None
 
     expediente, error = _crear_expediente_automatico(
-        trabajo, texto, num_paginas, id_formato, prediccion
+        trabajo, texto, num_paginas, id_formato, tiempo_ocr_seg, prediccion
     )
 
     if error:
