@@ -1,5 +1,6 @@
 import os
 import uuid
+import logging
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -10,12 +11,104 @@ from app.expedientes.models import Expediente
 from app.documentos.models import Documento
 from app.clientes.models import Cliente
 from app.busquedas.models import Busqueda
-from app.common.models import AreaJuridica, EstadoExpediente, TipoExpediente, Prioridad
+from app.common.models import AreaJuridica, EstadoExpediente, TipoExpediente, Prioridad, Exportacion
 from app.usuarios.models import Usuario
 from sqlalchemy import func
 
 
 RUTA_EXPORTACIONES = os.path.join(os.path.dirname(__file__), '..', '..', 'almacenamiento', 'exportaciones')
+
+# tipos_reporte.id_tipo = 1 -> "Lista completa de expedientes", formato XLSX.
+# Es el único de los cuatro tipos del catálogo que está implementado.
+TIPO_REPORTE_EXPEDIENTES_XLSX = 1
+
+
+# --- Bitácora de exportaciones -------------------------------------------
+#
+# Las tres funciones de abajo escriben en exportaciones y NINGUNA propaga
+# excepciones: llevar la bitácora no puede hacer fallar la exportación que el
+# usuario pidió. Cada una loguea y devuelve.
+#
+# El registro va en dos fases porque el esquema tiene fecha_solicitud y
+# fecha_generacion separadas: la fila nace al recibir la petición y se completa
+# al terminar. Así una generación que revienta a la mitad —o un proceso que se
+# muere sin llegar a responder— igual deja rastro de que alguien pidió el
+# reporte, en vez de desaparecer sin registro.
+
+def registrar_solicitud_exportacion(id_usuario, parametros, id_tipo_reporte=TIPO_REPORTE_EXPEDIENTES_XLSX):
+    """
+    Fase 1: deja la fila con exitosa=false antes de generar nada, y commitea de
+    inmediato para que sobreviva a lo que pase después.
+
+    Devuelve el id_exportacion, o None si no se pudo registrar. Se devuelve el
+    id y no el objeto ORM a propósito: las fases siguientes pueden correr con la
+    sesión ya revertida, y un entero sobrevive a un rollback.
+    """
+    try:
+        exportacion = Exportacion(
+            id_usuario=id_usuario,
+            id_tipo_reporte=id_tipo_reporte,
+            parametros_json=parametros,
+            exitosa=False
+        )
+        db.session.add(exportacion)
+        db.session.commit()
+        return exportacion.id_exportacion
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"[exportaciones] no se pudo registrar la solicitud: {e}")
+        return None
+
+
+def marcar_exportacion_exitosa(id_exportacion, ruta_archivo, nombre_archivo):
+    """Fase 2, camino feliz: completa la fila con el resultado real en disco."""
+    if id_exportacion is None:
+        return
+
+    try:
+        exportacion = db.session.get(Exportacion, id_exportacion)
+        if exportacion is None:
+            return
+
+        exportacion.exitosa = True
+        exportacion.fecha_generacion = datetime.utcnow()
+        exportacion.nombre_archivo = nombre_archivo
+        # La ruta se normaliza antes de guardarla: RUTA_EXPORTACIONES se arma con
+        # '..' relativos al módulo y sin esto la bitácora queda con esos saltos
+        # embebidos, ilegibles para quien después lea la tabla.
+        exportacion.ruta_archivo = os.path.abspath(ruta_archivo)
+        exportacion.tamano_bytes = os.path.getsize(ruta_archivo)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"[exportaciones] no se pudo cerrar la exportación {id_exportacion}: {e}")
+
+
+def marcar_exportacion_fallida(id_exportacion, error):
+    """
+    Fase 2, camino de error: guarda el mensaje. exitosa se queda en false y
+    fecha_generacion en null, que es justamente lo que distingue una exportación
+    fallida de una exitosa.
+
+    El rollback va primero y no es opcional: si lo que falló fue una query, la
+    sesión quedó en estado fallido y cualquier escritura posterior sería
+    rechazada. Como la fila ya se commiteó en la fase 1, revertir no la pierde.
+    """
+    if id_exportacion is None:
+        return
+
+    try:
+        db.session.rollback()
+
+        exportacion = db.session.get(Exportacion, id_exportacion)
+        if exportacion is None:
+            return
+
+        exportacion.mensaje_error = str(error)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"[exportaciones] no se pudo registrar el fallo de {id_exportacion}: {e}")
 
 
 def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None):

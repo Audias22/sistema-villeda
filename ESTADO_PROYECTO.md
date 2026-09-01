@@ -82,7 +82,7 @@
 ## BASE DE DATOS — Supabase
 | Item | Estado |
 |------|--------|
-| 28 tablas creadas (confirmado el 31 de julio de 2026: la BD real tiene 43 tablas + 5 vistas = 48 objetos, no 28 — drift acumulado sin documentar) | ✅ |
+| 28 tablas creadas (recontado el 31 de agosto de 2026 contra `information_schema`: la BD real tiene **44 tablas base + 5 vistas = 49 objetos**, no 28 ni las 43 anotadas el 31 de julio — drift acumulado sin documentar) | ✅ |
 | 5 vistas creadas | ✅ |
 | 5 triggers creados | ✅ |
 | Datos seed (roles, permisos, áreas, etc.) | ✅ |
@@ -146,11 +146,13 @@ backend/
 
 │   ├── common/
 
-│   │   ├── init.py      ✅ Exporta 11 modelos catálogo + require_permission
+│   │   ├── init.py      ✅ Exporta 13 modelos catálogo + require_permission
 
-│   │   ├── models.py        ✅ Rol, Permiso, RolPermiso, AreaJuridica, EstadoExpediente, Prioridad, TipoExpediente, FormatoDocumento, EstadoFisicoDoc, EstadoCarga, CargaMasiva
+│   │   ├── models.py        ✅ Rol, Permiso, RolPermiso, AreaJuridica, EstadoExpediente, Prioridad, TipoExpediente, FormatoDocumento, EstadoFisicoDoc, EstadoCarga, CargaMasiva, TipoReporte, Exportacion
 
-│   │   └── decorators.py    ✅ @require_permission con json.loads
+│   │   ├── decorators.py    ✅ @require_permission con json.loads
+
+│   │   └── peticion.py      ✅ obtener_ip_cliente() con X-Forwarded-For + constante PLATAFORMA_WEB
 
 │   ├── ocr/
 
@@ -212,9 +214,9 @@ backend/
 
 │   │   ├── init.py      ✅ Exporta reportes_bp
 
-│   │   ├── services.py      ✅ obtener_dashboard(), exportar_expedientes_excel() con openpyxl (encabezados con color, filtros, freeze panes)
+│   │   ├── services.py      ✅ obtener_dashboard(), exportar_expedientes_excel() con openpyxl (encabezados con color, filtros, freeze panes) + registrar_solicitud_exportacion() / marcar_exportacion_exitosa() / marcar_exportacion_fallida()
 
-│   │   └── routes.py        ✅ GET /dashboard, GET /expedientes/excel (descarga con send_file)
+│   │   └── routes.py        ✅ GET /dashboard, GET /expedientes/excel (descarga con send_file + bitácora en exportaciones)
 
 │   ├── services/            ✅ Servicios transversales (no ligados a un módulo específico)
 
@@ -316,7 +318,7 @@ backend/
 | GET | /api/v1/notificaciones | ✅ Funcionando (20 más recientes + conteo de no leídas) | Sí — ver_notificaciones |
 | PUT | /api/v1/notificaciones/\<id\>/leida | ✅ Funcionando (valida pertenencia al usuario del token) | Sí — ver_notificaciones |
 | PUT | /api/v1/notificaciones/marcar-todas-leidas | ✅ Funcionando | Sí — ver_notificaciones |
-| GET | /api/v1/reportes/expedientes/excel | ✅ Funcionando (descarga real .xlsx con filtros opcionales) | Sí — exportar_reporte |
+| GET | /api/v1/reportes/expedientes/excel | ✅ Funcionando (descarga real .xlsx con filtros opcionales + registro en `exportaciones`) | Sí — exportar_reporte |
 | GET | /api/v1/auditoria | ✅ Funcionando (paginado + filtros tabla/acción/usuario/fecha) | Sí — ver_auditoria |
 | GET | /api/v1/auditoria/\<id\> | ✅ Funcionando | Sí — ver_auditoria |
 | POST | /api/v1/usuarios | ✅ Funcionando | Sí — gestionar_usuarios |
@@ -398,6 +400,38 @@ Los documentos y trabajos anteriores a este cambio quedan en NULL, sin inventar 
 **⚠️ Pendiente conocido — trigger `trg_notificacion_baja_confianza`:** existe en Supabase desde el diseño original un trigger sobre `clasificaciones_ml` que inserta una notificación de baja confianza cuando `confianza < 0.70`. Estuvo dormido hasta la Fase 4, porque hasta entonces un trabajo de baja confianza nunca llegaba a insertar una clasificación. Ahora, cada confirmación manual dispara **una notificación fantasma** ("El documento tiene una confianza de clasificación de X%. Requiere revisión manual.") que además viene sin `id_expediente` ni `id_trabajo`. La aplicación ya maneja estas notificaciones mejor que el trigger, así que la salida limpia es `DROP TRIGGER trg_notificacion_baja_confianza ON clasificaciones_ml; DROP FUNCTION fn_notificacion_baja_confianza();`. **No ejecutado todavía — falta decidirlo.** Mientras tanto, el modal ignora las notificaciones sin `id_trabajo`, así que la fantasma no rompe nada: solo ensucia la bandeja.
 
 **Otros triggers preexistentes descubiertos (14 de agosto de 2026):** además del anterior hay cuatro de auditoría (`fn_auditar_expediente_insert/update`, `fn_auditar_documento_insert`, `fn_auditar_clasificacion_update`) que escriben en `auditoria` por su cuenta — o sea que todo lo que crea el worker **ya queda auditado por la base**, sin llamar a `registrar_auditoria()` desde el código. Y `trg_detectar_duplicado`, un BEFORE INSERT sobre `documentos` que pisa `es_duplicado_exacto` e `id_documento_original` comparando el hash: ese campo lo decide la base, no el código.
+
+**⚠️ Hallazgo — `fn_auditar_clasificacion_update` está inactivo de hecho (31 de agosto de 2026):** su condición vigila `OLD.id_area_corregida` / `NEW.id_area_corregida`, columnas del diseño original por área jurídica, mientras que la confirmación humana escribe en `id_tipo_corregido`. La condición nunca se cumple, y por eso `auditoria` no tiene ni una fila de `clasificaciones_ml` pese a que el trigger existe y está habilitado. Se corrige por separado con un `CREATE OR REPLACE` en Supabase, fuera del código de la aplicación.
+
+**Registro de exportaciones y auditoría de usuarios y clientes (31 de agosto de 2026):** cierra dos brechas entre lo que afirmaba el Capítulo IV de la tesis y lo que el código hacía. Ninguna necesitó migración: las tablas ya existían en Supabase con su esquema completo, solo faltaba el modelo SQLAlchemy y el código que escribiera en ellas.
+
+- **Modelos nuevos en `common/models.py`:** `TipoReporte` (catálogo: 1 = Lista completa de expedientes XLSX, 2 = Reporte por área jurídica PDF, 3 = Historial de cliente PDF, 4 = Métricas del sistema PDF; solo el 1 está implementado) y `Exportacion`. Van ahí y no en un `reportes/models.py` nuevo siguiendo el precedente de `CargaMasiva`, que también es una tabla de operaciones y no un catálogo puro. `exitosa` y `fecha_solicitud` usan `server_default` y no `default` de Python, para que los ponga la base como ya hace su esquema. Recordar que `create_all()` no se llama en ningún lado: los modelos son mapeo puro sobre tablas existentes y declararlos no puede alterar el esquema real.
+
+- **Registro de exportaciones en dos fases**, aprovechando que el esquema separa `fecha_solicitud` de `fecha_generacion`. Fase 1: apenas entra la petición se inserta la fila con `exitosa=false` y se commitea de inmediato, para que quede rastro aunque la generación reviente después. Fase 2: si el Excel sale bien se completa con `exitosa=true`, `fecha_generacion`, `nombre_archivo`, `ruta_archivo` y `tamano_bytes` leído con `os.path.getsize()` del archivo real; si lanza excepción se guarda `mensaje_error` y `exitosa` queda en false con `fecha_generacion` en null — esa combinación es lo que distingue una exportación fallida de una exitosa. Las tres funciones viven en `reportes/services.py` y **ninguna propaga excepciones**: la bitácora no puede hacer fallar la exportación que el usuario pidió. `marcar_exportacion_fallida()` hace `rollback()` antes de escribir, porque si lo que falló fue una query la sesión quedó en estado fallido y cualquier escritura posterior sería rechazada; la fila ya está commiteada de la fase 1, así que revertir no la pierde. Se pasa el `id_exportacion` entre fases y no el objeto ORM, justamente porque un entero sobrevive a un rollback. El contrato HTTP no cambió: sigue devolviendo el mismo `send_file()`, y el error sigue saliendo como antes (la excepción se relanza).
+
+- **`exportaciones.ruta_archivo` es evidencia, no una forma de recuperar el archivo.** El sistema de archivos de Render **no persiste entre despliegues**, así que la ruta guardada apunta a algo que puede ya no existir. Sirve para saber quién exportó qué y cuándo. **No construir una descarga histórica sobre ese campo.** La ruta se normaliza con `os.path.abspath()` antes de guardarla, porque `RUTA_EXPORTACIONES` se arma con `..` relativos al módulo y sin eso la bitácora queda ilegible.
+
+- **Auditoría de usuarios y clientes desde las rutas, no desde los servicios.** Los seis endpoints (`POST`/`PUT`/`DELETE` de cada uno) llaman a `registrar_auditoria_segura()`. Van en la ruta por una razón concreta: **la IP del cliente solo existe en el contexto de la petición HTTP, y ningún trigger de PostgreSQL puede conocerla.** Ese es exactamente el hueco que cubre este cambio — los cuatro triggers de auditoría de la base llenan todo menos `ip_address` y `plataforma`, porque desde la base no se puede.
+
+- **`registrar_auditoria_segura()`** (en `auditoria/services.py`) envuelve a `registrar_auditoria()` en try/except y nunca propaga: si la auditoría falla, la operación que el usuario pidió ya ocurrió y hacerla fallar por no haber podido dejar constancia sería peor que perder el registro. El `rollback()` del except **no es opcional**: `registrar_auditoria()` commitea por su cuenta, y si ese commit revienta la sesión queda inutilizable y el siguiente acceso al ORM tiraría `PendingRollbackError`, llevándose puesta la petición entera. Por el mismo motivo las seis rutas arman el diccionario de respuesta **antes** de auditar: después del commit los objetos quedan expirados y un `to_dict()` posterior dispararía una recarga contra la base.
+
+- **Snapshot del estado anterior:** se hace con una lectura adicional en la ruta (`obtener_usuario_por_id()` / `obtener_cliente_por_id()`) materializada a dict **antes** de llamar al servicio. Hace falta porque los servicios cargan el objeto ORM y lo mutan en la misma sesión, así que para cuando la ruta lo recibe de vuelta ya trae los valores nuevos. Se eligió este camino para **no modificar la firma de ningún servicio**. Cuesta un SELECT extra por PK en UPDATE y DELETE.
+
+- **Lista blanca explícita de campos auditables**, definida como constante en cada `routes.py` y leída con `getattr()` del modelo, no de `to_dict()`. Es lista blanca y no lista negra a propósito: si mañana alguien agrega una columna sensible al modelo, no se filtra sola a la auditoría. **`contrasena_hash` nunca entra.** No se usa `to_dict()` para que ampliar ese método no amplíe la auditoría sin que nadie lo note. Quedan fuera también las fechas: no son lo que se audita —el cuándo ya está en `auditoria.fecha_accion`— y además `date`/`datetime` no son serializables a JSONB sin convertirlos.
+
+- **Convención de `accion`**, verificada el 31 de agosto de 2026 contra las definiciones reales de los triggers en Supabase: `'INSERT'` y `'UPDATE'` en mayúsculas, y `tabla_afectada` con el nombre literal de la tabla en minúsculas. Ningún trigger escribe `'DELETE'`; **ese valor queda fijado por este cambio**, también en mayúsculas.
+
+- **Decisión sobre `DELETE`:** en usuarios y clientes el borrado es lógico (`activo = false`, la fila sigue existiendo), así que se registra **también `datos_nuevos`** con el estado ya desactivado, además de `datos_anteriores`. Sin él la auditoría no dejaría constancia de qué cambió, solo de cómo estaba antes.
+
+- **`id_sesion` va en null.** El JWT que emite `/auth/login` lleva solo `id_usuario`, `id_rol` y `nombre`; no hay identificador de sesión ni tabla `sesiones`, así que no hay nada que poner. Si algún día se agrega, este es el lugar.
+
+- **`plataforma` está fijo en `'web'`** (constante `PLATAFORMA_WEB` en `common/peticion.py`): la gestión de usuarios y de clientes solo existe en el panel, la app móvil no expone esas pantallas. Si algún día las expone, hay que dejar de fijarlo a mano.
+
+- **`obtener_ip_cliente()`** (`common/peticion.py`) lee primero `X-Forwarded-For` y toma **el primer elemento** de la lista separada por comas, que es el cliente original; los siguientes son los proxies intermedios. Cae a `request.remote_addr` si el encabezado no viene, que es el caso en local. Hace falta porque el backend corre detrás del proxy de Render, donde `request.remote_addr` devuelve la IP del proxy y no la del usuario, y **`ProxyFix` de Werkzeug no está montado** en `create_app()`. Advertencia para quien lea esto después: `X-Forwarded-For` lo puede falsificar cualquiera que llegue directo al backend, así que sirve como evidencia de auditoría en operación normal, **no como control de seguridad**.
+
+- **El 409 Conflict por DPI o NIT duplicado en clientes no se audita**: no hubo cambio en la base que registrar.
+
+- **Verificado el 31 de agosto de 2026** contra la base real, con el backend levantado en local: exportación exitosa con y sin filtros (`parametros_json` queda `{}` y no null cuando no viene ninguno, y `tamano_bytes` coincide con el archivo en disco), exportación fallida con una fecha inválida (fila con `exitosa=false`, `mensaje_error` lleno y `fecha_generacion` null), y los seis registros de auditoría de un usuario y un cliente de prueba con `ip_address` correctamente extraída del primer elemento de `X-Forwarded-For`. Confirmado por búsqueda directa que el hash bcrypt del usuario de prueba no aparece en ningún `datos_nuevos`. Los registros de prueba (usuario `test_auditoria_310826`, cliente `TEST AUDITORIA CLIENTE` y sus filas en `auditoria` y `exportaciones`) se limpian aparte, en el SQL Editor de Supabase.
 
 **Gráfica de distribución por tipo notarial (12 de agosto de 2026):** como el 100% de los expedientes reales son del área Notarial, la gráfica de subtipos es más informativa que la de áreas. Se agregó al endpoint `/reportes/dashboard` el campo `expedientes_por_tipo_notarial` — lista de `{id_tipo, nombre, cantidad}` con los 6 tipos notariales activos, incluidos los que están en cero. La query usa `outerjoin` con los filtros de área/fecha **dentro del `ON`** y no en el `WHERE`: así los tipos sin expedientes no se descartan y la gráfica siempre muestra las 6 barras. No hace falta `COALESCE` porque `COUNT(expedientes.id_expediente)` ya devuelve 0 en las filas que el LEFT JOIN rellena con NULL. El filtro de área es `TipoExpediente.id_area == 1` (id de Notarial) en vez de comparar por nombre, para no depender del texto del catálogo. En el panel se agregó `panel-web/src/components/charts/BarChart.jsx` (Recharts `BarChart` con `layout="vertical"`, color `#D4A853` igual que las otras gráficas), y en `Dashboard.jsx` se pinta en una fila propia de ancho completo (`.dashboard-grafica-ancha`) arriba de las dos gráficas existentes, que quedaron intactas. Cada barra muestra su cantidad al final con un `LabelList` (`position="right"`, color navy `#1B2A4A`, con el `margin.right` del gráfico subido a 40 para que el número no se corte). El `<Bar>` lleva `minPointSize={1}` a propósito: sin eso Recharts no dibuja el rectángulo de las barras con valor 0 y, al no haber rectángulo, tampoco genera su etiqueta — los cuatro "0" simplemente no aparecían. Con `minPointSize={1}` las 6 barras existen (las de cero con 1px, imperceptible contra el eje) y los 6 números se renderizan siempre. Al momento del cambio los datos reales eran Compraventa 2, Donación 1 y los otros 4 tipos en cero.
 

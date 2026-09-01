@@ -1,5 +1,34 @@
+import logging
+
 from app import db
 from app.auditoria.models import Auditoria
+
+
+def registrar_auditoria_segura(**kwargs):
+    """
+    Envoltorio de registrar_auditoria() que nunca propaga una excepción.
+
+    La auditoría es un efecto secundario: si falla, la operación que el usuario
+    pidió ya ocurrió y se confirmó, y hacerla fallar por no haber podido dejar
+    constancia sería peor que perder el registro. Se loguea y se sigue.
+
+    El rollback del except no es opcional. registrar_auditoria() hace commit por
+    su cuenta, y si ese commit revienta la sesión queda en estado fallido: la
+    siguiente lectura del ORM —por ejemplo el to_dict() de la respuesta— tiraría
+    PendingRollbackError y se llevaría puesta la petición entera.
+
+    Devuelve el registro creado, o None si no se pudo auditar.
+    """
+    try:
+        return registrar_auditoria(**kwargs)
+    except Exception as e:
+        db.session.rollback()
+        logging.error(
+            f"[auditoria] no se pudo registrar "
+            f"{kwargs.get('accion')} sobre {kwargs.get('tabla_afectada')} "
+            f"id={kwargs.get('id_registro')}: {e}"
+        )
+        return None
 
 
 def registrar_auditoria(id_usuario, tabla_afectada, id_registro, accion,

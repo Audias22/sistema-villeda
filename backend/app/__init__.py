@@ -21,7 +21,8 @@ def create_app():
         from app.common.models import (
             Rol, Permiso, RolPermiso,
             AreaJuridica, EstadoExpediente, Prioridad, TipoExpediente,
-            FormatoDocumento, EstadoFisicoDoc, EstadoCarga, CargaMasiva
+            FormatoDocumento, EstadoFisicoDoc, EstadoCarga, CargaMasiva,
+            TipoReporte, Exportacion
         )
         from app.usuarios.models import Usuario
         from app.clientes.models import Cliente
