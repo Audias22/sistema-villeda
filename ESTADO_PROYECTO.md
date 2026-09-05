@@ -21,8 +21,8 @@
 | Panel web | React 18 + Vite — Vercel | ✅ Frontend completo (7 pantallas) — desplegado en Vercel (https://sistema-villeda-panel.vercel.app) |
 | App móvil | React Native (Expo SDK 54) — APK Android | 🔄 Fases 1-3, 4A, 4B.1, 4B.2 y 4B.3 completadas + Fase 5 en progreso (nombre/ícono/splash y escaneo con cámara listos; notificaciones, biometría y build EAS pendientes) |
 | OCR | Tesseract 5.x + OpenCV (filtrado HSV de sellos de color) — instalado vía apt en Docker de producción, en `C:\Program Files\Tesseract-OCR\` en local | ✅ Funcionando en producción y en local |
-| Modelo baseline | BETO | ⏳ No iniciado |
-| Modelo final | RoBERTa-base-bne | ⏳ No iniciado |
+| Modelo baseline | BETO | ✅ Entrenado y evaluado (4 de septiembre de 2026) — F1 macro **0.9661** en su mejor configuración (truncamiento principio_final) |
+| Modelo final | RoBERTa-base-bne | ✅ Entrenado y evaluado (4 de septiembre de 2026) — F1 macro **0.9862** en su mejor configuración (truncamiento principio_final). Supera a BETO: es el modelo seleccionado |
 | Despliegue ML en producción | Modal (Free tier $30/mes de crédito, requiere tarjeta) | ⏳ Decidido, no iniciado |
 | Autenticación | JWT + bcrypt | ✅ Funcionando |
 | RBAC | 2 capas (BD + decoradores) | ✅ Funcionando |
@@ -547,9 +547,9 @@ Los documentos y trabajos anteriores a este cambio quedan en NULL, sin inventar 
 | Fase 5 | OCR Tesseract | ✅ Completa (en producción vía Docker en Render) |
 | Fase 5.5 | Backend completo (clientes, expedientes, documentos, busquedas, reportes) | ✅ Completa |
 | Fase 6 | Dataset etiquetado | ✅ 390 expedientes (158 de 2021 + 232 de 2022) separados, etiquetados y con el texto extraído. Corpus de entrenamiento generado el 1 de septiembre de 2026 con `extraer_corpus.py` (fuera del repo): 390/390 exitosos, sin vacíos ni errores. Ver "Extracción del corpus de entrenamiento" abajo |
-| Fase 7 | Fine-tuning BETO | ⏳ Pendiente |
-| Fase 8 | Fine-tuning RoBERTa-base-bne | ⏳ Pendiente |
-| Fase 8.5 | Despliegue del modelo ML en Modal (microservicio serverless) | ⏳ Decidido, no iniciado |
+| Fase 7 | Fine-tuning BETO | ✅ Completa (4 de septiembre de 2026) — F1 macro 0.9661 fuera de pliegue con truncamiento principio_final, 11 errores sobre 390. Ver "Entrenamiento y evaluación de los modelos de clasificación" abajo |
+| Fase 8 | Fine-tuning RoBERTa-base-bne | ✅ Completa (4 de septiembre de 2026) — F1 macro 0.9862 fuera de pliegue con truncamiento principio_final, 3 errores sobre 390. **Supera a BETO: es el modelo seleccionado.** Ver "Entrenamiento y evaluación de los modelos de clasificación" abajo |
+| Fase 8.5 | Despliegue del modelo ML en Modal (microservicio serverless) | ⏳ Decidido, no iniciado — **el modelo entrenado ya existe**: RoBERTa-bne reentrenado sobre los 390 completos, en la salida del notebook de Kaggle `audias29/notebook6ff7e315ff` (`kaggle kernels output audias29/notebook6ff7e315ff`). Falta descargar `model.safetensors` (480 MB) y montarlo en Modal |
 | Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3, 4A, 4B.1, 4B.2 y 4B.3 (setup Expo + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos + reportes con PDF y compartir) completadas |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
@@ -596,7 +596,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 5. ⏳ Redactar 4.5.1 / 4.5.2 / 4.6.1 de la tesis (describir sistema construido, pruebas end-to-end reales, despliegue en Render/Docker/Vercel/Supabase/R2/Expo). **Movido a último a propósito:** las pantallas de Expediente/Detalle y Cargar Documento (panel-web y app-movil) van a cambiar visualmente con la mejora UX del punto 3, y Fase 5 móvil (punto 4) agrega pantallas nuevas — redactar el capítulo de interfaz después de ambas evita repetir capturas y texto ya escrito.
 6. ⏳ Migración de Flask dev server a `gunicorn` en Docker de producción (warning en logs, no urgente).
 7. ⏳ Rotar contraseña de Supabase (se expuso en captura en una sesión anterior — higiene de seguridad).
-8. ✅ 390 expedientes separados, etiquetados y con el texto extraído (ver Fase 6) — desbloquea Fase 7-8 (entrenamiento), Modal (Fase 8.5), Capítulo V y 4.6.2 Prueba de Aceptación.
+8. ✅ 390 expedientes separados, etiquetados y con el texto extraído (ver Fase 6), y **Fase 7-8 completadas**: BETO y RoBERTa-base-bne entrenados y evaluados el 4 de septiembre de 2026, con RoBERTa como modelo seleccionado (F1 macro 0.9862). El entrenamiento ya no bloquea nada. Lo que queda pendiente aguas abajo es el **despliegue en Modal (Fase 8.5)** —incluido descargar `model.safetensors` de la salida de Kaggle—, la **redacción del Capítulo V** y **4.6.2 Prueba de Aceptación**.
 9. ⏳ **Versionar los scripts SQL del esquema de la base de datos** — se confirmó (31 de julio de 2026) que ningún script `.sql` de creación del esquema está en el repo; los que existen (`villeda_db.sql`, `villeda_legal_v2.sql`, `02_CREATE_villeda_db_CORREGIDO.sql`) viven sueltos en carpetas locales (Downloads/Desktop), fuera de control de versiones. Esto explica también por qué el esquema real de Supabase pudo derivar de esos scripts sin que se note (ej. la tabla `entidades_nlp` normalizada con FK en la BD real, vs. columna `VARCHAR` en línea en los scripts locales). Subir una versión actualizada al repo (carpeta `backend/sql/` o similar) para no depender de archivos locales sin respaldo. Prioridad baja, no urgente.
 
 **Completado en la sesión del 21 de julio de 2026:** dockerización completa del backend (Tesseract + Poppler funcionando en producción), migración a servicio nuevo `sistema-villeda-backend-v2` (el anterior quedó suspendido), fix del `self-ping` (ahora configurable vía `SELF_PING_URL`), fix del AuthContext móvil ante token expirado (pub/sub + Alert), fix de los 8 catches para ignorar `SESSION_EXPIRED`, y verificación end-to-end en producción con OCR real. También se identificó que el bug de PNG/JPG del visor móvil era en realidad un problema de datos históricos, no del código.
@@ -662,9 +662,105 @@ La medición de pdfplumber **se conserva igual, pero solo como comparación**: l
 
 Detalles de la corrida: 390/390 con `resultado='ok'`, ningún `vacio` ni `error`; 955 páginas en 28,8 minutos de tiempo acumulado por expediente (1,81 s/página), de los cuales el 93,6% es Tesseract y el 4,9% pdfplumber. Salida: un `.txt` por expediente en `corpus_texto/` (UTF-8, el texto no va en el CSV porque los saltos de línea y las comas lo romperían) más `corpus_manifiesto.csv`. El script es reanudable —saltea todo `.txt` con contenido— y para que la reanudación no mienta no escribe archivo cuando no hay texto, la verificación exige contenido y no solo existencia, la escritura es atómica (`.tmp` + `os.replace`), y el manifiesto se escribe fila por fila con flush inmediato: si se escribiera al final, un corte a mitad dejaría `.txt` válidos que la corrida siguiente saltearía, sin fila en el CSV y sin forma de regenerarla. El conteo de palabras usa `contar_palabras()` de `medir_longitud_texto.py` (normaliza espacios con `re.sub`), **no** el `texto.split()` que ya devuelve `procesar_archivo()`, para que haya una sola definición de "palabra" en toda la tesis — es la misma con la que se calculó la variable LTE del Capítulo IV.
 
-Advertencia para Fase 7: `resultado='ok'` significa "Tesseract devolvió texto", no "el texto es bueno". Hay escaneos legibles pero ruidosos que igual quedaron en `ok`. No se aplicó ningún filtro de calidad ni se descartó nada — el corpus son los 390 completos.
+**El corpus entró completo al entrenamiento, sin filtro de calidad.** `resultado='ok'` significa que Tesseract devolvió texto, no que el texto sea bueno: hay escaneos legibles pero ruidosos que quedaron dentro, y al menos uno (`2021-021`) es prácticamente ilegible. No se descartó ninguno. Los resultados del entrenamiento se obtuvieron sobre ese corpus tal cual, lo que hace las métricas **más conservadoras y no menos**.
 
 **⚠️ Parámetros reales de Tesseract — corregir el marco metodológico de la tesis:** se verificó leyendo el código que `procesar_archivo()` llama a `pytesseract.image_to_string()` con **`lang='spa'` únicamente**, sin argumento `config=`. Es decir que corre con los valores **por defecto de Tesseract 5: PSM 3 (segmentación automática de página, sin OSD) y OEM 3**. Notas anteriores del proyecto mencionaban `--oem 3 --psm 6`, que **NO es lo que corre**: PSM 6 ("un único bloque uniforme de texto") nunca se configuró. El OEM coincide por casualidad, porque 3 es también el valor por defecto. **Hay que revisar si el marco metodológico de la tesis repite ese dato incorrecto** — el valor a citar es PSM 3, y describirlo como "los valores por defecto de Tesseract" en vez de como una configuración elegida, porque nunca se eligió.
+
+**Entrenamiento y evaluación de los modelos de clasificación (4 de septiembre de 2026)**
+
+Cierra las Fases 7 y 8. Se evaluaron cuatro enfoques sobre el mismo corpus de 390 expedientes: una regla de palabra clave sin aprendizaje, TF-IDF con regresión logística, y los dos Transformers (BETO y RoBERTa-base-bne), cada Transformer con dos estrategias de truncamiento.
+
+**Metodología de evaluación.** Validación cruzada estratificada de 5 pliegues, `shuffle=True`, semilla 42. Cada expediente termina con una predicción hecha por un modelo que no lo vio durante su entrenamiento — predicción **fuera de pliegue**. La semilla y el número de pliegues son **los mismos en los baselines y en los Transformers, deliberadamente**: así cada expediente cae en el mismo pliegue en todos los experimentos y las predicciones se pueden comparar documento por documento, no solo en promedio. Sin esa condición, dos modelos con el mismo F1 podrían estar acertando en documentos distintos y no habría forma de notarlo.
+
+5 pliegues es el máximo razonable acá, y el límite lo pone la clase minoritaria: con 17 casos en `Otro`, cada pliegue recibe 3 o 4. Con 10 pliegues quedarían 1 o 2 y la métrica de esa clase sería inútil.
+
+La métrica principal es **F1 macro, no exactitud global**. Con 160 Compraventa contra 17 Otro, un modelo que nunca prediga la clase minoritaria igual tendría buena exactitud. El entrenamiento usa además **pesos por clase en la función de pérdida**, calculados sobre el conjunto de entrenamiento de cada pliegue: con la distribución real, la clase `Otro` recibe **9.41 veces más peso** que Compraventa. Y en el baseline TF-IDF el vectorizador **se ajusta dentro de cada pliegue**, solo sobre el conjunto de entrenamiento — ajustarlo sobre los 390 antes de partir habría metido el IDF y el vocabulario de los documentos de prueba en el modelo, y el número resultante no valdría nada.
+
+**Baseline 1 — regla de palabra clave.** Clasificador sin aprendizaje: busca en el texto normalizado (minúsculas, sin tildes) las palabras clave de cada clase. Existe para responder una pregunta previsible de la terna: si estos documentos son formularios rígidos, por qué hace falta un modelo en vez de buscar la palabra "COMPRAVENTA" en el encabezado.
+
+Se evalúa sobre los 390 directamente, sin partición, porque no hay nada que ajustar y por lo tanto nada que pueda filtrarse. Esa asimetría **favorece a la regla** frente a los modelos, que juegan de visitante con predicciones fuera de pliegue — y aun así pierde, lo que refuerza el argumento en vez de debilitarlo.
+
+Resultado: **F1 macro 0.859, exactitud 0.915, 33 errores sobre 390.** Cómo se resolvió cada caso: 169 por el nombre del acto (43.3%), **206 por el rol de las partes (52.8%)**, 15 sin ninguna coincidencia (3.8%). Los ambiguos —con palabras clave de más de una clase— fueron **269, el 69% del corpus**, resueltos por orden de aparición en el documento.
+
+Dato clave para el Capítulo V: hay **79 expedientes donde no aparece ninguna palabra del nombre de su propio acto en todo el texto**. En esos el rol de las partes es lo único que puede resolver, y clasifica bien 64. Sin incluir los roles como palabras clave, esos 79 habrían caído todos en la clase `Otro`.
+
+Por qué falla la regla: la cadena `donacion` aparece en 125 documentos pero **solo 65 son realmente Donación**. En 59 Declaraciones Juradas aparece la frase estándar *"lo adquirió por donación verbal que le hiciera"*, que describe **cómo se obtuvo el inmueble y no el acto que la escritura constituye**. Casi la mitad de las apariciones de esa palabra apuntan a la clase equivocada.
+
+**Baseline 2 — TF-IDF con regresión logística.** `TfidfVectorizer` con n-gramas de 1 y 2, `min_df=2`, `sublinear_tf=True`, sin lista de palabras vacías. `LogisticRegression` con `class_weight='balanced'`. Resultado: **F1 macro 0.9900, exactitud 0.9949, solo 2 errores sobre 390**, con media entre pliegues 0.988 ± 0.021 y un vocabulario medio de 13 484 términos por pliegue.
+
+Hallazgo que va al Capítulo V: en la clase Donación el modelo pesa el término `donante` con **1.369** y `donacion` con **0.748**, casi el doble. Aprendió por su cuenta que **el rol de las partes identifica el acto mejor que el nombre del acto** — que es exactamente lo que se había deducido a mano al revisar el expediente `2021-049`, donde el OCR perdió la palabra DONACIÓN pero el documento seguía diciendo EL DONANTE y LA DONATARIA.
+
+**Transformers: BETO y RoBERTa-base-bne.** Entrenados en Kaggle con GPU Tesla T4. Cuatro configuraciones —dos modelos por dos estrategias de truncamiento—, cinco pliegues cada una: **veinte entrenamientos, unos 13 minutos de GPU**. Hiperparámetros: `max_len` 512, batch 8, 4 épocas, learning rate 2e-5, warmup 10%, weight decay 0.01, recorte de gradiente a 1.0, precisión mixta.
+
+**Por qué hay que truncar.** Los expedientes tienen **1178 tokens de mediana** con el tokenizador de BETO y 1214 con el de RoBERTa, contra los **510 que entran en la ventana del modelo**. **385 de los 390 documentos se truncan, el 98.7%.** Más de la mitad del texto se descarta y hay que decidir qué mitad, así que la estrategia de truncamiento deja de ser un detalle de implementación y pasa a ser una variable experimental. Las dos evaluadas:
+
+- **`principio`** — los primeros 510 tokens.
+- **`principio_final`** — 128 tokens del inicio y 382 del cierre, descartando el medio. La proporción sigue el trabajo de Sun y colegas sobre ajuste fino de BERT para clasificación de texto. La hipótesis era que en una escritura notarial el acto se nombra en la comparecencia inicial, pero los roles de las partes y las firmas aparecen al cierre.
+
+Resultados, predicciones fuera de pliegue sobre los 390:
+
+| modelo | estrategia | F1 macro | exactitud | errores | media entre pliegues |
+|---|---|---|---|---|---|
+| RoBERTa-bne | principio_final | **0.9862** | 0.9923 | 3 | 0.9838 ± 0.0199 |
+| BETO | principio_final | 0.9661 | 0.9718 | 11 | 0.9623 ± 0.0337 |
+| RoBERTa-bne | principio | 0.9583 | 0.9641 | 14 | 0.9555 ± 0.0223 |
+| BETO | principio | 0.9533 | 0.9692 | 12 | 0.9489 ± 0.0303 |
+
+Dos conclusiones. **RoBERTa-base-bne supera a BETO**, lo que cumple el objetivo específico de comparar arquitecturas y seleccionar la de mayor F1. Y **la estrategia de principio y final gana en los dos modelos, no en uno solo**: que sea consistente la convierte en un hallazgo metodológico y no en una casualidad. RoBERTa se beneficia más, sube 2.8 puntos contra 1.3 de BETO.
+
+**Por qué una configuración puede tener más errores absolutos y aun así mejor F1 macro.** Es la pregunta que va a hacer cualquiera que lea la tabla de arriba: BETO con `principio_final` tiene **11 errores y F1 macro 0.9661**, mientras que BETO con `principio` tiene **12 errores y F1 macro 0.9533** — un error más, pero 1.3 puntos peor. No es un error de cálculo. El F1 por clase de `principio_final` es 0.978, 0.980, 0.937 y 0.970, cuyo promedio es 0.9661; el de `principio` es 0.966, 0.973, 0.992 y 0.882, promedio 0.9533. **La diferencia la explica por completo la clase `Otro`**, que pasa de F1 0.882 a 0.970: con `principio` fallan dos de sus 17 casos y con `principio_final` falla uno solo. Como el F1 macro promedia las cuatro clases con el mismo peso, **un error sobre una clase de 17 casos cuesta lo mismo que uno sobre una de 160**. Por eso el F1 macro es la métrica correcta para este corpus desbalanceado, y por eso no se reporta exactitud global como métrica principal.
+
+**Comparación general.**
+
+| enfoque | F1 macro | errores sobre 390 |
+|---|---|---|
+| TF-IDF + regresión logística | **0.9900** | 2 |
+| RoBERTa-bne (principio_final) | 0.9862 | 3 |
+| BETO (principio_final) | 0.9661 | 11 |
+| RoBERTa-bne (principio) | 0.9583 | 14 |
+| BETO (principio) | 0.9533 | 12 |
+| Regla de palabra clave | 0.8590 | 33 |
+
+Documento por documento, el mejor Transformer contra TF-IDF: **aciertan los dos 387, solo el Transformer 0, solo TF-IDF 1, fallan los dos 2.**
+
+**El modelo simple gana, y hay que decirlo así en la tesis** — pegado siempre a ese número. La conclusión defendible no es que el Transformer resuelva el problema, sino que **sobre este corpus ambos enfoques coinciden en 387 de 390 documentos y la diferencia entre ellos es un solo caso**. El margen restante no es capacidad del modelo sino ambigüedad de la etiqueta.
+
+**Límite de validez externa que hay que declarar en la tesis:** el corpus son formularios de **un solo notario**, con plantillas fijas y vocabulario de rol muy discriminativo. Sobre protocolos de otro notario, o con más variedad de actos, no hay razón para esperar 0.99.
+
+**Análisis de errores del modelo ganador.** Los 3 errores de RoBERTa con `principio_final`:
+
+| archivo | año | tipo real | predicho | confianza |
+|---|---|---|---|---|
+| 2021-059 | 2021 | Compraventa | Donación | 0.585 |
+| 2022-056 | 2022 | Otro | Declaración Jurada | 0.401 |
+| 2022-228 | 2022 | Declaración Jurada | Donación | 0.898 |
+
+Dos observaciones. La primera: **dos de los tres tienen confianza por debajo del umbral de 0.70 del sistema**, así que en producción no se crearían automáticamente — irían a confirmación humana. Eso **valida empíricamente la elección de ese umbral**, que hasta ahora era una decisión de diseño sin respaldo medido.
+
+La segunda: el expediente `2022-228` **falla también en el baseline TF-IDF, y en los dos casos por lo mismo**. Revisado el documento original, es un **CONTRATO DE RESCISIÓN** que deja sin efecto una declaración jurada anterior, la escritura 222. El documento no constituye una declaración jurada: la cancela. La etiqueta es discutible y el tipo "Rescisión" no existe en el catálogo de seis tipos. **Que dos modelos con arquitecturas completamente distintas fallen en el mismo documento indica que el problema está en la etiqueta, no en los modelos.** Se decidió **conservar la etiqueta como está** y documentarlo como caso límite en el Capítulo V, en vez de corregirla: cambiarla obligaría a revisar todo el criterio de etiquetado.
+
+**Métricas por clase del modelo ganador** (RoBERTa-bne, principio_final, fuera de pliegue):
+
+| clase | precisión | recall | F1 | soporte |
+|---|---|---|---|---|
+| Compraventa | 1.000 | 0.994 | 0.997 | 160 |
+| Declaración Jurada | 0.993 | 0.993 | 0.993 | 148 |
+| Donación | 0.970 | 1.000 | 0.985 | 65 |
+| Otro | 1.000 | 0.941 | 0.970 | 17 |
+
+La clase `Otro` tiene **precisión perfecta pero recall 0.941**: cuando el modelo dice `Otro` nunca se equivoca, pero se le escapa uno de los 17. Con una clase de ese tamaño, un solo error es el 6%.
+
+**Reproducibilidad — el entrenamiento no es exactamente reproducible.** Pese a tener la semilla fija, el no determinismo de cuDNN en GPU hace que dos corridas independientes con la misma semilla no den lo mismo: el pliegue 1 de BETO con `principio_final` dio **0.9919 en una corrida y 0.9780 en otra**. **En el Capítulo V hay que reportar la media entre pliegues con su desviación, nunca un valor exacto de un pliegue individual.** Lo que sí se mantuvo idéntico en ambas corridas fue **el orden de las cuatro configuraciones**, que es lo que le da solidez al resultado: la conclusión no depende del ruido de una corrida.
+
+**⚠️ Disponibilidad de RoBERTa-base-bne — el repositorio oficial ya no tiene los pesos.** `PlanTL-GOB-ES/roberta-base-bne` conserva el README y la configuración, pero no el modelo. El repositorio `BSC-LT/roberta-base-bne` al que remite tampoco los tiene y devuelve 401. **Los dos se apuntan mutuamente.** Se usó el espejo `IsGarrido/roberta-base-bne`, subido explícitamente como copia de los pesos de PlanTL, 499 MB. **Es un espejo de terceros, no oficial.** Si en el futuro hay que reentrenar y ese espejo desaparece, habrá que buscar otro o cambiar de modelo — **conviene guardar una copia local de los pesos** antes de que eso pase.
+
+**Modelo final.** Se reentrenó la configuración ganadora (RoBERTa-bne con `principio_final`) sobre **los 390 expedientes completos, sin partición**, con los mismos hiperparámetros. Pérdida por época: 1.1157, 0.1436, 0.0214, 0.0131. Los archivos quedaron en la salida del notebook de Kaggle `audias29/notebook6ff7e315ff` (`kaggle kernels output audias29/notebook6ff7e315ff`): `model.safetensors`, `config.json`, `tokenizer.json`, `tokenizer_config.json` y `clases.json`.
+
+**`clases.json` es crítico y no se puede perder.** Contiene el orden de las clases, el mapeo de índice a nombre, la estrategia de truncamiento, el valor de `head_tokens`, el `max_len` y el umbral de 0.70. **Sin ese archivo el servicio de inferencia en Modal no sabría qué significa cada índice de salida del modelo** — la red devuelve cuatro números y nada más; cuál corresponde a Compraventa y cuál a Donación vive únicamente ahí.
+
+Pendiente para Fase 8.5: **`model.safetensors` (480 MB) no se descargó todavía.** Se resolverá al momento del despliegue en Modal, probablemente guardándolo como Kaggle Model o descargándolo directamente desde Modal en vez de pasarlo por la máquina local.
+
+**Artefactos generados, todos fuera del repositorio.** En `Desktop\SEPARAR_PDF\resultados_ml\`: `resultados_transformers.csv`, `metricas_por_clase.csv`, `configuracion.json`, y cuatro archivos `predicciones_*.csv` con las predicciones fuera de pliegue de cada configuración (archivo, año, tipo original, tipo real, tipo predicho, probabilidad, acierto y la probabilidad de cada una de las cuatro clases). En `Desktop\SEPARAR_PDF\` están los scripts de los baselines: `corpus_comun.py`, `baseline_reglas.py`, `baseline_tfidf.py`, `analisis_errores.py`, `comparar_baselines.py`, `predicciones_tfidf.csv` y `predicciones_reglas.csv`.
 
 **Desajuste confirmado: sistema real tiene 44 tablas, no 28 (31 de julio de 2026, recontado el 31 de agosto de 2026):** se verificó directamente en Supabase (consulta sobre information_schema.tables, confirmada por el propio usuario ejecutándola en el SQL Editor) que el sistema real tiene **44 tablas base + 5 vistas = 49 objetos**. El recuento original del 31 de julio de 2026 había dado 43 tablas + 5 vistas = 48 objetos; quedó corregido el 31 de agosto de 2026 al inventariar la base tabla por tabla contra `information_schema`. Las 15 tablas que en mayo de 2026 se habían eliminado en una base de datos MySQL local (villeda_db, para el diagrama del Capítulo IV) nunca se aplicaron al sistema real construido en Supabase — el backend usa esas 15 tablas de catálogo como modelos SQLAlchemy reales (EstadoExpediente, Prioridad, FormatoDocumento, etc.), no como texto suelto. Decisión: actualizar el Capítulo IV a 44 tablas (describir el sistema real), no reducir la base de datos de producción para que coincida con la tesis ya escrita — evita el riesgo de tocar un sistema que ya funciona con documentos reales.
 
