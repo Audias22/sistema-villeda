@@ -16,7 +16,12 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,6 +48,12 @@
           "backgroundColor": "#F7F5F2"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e50068cc-c4ef-4b33-883b-d1390f82c766"
+      }
+    },
+    "owner": "audias22"
   }
 }
