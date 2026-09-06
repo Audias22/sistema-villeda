@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -12,6 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
 import { login } from '../services/auth'
+import { biometriaDisponible, etiquetaBiometria } from '../services/biometria'
+import {
+  getBiometriaPreguntada,
+  saveBiometriaActiva,
+  saveBiometriaPreguntada,
+} from '../services/storage'
 import { colors } from '../theme/colors'
 import { fontFamily, fontSize } from '../theme/typography'
 
@@ -35,6 +42,47 @@ export default function LoginScreen() {
     return () => clearTimeout(timer)
   }, [isLoading])
 
+  /**
+   * Ofrece el desbloqueo biométrico una sola vez, tras el primer login exitoso.
+   *
+   * Solo se pregunta si el dispositivo puede hacerlo y si no se preguntó antes.
+   * La marca de "ya se preguntó" se guarda pase lo que pase con la respuesta:
+   * sin eso, un "Ahora no" reaparecería en cada inicio de sesión. Quien cambie
+   * de opinión después tiene el interruptor en la pantalla de Perfil.
+   *
+   * Nunca lanza: si algo falla acá, el login tiene que completarse igual.
+   */
+  async function ofrecerBiometria() {
+    try {
+      if (await getBiometriaPreguntada()) return
+      if (!(await biometriaDisponible())) return
+
+      const etiqueta = await etiquetaBiometria()
+      await saveBiometriaPreguntada()
+
+      await new Promise((resolver) => {
+        Alert.alert(
+          `¿Usar tu ${etiqueta} para entrar?`,
+          `La próxima vez que abras la app podrás desbloquearla con tu ${etiqueta} ` +
+            'en lugar de escribir tu contraseña. Puedes cambiarlo después desde Perfil.',
+          [
+            { text: 'Ahora no', style: 'cancel', onPress: () => resolver() },
+            {
+              text: 'Sí, activar',
+              onPress: async () => {
+                await saveBiometriaActiva(true)
+                resolver()
+              },
+            },
+          ],
+          { cancelable: false }
+        )
+      })
+    } catch (e) {
+      // Silencioso: no poder ofrecer la biometría no puede impedir entrar.
+    }
+  }
+
   async function handleLogin() {
     if (!usuario.trim() || !contrasena) {
       setError('Ingresa usuario y contraseña')
@@ -46,6 +94,7 @@ export default function LoginScreen() {
 
     try {
       const { user, token } = await login(usuario.trim(), contrasena)
+      await ofrecerBiometria()
       await signIn(user, token)
     } catch (err) {
       if (err.response?.status === 401) {
