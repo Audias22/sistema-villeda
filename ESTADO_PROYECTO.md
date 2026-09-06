@@ -23,7 +23,7 @@
 | OCR | Tesseract 5.x + OpenCV (filtrado HSV de sellos de color) — instalado vía apt en Docker de producción, en `C:\Program Files\Tesseract-OCR\` en local | ✅ Funcionando en producción y en local |
 | Modelo baseline | BETO | ✅ Entrenado y evaluado (4 de septiembre de 2026) — F1 macro **0.9661** en su mejor configuración (truncamiento principio_final) |
 | Modelo final | RoBERTa-base-bne | ✅ Entrenado y evaluado (4 de septiembre de 2026) — F1 macro **0.9862** en su mejor configuración (truncamiento principio_final). Supera a BETO: es el modelo seleccionado |
-| Despliegue ML en producción | Modal (Free tier $30/mes de crédito, requiere tarjeta) | ⏳ Decidido, no iniciado |
+| Despliegue ML en producción | Modal (Free tier $30/mes de crédito, requiere tarjeta) | ✅ Desplegado y verificado (6 de septiembre de 2026) — RoBERTa-bne servido desde Modal, integrado al backend reemplazando el mock |
 | Autenticación | JWT + bcrypt | ✅ Funcionando |
 | RBAC | 2 capas (BD + decoradores) | ✅ Funcionando |
 
@@ -549,7 +549,7 @@ Los documentos y trabajos anteriores a este cambio quedan en NULL, sin inventar 
 | Fase 6 | Dataset etiquetado | ✅ 390 expedientes (158 de 2021 + 232 de 2022) separados, etiquetados y con el texto extraído. Corpus de entrenamiento generado el 1 de septiembre de 2026 con `extraer_corpus.py` (fuera del repo): 390/390 exitosos, sin vacíos ni errores. Ver "Extracción del corpus de entrenamiento" abajo |
 | Fase 7 | Fine-tuning BETO | ✅ Completa (4 de septiembre de 2026) — F1 macro 0.9661 fuera de pliegue con truncamiento principio_final, 11 errores sobre 390. Ver "Entrenamiento y evaluación de los modelos de clasificación" abajo |
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ✅ Completa (4 de septiembre de 2026) — F1 macro 0.9862 fuera de pliegue con truncamiento principio_final, 3 errores sobre 390. **Supera a BETO: es el modelo seleccionado.** Ver "Entrenamiento y evaluación de los modelos de clasificación" abajo |
-| Fase 8.5 | Despliegue del modelo ML en Modal (microservicio serverless) | ⏳ Decidido, no iniciado — **el modelo entrenado ya existe**: RoBERTa-bne reentrenado sobre los 390 completos, en la salida del notebook de Kaggle `audias29/notebook6ff7e315ff` (`kaggle kernels output audias29/notebook6ff7e315ff`). Falta descargar `model.safetensors` (480 MB) y montarlo en Modal |
+| Fase 8.5 | Despliegue del modelo ML en Modal (microservicio serverless) | ✅ Completa (6 de septiembre de 2026) — servicio desplegado con `backend/modal_app/clasificador_modal.py` e integrado al backend, que ya no usa el mock. Ver "Integración del clasificador real de Modal" abajo |
 | Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3, 4A, 4B.1, 4B.2 y 4B.3 (setup Expo + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos + reportes con PDF y compartir) completadas |
 | Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
 
@@ -596,7 +596,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 5. ⏳ Redactar 4.5.1 / 4.5.2 / 4.6.1 de la tesis (describir sistema construido, pruebas end-to-end reales, despliegue en Render/Docker/Vercel/Supabase/R2/Expo). **Movido a último a propósito:** las pantallas de Expediente/Detalle y Cargar Documento (panel-web y app-movil) van a cambiar visualmente con la mejora UX del punto 3, y Fase 5 móvil (punto 4) agrega pantallas nuevas — redactar el capítulo de interfaz después de ambas evita repetir capturas y texto ya escrito.
 6. ⏳ Migración de Flask dev server a `gunicorn` en Docker de producción (warning en logs, no urgente).
 7. ⏳ Rotar contraseña de Supabase (se expuso en captura en una sesión anterior — higiene de seguridad).
-8. ✅ 390 expedientes separados, etiquetados y con el texto extraído (ver Fase 6), y **Fase 7-8 completadas**: BETO y RoBERTa-base-bne entrenados y evaluados el 4 de septiembre de 2026, con RoBERTa como modelo seleccionado (F1 macro 0.9862). El entrenamiento ya no bloquea nada. Lo que queda pendiente aguas abajo es el **despliegue en Modal (Fase 8.5)** —incluido descargar `model.safetensors` de la salida de Kaggle—, la **redacción del Capítulo V** y **4.6.2 Prueba de Aceptación**.
+8. ✅ 390 expedientes separados, etiquetados y con el texto extraído (ver Fase 6), y **Fase 7-8 completadas**: BETO y RoBERTa-base-bne entrenados y evaluados el 4 de septiembre de 2026, con RoBERTa como modelo seleccionado (F1 macro 0.9862). El entrenamiento ya no bloquea nada. **Fase 8.5 también quedó completa el 6 de septiembre de 2026**: el modelo está servido desde Modal e integrado al backend, que ya no usa el mock. Lo que queda pendiente aguas abajo es la **redacción del Capítulo V** y **4.6.2 Prueba de Aceptación**.
 9. ⏳ **Versionar los scripts SQL del esquema de la base de datos** — se confirmó (31 de julio de 2026) que ningún script `.sql` de creación del esquema está en el repo; los que existen (`villeda_db.sql`, `villeda_legal_v2.sql`, `02_CREATE_villeda_db_CORREGIDO.sql`) viven sueltos en carpetas locales (Downloads/Desktop), fuera de control de versiones. Esto explica también por qué el esquema real de Supabase pudo derivar de esos scripts sin que se note (ej. la tabla `entidades_nlp` normalizada con FK en la BD real, vs. columna `VARCHAR` en línea en los scripts locales). Subir una versión actualizada al repo (carpeta `backend/sql/` o similar) para no depender de archivos locales sin respaldo. Prioridad baja, no urgente.
 
 **Completado en la sesión del 21 de julio de 2026:** dockerización completa del backend (Tesseract + Poppler funcionando en producción), migración a servicio nuevo `sistema-villeda-backend-v2` (el anterior quedó suspendido), fix del `self-ping` (ahora configurable vía `SELF_PING_URL`), fix del AuthContext móvil ante token expirado (pub/sub + Alert), fix de los 8 catches para ignorar `SESSION_EXPIRED`, y verificación end-to-end en producción con OCR real. También se identificó que el bug de PNG/JPG del visor móvil era en realidad un problema de datos históricos, no del código.
@@ -758,7 +758,49 @@ La clase `Otro` tiene **precisión perfecta pero recall 0.941**: cuando el model
 
 **`clases.json` es crítico y no se puede perder.** Contiene el orden de las clases, el mapeo de índice a nombre, la estrategia de truncamiento, el valor de `head_tokens`, el `max_len` y el umbral de 0.70. **Sin ese archivo el servicio de inferencia en Modal no sabría qué significa cada índice de salida del modelo** — la red devuelve cuatro números y nada más; cuál corresponde a Compraventa y cuál a Donación vive únicamente ahí.
 
-Pendiente para Fase 8.5: **`model.safetensors` (480 MB) no se descargó todavía.** Se resolverá al momento del despliegue en Modal, probablemente guardándolo como Kaggle Model o descargándolo directamente desde Modal en vez de pasarlo por la máquina local.
+Pendiente para Fase 8.5: **`model.safetensors` (480 MB) no se descargó todavía.** Se resolverá al momento del despliegue en Modal, probablemente guardándolo como Kaggle Model o descargándolo directamente desde Modal en vez de pasarlo por la máquina local. *(Resuelto el 6 de septiembre de 2026: los pesos se subieron a un repositorio privado de Hugging Face y Modal los baja de ahí — ver la sección siguiente.)*
+
+**Integración del clasificador real de Modal (6 de septiembre de 2026):** cierra la Fase 8.5. El backend dejó de usar el mock aleatorio y ahora clasifica con RoBERTa-bne servido desde Modal.
+
+**Arquitectura.** El servicio vive en `backend/modal_app/clasificador_modal.py` (desplegado con `modal deploy`) y carga los pesos desde el repositorio **privado** de Hugging Face `Audias22/villeda-clasificador-notarial`, cacheados en un volumen persistente de Modal para no bajar 475 MB en cada arranque en frío. Recibe `{"texto": "..."}` y devuelve `{clase, confianza, modelo, estrategia, umbral, todas}`. **Devuelve el NOMBRE de la clase, nunca un id**: el servicio no conoce los identificadores de Supabase y no tiene por qué. El OCR se queda en Render a propósito — ya funciona, y mantenerlo ahí conserva la medición de la variable TPO en un solo lugar.
+
+Del lado del backend, `clasificar(texto)` **conserva su firma y su contrato de 3 claves** (`id_tipo_predicho`, `confianza`, `id_modelo`), así que el worker no se enteró del cambio. Archivos: `app/services/modal_service.py` (cliente HTTP nuevo, sigue la forma de `r2_service.py`), `app/clasificacion/clasificador.py` (elige implementación y traduce) y el try/except nuevo en `app/clasificacion/services.py`.
+
+**⚠️ Mapeo de clase a `id_tipo` — los ids NO son consecutivos.** Verificado contra la base el 6 de septiembre de 2026:
+
+| clase del modelo | id_tipo |
+|---|---|
+| Compraventa | 1 |
+| Declaración Jurada | 16 |
+| Donación | 15 |
+| Otro | 18 |
+
+El **`id_tipo` 4 es "Acta notarial" y está INACTIVO**. Si alguien "simplificara" el diccionario mapeando por índice (0→1, 1→2, 2→3, 3→4), **todo lo que el modelo clasifique como "Otro" quedaría archivado como acta notarial y no saltaría ningún error**, porque 4 es un id válido: el daño solo se vería meses después revisando expedientes a mano. Por eso el mapeo está escrito explícito y con esa advertencia al lado en el código.
+
+El mapeo va **en el código y no se lee de la base**, a propósito: el modelo predice cuatro clases fijas decididas al entrenar, así que si mañana alguien activa un tipo nuevo en el catálogo el modelo lo va a seguir clasificando entre estas cuatro. **El mapeo es una propiedad del modelo entrenado, no del catálogo.**
+
+**Las cuatro decisiones de diseño, con su razón:**
+
+1. **Transitorio vs permanente, dos excepciones y no una.** Es la decisión más importante y la que corrige el diseño original. Los *permanentes* —HTTP 400, una clase fuera del mapeo, respuesta con estructura inesperada, falta `MODAL_CLASIFICADOR_URL`, cualquier 4xx que no sea 429— van a `ESTADO_ERROR` con notificación al usuario, porque reintentar daría el mismo resultado. Los *transitorios* —timeout, conexión caída, 5xx, 429— **se dejan propagar**, para conservar el camino de reintentos que ya existía: el worker hace rollback, el trabajo queda En proceso y el rescate de zombis lo devuelve a la cola hasta 3 veces. Sin esa distinción, un parpadeo de red de dos segundos convertiría el documento en un Error definitivo que la secretaria tendría que volver a subir — se le estaría quitando el reintento justo a la operación que más lo necesita, que es la única llamada de red del pipeline.
+
+2. **La URL se valida en la primera llamada, no en el import.** `create_app()` importa `clasificacion.routes` → `services` → `clasificador`, así que un `raise` a nivel de módulo **dejaría sin arrancar todo el backend**: sin login, sin expedientes, sin búsquedas, sin reportes. Un deploy que se olvide de la variable dejaría a la oficina entera sin sistema, en vez de solo sin clasificación automática. Validando en la llamada, el fallo es proporcional a lo que rompe: el documento va a Error con un mensaje que nombra la variable que falta, y el resto de la API sigue viva. Verificado: `create_app()` arranca sin `MODAL_CLASIFICADOR_URL`.
+
+3. **El umbral del backend es el autoritativo.** Modal informa su propio `umbral` en cada respuesta, pero manda `UMBRAL_CONFIANZA` de `services.py`: es política del negocio, no propiedad del modelo, y es el valor que se persiste en `umbral_usado` y `umbral_confianza_usado`. Si los dos difieren se loguea un **warning**, para que una divergencia futura sea visible en vez de silenciosa. La comparación usa un import diferido dentro de la función porque `services.py` ya importa de `clasificador.py` y a nivel de módulo sería circular.
+
+4. **Se loguean las probabilidades de las cuatro clases** en cada predicción. Ante una predicción rara, el dict `todas` es lo que separa "el modelo se equivocó" de "el modelo dudó entre dos", y va a ser material para el Capítulo V cuando la oficina empiece a usar el sistema con documentos reales.
+
+**Dos variables de entorno nuevas. Hay que cargarlas EN RENDER, no solo en el `.env` local:**
+
+| variable | valor | qué pasa si falta |
+|---|---|---|
+| `MODAL_CLASIFICADOR_URL` | la URL del endpoint desplegado | en modo modal, cada documento va a Error con mensaje explícito. El resto de la API sigue funcionando |
+| `CLASIFICADOR_MODO` | `modal` (default) o `mock` | sin ella el default es `modal`, que es lo correcto en producción — un deploy olvidadizo no puede terminar creando expedientes con tipos al azar |
+
+`id_modelo` queda en **4** (`RoBERTa-bne notarial`, la fila real de `modelos_ml`) en modo modal, y sigue en **3** (el mock) en modo mock. **El mock no se borra**: sirve para desarrollo local sin gastar crédito de Modal ni depender de la red.
+
+**Verificación del 6 de septiembre de 2026**, cinco escenarios, todos llamando a las funciones directamente sin levantar el worker (ver la advertencia operativa de abajo): el mapeo de las cuatro clases dio los cuatro `id_tipo` correctos con `id_modelo=4`; el pipeline completo con `procesar_trabajo()` creó el expediente con `id_tipo_predicho=15` para una Donación; el modo mock siguió dando `id_modelo=3`; sin la URL el trabajo fue a `ESTADO_ERROR` con el mensaje correcto; y con la URL apuntando a un puerto cerrado la excepción **propagó** y el trabajo quedó En proceso, **no** en Error. El caso de clase no mapeada no se puede provocar desde afuera —habría que reentrenar el modelo con otras etiquetas— y se verificó leyendo el código: `_clasificar_con_modal()` lanza `ErrorClasificadorPermanente` antes de tocar la base, así que nunca puede escribirse un `id_tipo` adivinado.
+
+**⚠️ ADVERTENCIA OPERATIVA — levantar el backend local con `FORZAR_WORKER=true` compite por la cola de producción.** `DATABASE_URL` apunta a la misma base de Supabase, y `reclamar_siguiente_trabajo()` usa `FOR UPDATE SKIP LOCKED`, que está diseñado justamente para que varios workers convivan sin pisarse. Funciona como debe, pero significa dos cosas peligrosas: **un trabajo que se encole para probar en local puede ser reclamado por el worker de Render y procesado con el código desplegado en vez del que se quiere probar**, y al revés, **un worker local con código sin desplegar puede reclamar y procesar un documento real de la oficina**. Descubierto el 6 de septiembre de 2026 al intentar verificar esta misma integración: el documento de prueba lo procesó Render con el mock, creando el expediente 48 archivado como Compraventa siendo una Donación — una demostración involuntaria de por qué este cambio hacía falta. Para probar el worker en local, o se apaga el worker y se llama a `procesar_trabajo()` directamente, o se insertan las filas de prueba **ya en estado En proceso (2)**, que producción no reclama porque solo toma Pendiente.
 
 **Artefactos generados, todos fuera del repositorio.** En `Desktop\SEPARAR_PDF\resultados_ml\`: `resultados_transformers.csv`, `metricas_por_clase.csv`, `configuracion.json`, y cuatro archivos `predicciones_*.csv` con las predicciones fuera de pliegue de cada configuración (archivo, año, tipo original, tipo real, tipo predicho, probabilidad, acierto y la probabilidad de cada una de las cuatro clases). En `Desktop\SEPARAR_PDF\` están los scripts de los baselines: `corpus_comun.py`, `baseline_reglas.py`, `baseline_tfidf.py`, `analisis_errores.py`, `comparar_baselines.py`, `predicciones_tfidf.csv` y `predicciones_reglas.csv`.
 

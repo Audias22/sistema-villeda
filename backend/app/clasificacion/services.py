@@ -25,6 +25,7 @@ from app.notificaciones.models import (
     Notificacion,
     TIPO_BAJA_CONFIANZA, TIPO_DUPLICADO, TIPO_CARGA_COMPLETADA, TIPO_ERROR
 )
+from app.services.modal_service import ErrorClasificadorPermanente
 from .clasificador import clasificar, ID_AREA_NOTARIAL
 from .models import (
     TrabajoClasificacion, ClasificacionML, EstadoProcesamiento,
@@ -653,7 +654,35 @@ def procesar_trabajo(id_trabajo):
         logging.info(f"[worker] trabajo {id_trabajo} marcado Duplicado del documento {duplicado.id_documento}")
         return trabajo.to_dict(), None
 
-    prediccion = clasificar(texto)
+    try:
+        prediccion = clasificar(texto)
+    except ErrorClasificadorPermanente as e:
+        # Solo se atrapan las PERMANENTES. La distinción no es cosmética y no
+        # hay que unificar las dos ramas:
+        #
+        #   Permanente (esta rama) — HTTP 400, una clase fuera del mapeo, una
+        #   respuesta con estructura inesperada, o falta MODAL_CLASIFICADOR_URL.
+        #   Reintentar daría exactamente el mismo resultado, así que el trabajo
+        #   va a Error y se le avisa al usuario para que alguien intervenga.
+        #
+        #   Transitoria (NO se atrapa, propaga) — timeout, conexión caída, 5xx o
+        #   429. El fallo puede desaparecer solo, así que se deja subir hasta el
+        #   worker: este hace rollback, el trabajo queda En proceso y el rescate
+        #   de zombis lo devuelve a la cola con un intento más, hasta 3 veces.
+        #   Atraparla acá convertiría un parpadeo de red de dos segundos en un
+        #   documento perdido que la secretaria tendría que volver a subir.
+        trabajo.id_estado = ESTADO_ERROR
+        trabajo.mensaje_error = f"No se pudo clasificar el documento: {e}"
+        trabajo.fecha_fin_proceso = datetime.utcnow()
+        crear_notificacion(
+            id_usuario=trabajo.id_usuario,
+            id_tipo=TIPO_ERROR,
+            mensaje=f"No se pudo procesar el documento: {trabajo.mensaje_error}",
+            id_trabajo=trabajo.id_trabajo
+        )
+        db.session.commit()
+        logging.error(f"[worker] trabajo {id_trabajo} fallo al clasificar: {e}")
+        return trabajo.to_dict(), trabajo.mensaje_error
 
     trabajo.id_modelo = prediccion['id_modelo']
     trabajo.id_tipo_predicho = prediccion['id_tipo_predicho']
