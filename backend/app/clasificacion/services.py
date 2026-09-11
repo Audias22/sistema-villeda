@@ -12,8 +12,7 @@ from app.documentos.services import (
     EXTENSIONES_PERMITIDAS,
     TAMANO_MAXIMO_BYTES,
     MAPEO_CONTENT_TYPE,
-    determinar_id_formato,
-    extraer_texto_pdf_digital
+    determinar_id_formato
 )
 from app.documentos.models import Documento
 from app.clientes.models import Cliente
@@ -35,9 +34,6 @@ from .models import (
 # Por encima de este valor el expediente se crea solo. Por debajo, el trabajo
 # queda esperando que una persona confirme o corrija el tipo.
 UMBRAL_CONFIANZA = 0.70
-
-# Formato PDF con texto digital extraíble: no necesita pasar por Tesseract.
-FORMATO_PDF_DIGITAL = 2
 
 MAX_INTENTOS_NUMERO_EXPEDIENTE = 3
 
@@ -138,16 +134,60 @@ def obtener_o_crear_cliente_placeholder(id_usuario):
 
 def _extraer_texto(archivo_bytes, extension):
     """
-    Saca el texto del archivo con el mismo criterio que usa la carga manual:
-    pdfplumber si el PDF ya trae texto digital, Tesseract en cualquier otro
-    caso. Devuelve (texto, num_paginas, id_formato, tiempo_seg, error).
+    Saca el texto del archivo SIEMPRE con Tesseract, sin importar si el PDF trae
+    capa de texto. Devuelve (texto, num_paginas, id_formato, tiempo_seg, error).
+
+    ====================================================================
+    POR QUÉ TESSERACT SIEMPRE — NO VOLVER A BIFURCAR ESTO
+    ====================================================================
+    Hasta el 11 de septiembre de 2026 esta función preguntaba por
+    determinar_id_formato() y, si el PDF traía capa de texto, la leía con
+    pdfplumber en vez de hacer OCR. Era más rápido —1 segundo contra 30— y
+    parecía obviamente mejor. No lo era.
+
+    MEDIDO EN PRODUCCIÓN sobre 180 expedientes reales del despacho, la exactitud
+    del clasificador se partió en dos según por qué camino salió el texto:
+
+        Tesseract:   37/38 aciertos   97.4%
+        pdfplumber: 126/142 aciertos  88.7%
+
+    Casi nueve puntos. Y el 97.4% de Tesseract coincide con el 98.6% que dio la
+    validación cruzada —hecha sobre texto de Tesseract—, así que el modelo no
+    era el problema: el problema era el texto que le llegaba.
+
+    LA CAUSA: la capa de texto que deja el escáner del despacho devuelve el
+    contenido desmenuzado carácter por carácter. Un "catorce de octubre" sale
+    como "c 1 ato - rc - e - de - o - c - tub - re". Para un clasificador
+    entrenado sobre texto corrido, eso es otra distribución de entrada.
+
+    Y ROMPE LA BÚSQUEDA, que es lo más grave: texto_completo alimenta la
+    búsqueda por contenido, uno de los cinco criterios del sistema. En un texto
+    fragmentado así, la palabra "compraventa" NO EXISTE como tal, así que
+    buscarla no encuentra el documento. No es una degradación estética: inutiliza
+    una funcionalidad central y contamina las mediciones de TBR.
+
+    El costo aceptado es de ~1s a ~30s por documento. Se decidió que la
+    consistencia entre entrenamiento e inferencia, y una búsqueda que funcione,
+    valen más que los segundos. El propósito del sistema es clasificar y
+    encontrar bien, no rápido.
+
+    Detalle documento por documento en Desktop\\SEPARAR_PDF\\cargados_con_bifurcacion.csv
+    (fuera del repo) y en ESTADO_PROYECTO.md. Esa comparación YA NO SE PUEDE
+    REPRODUCIR: al forzar Tesseract dejaron de existir documentos extraídos con
+    pdfplumber contra los cuales medir.
+    ====================================================================
+
+    id_formato SE SIGUE CALCULANDO, pero ya no gobierna nada. Dos motivos:
+    documentos.id_formato es NOT NULL, y saber si el archivo de origen traía
+    capa de texto es el dato que sostiene la medición de arriba. OJO CON SU
+    SIGNIFICADO: ahora describe QUÉ TRAÍA EL ARCHIVO, no cómo se extrajo. Un
+    documento con id_formato=2 (PDF digital) se extrajo igual con Tesseract.
 
     QUÉ ABARCA tiempo_seg (es el valor que se guarda en documentos.tiempo_ocr_seg,
     o sea la variable TPO): mide ÚNICAMENTE la extracción del texto.
 
       incluye     rasterizado del PDF con Poppler, preprocesamiento HSV de
-                  sellos y el reconocimiento de Tesseract; o, en el camino
-                  digital, la lectura de la capa de texto con pdfplumber
+                  sellos y el reconocimiento de Tesseract
       NO incluye  la detección del formato (determinar_id_formato, que abre el
                   PDF para ver si trae capa de texto), la descarga del archivo
                   desde R2, el cálculo del hash, la clasificación del modelo ni
@@ -155,24 +195,15 @@ def _extraer_texto(archivo_bytes, extension):
 
     Se mide con time.perf_counter(), el mismo reloj que usa el TBR de búsquedas.
     """
+    # Solo como dato descriptivo del archivo de origen. No decide la extracción.
     id_formato = determinar_id_formato(extension, archivo_bytes)
-
-    inicio = time.perf_counter()
-
-    if extension == 'pdf' and id_formato == FORMATO_PDF_DIGITAL:
-        texto, num_paginas = extraer_texto_pdf_digital(archivo_bytes)
-        tiempo_seg = round(time.perf_counter() - inicio, 2)
-        logging.info(
-            f"[worker] texto extraido con pdfplumber en "
-            f"{tiempo_seg}s — {len(texto)} caracteres"
-        )
-        return texto, num_paginas, id_formato, tiempo_seg, None
 
     resultado = procesar_archivo(archivo_bytes, extension)
     tiempo_seg = resultado['tiempo_seg']
     logging.info(
         f"[worker] OCR termino en {tiempo_seg}s — "
-        f"{resultado['num_caracteres']} caracteres, {resultado['num_paginas']} paginas"
+        f"{resultado['num_caracteres']} caracteres, {resultado['num_paginas']} paginas "
+        f"(id_formato={id_formato}, solo descriptivo)"
     )
 
     if not resultado['exitoso']:

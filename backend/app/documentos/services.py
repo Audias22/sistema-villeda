@@ -1,6 +1,5 @@
 import os
 import uuid
-import time
 import pdfplumber
 import io
 import logging
@@ -69,7 +68,24 @@ def determinar_id_formato(extension, archivo_bytes):
 
 
 def extraer_texto_pdf_digital(pdf_bytes):
-    """Extrae texto de un PDF digital sin pasar por OCR (más rápido y preciso)"""
+    """
+    Lee la capa de texto de un PDF sin pasar por OCR.
+
+    SIN USO DESDE EL 11 DE SEPTIEMBRE DE 2026. Se conserva, igual que
+    guardar_archivo_local() más abajo, para no perder el código de un camino que
+    podría volver a hacer falta con otro origen de documentos.
+
+    NO REACTIVARLA para ahorrar tiempo de OCR. Era exactamente lo que hacía el
+    sistema y se quitó a propósito: sobre 180 expedientes reales, los documentos
+    extraídos por acá clasificaron 88.7% contra 97.4% de los que pasaron por
+    Tesseract, y su texto sale fragmentado carácter por carácter, lo que además
+    impide que la búsqueda por contenido los encuentre. El razonamiento completo
+    está en el docstring de _extraer_texto() en app/clasificacion/services.py.
+
+    Si algún día vuelve a servir —por ejemplo con PDF nativos de un procesador
+    de texto, donde la capa sí es fiel— hay que comprobar antes la calidad de
+    esa capa, no asumirla.
+    """
     texto_completo = ''
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
         for pagina in pdf.pages:
@@ -110,27 +126,35 @@ def cargar_documento(archivo_bytes, nombre_original, id_expediente, id_usuario, 
     es_duplicado = duplicado is not None
     id_original = duplicado.id_documento if duplicado else None
 
+    # Solo como dato descriptivo del archivo de origen: id_formato ya NO decide
+    # cómo se extrae el texto. Se sigue calculando porque documentos.id_formato
+    # es NOT NULL y porque saber si el archivo traía capa de texto es un dato
+    # útil. Ojo con su significado: describe QUÉ TRAÍA EL ARCHIVO, no cómo se
+    # extrajo — un documento con id_formato=2 también pasó por Tesseract.
     id_formato = determinar_id_formato(extension, archivo_bytes)
 
     _log_memoria(f"antes de procesar {nombre_original}")
 
+    # TESSERACT SIEMPRE, aunque el PDF traiga capa de texto. Antes esto se
+    # bifurcaba y usaba pdfplumber en ese caso, que era 30 veces más rápido; se
+    # eliminó el 11 de septiembre de 2026 porque la capa de texto del escáner
+    # del despacho devuelve el contenido desmenuzado carácter por carácter, lo
+    # que degradaba la clasificación y rompía la búsqueda por contenido.
+    # El razonamiento completo y los números medidos están en el docstring de
+    # _extraer_texto() en app/clasificacion/services.py, y en ESTADO_PROYECTO.md.
+    # NO volver a bifurcar esto por rendimiento.
+    #
     # tiempo_ocr_seg mide SOLO la extracción del texto: no incluye la detección
-    # de formato de arriba, ni el cálculo del hash, ni la subida a R2. El PDF
-    # digital se cronometra acá porque extraer_texto_pdf_digital() no mide nada
-    # por su cuenta; el escaneado trae su propia medición desde procesar_archivo().
-    if extension == 'pdf' and id_formato == 2:
-        inicio_extraccion = time.perf_counter()
-        texto, num_paginas = extraer_texto_pdf_digital(archivo_bytes)
-        tiempo_ocr_seg = round(time.perf_counter() - inicio_extraccion, 2)
-    else:
-        resultado_ocr = procesar_archivo(archivo_bytes, extension)
-        texto = resultado_ocr['texto']
-        num_paginas = resultado_ocr['num_paginas']
-        tiempo_ocr_seg = resultado_ocr['tiempo_seg']
+    # de formato de arriba, ni el cálculo del hash, ni la subida a R2. Viene
+    # medido desde procesar_archivo().
+    resultado_ocr = procesar_archivo(archivo_bytes, extension)
+    texto = resultado_ocr['texto']
+    num_paginas = resultado_ocr['num_paginas']
+    tiempo_ocr_seg = resultado_ocr['tiempo_seg']
 
-        if not resultado_ocr['exitoso']:
-            _log_memoria(f"después de procesar {nombre_original} (con error)")
-            return None, f"Error al procesar el documento: {resultado_ocr['mensaje_error']}"
+    if not resultado_ocr['exitoso']:
+        _log_memoria(f"después de procesar {nombre_original} (con error)")
+        return None, f"Error al procesar el documento: {resultado_ocr['mensaje_error']}"
 
     _log_memoria(f"después de procesar {nombre_original}")
 

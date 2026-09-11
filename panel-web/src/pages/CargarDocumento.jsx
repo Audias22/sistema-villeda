@@ -178,9 +178,25 @@ function CargarDocumento() {
         )}
 
         {cargando && (
-          <div className="barra-progreso">
-            <div className="barra-progreso-relleno" style={{ width: `${progreso}%` }} />
-          </div>
+          <>
+            <div className="barra-progreso">
+              <div className="barra-progreso-relleno" style={{ width: `${progreso}%` }} />
+            </div>
+            {/*
+              La barra mide la SUBIDA de bytes, no el procesamiento del servidor,
+              así que llega al 100% en un par de segundos y ahí se queda mientras
+              el backend hace el OCR. Desde que se fuerza Tesseract en todos los
+              PDF (11 de septiembre de 2026) esa espera es de ~30 segundos, y una
+              barra llena e inmóvil se lee como un cuelgue. El texto explícito
+              dice qué está pasando y cuánto dura, para que nadie cancele a
+              mitad de camino.
+            */}
+            {progreso >= 100 && (
+              <p className="label" style={{ textAlign: 'center', marginTop: 8 }}>
+                Extrayendo el texto del documento, esto puede tardar medio minuto...
+              </p>
+            )}
+          </>
         )}
 
         <Button variant="acento" fullWidth onClick={handleSubmit} disabled={cargando} style={{ marginTop: 20 }}>
