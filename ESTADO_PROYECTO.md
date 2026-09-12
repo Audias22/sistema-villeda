@@ -618,7 +618,7 @@ No bloquea nada: **el interruptor de `PerfilScreen` cubre el caso**, así que qu
 | Fase 8 | Fine-tuning RoBERTa-base-bne | ✅ Completa (4 de septiembre de 2026) — F1 macro 0.9862 fuera de pliegue con truncamiento principio_final, 3 errores sobre 390. **Supera a BETO: es el modelo seleccionado.** Ver "Entrenamiento y evaluación de los modelos de clasificación" abajo |
 | Fase 8.5 | Despliegue del modelo ML en Modal (microservicio serverless) | ✅ Completa (6 de septiembre de 2026) — servicio desplegado con `backend/modal_app/clasificador_modal.py` e integrado al backend, que ya no usa el mock. Ver "Integración del clasificador real de Modal" abajo |
 | Fase 9 | Panel web + App móvil | 🔄 Panel web (React) completo con 7 pantallas, desplegado en Vercel. App móvil: Fases 1-3, 4A, 4B.1, 4B.2 y 4B.3 (setup Expo + servicios/tema + login + 5 tabs + detalle de expediente + carga de documentos + reportes con PDF y compartir) completadas |
-| Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático ya operativo — faltan mediciones reales en oficina |
+| Fase 10 | Pruebas + medición TBR | 🔄 Mecanismo de registro automático operativo **y los 390 expedientes reales ya cargados en producción** (11 de septiembre de 2026), así que las mediciones de TBR en oficina ya se pueden hacer sobre datos reales — falta ejecutarlas. La variable TPO ya quedó medida sobre los 390: media 23.05 s, 9.49 s por página |
 
 ---
 
@@ -764,6 +764,38 @@ El detalle documento por documento está en **`Desktop\SEPARAR_PDF\cargados_con_
 `extraer_texto_pdf_digital()` **quedó sin uso y no se borró**, con un comentario que explica por qué y advierte que no se reactive por rendimiento — mismo criterio que se usó con `guardar_archivo_local()` tras la migración a R2. `pdf_tiene_texto_digital()` **sí sigue en uso**, a través de `determinar_id_formato()`.
 
 **Los 180 expedientes cargados con la bifurcación se borraron y se recargaron desde cero** tras el arreglo, para no dejar el acervo del despacho con dos criterios de extracción mezclados. Un corpus mitad Tesseract y mitad pdfplumber habría arrastrado el problema de búsqueda de forma permanente y silenciosa.
+
+**Carga completa del acervo histórico — 390 expedientes en producción (11 de septiembre de 2026)**
+
+Cargados con `cargar_corpus.py` (fuera del repo, en `Desktop\SEPARAR_PDF\`), **después** de eliminar la bifurcación de extracción, para que todo el acervo entre con un solo criterio. Es la puesta en marcha real del sistema: la base pasó de vacía al acervo completo del despacho.
+
+| resultado | cantidad |
+|---|---|
+| **expediente creado automáticamente** | **390 / 390** |
+| esperando confirmación humana | **0** |
+| fallidos | **0** |
+
+Estado final verificado en la base: **390 expedientes, 390 documentos, 390 trabajos y 390 clientes placeholder "Cliente NNN"**. La distribución por tipo coincide exactamente con la del corpus: **Compraventa 160, Declaración Jurada 148, Donación 65, Otro 17**.
+
+**Variable TPO medida sobre 390 documentos reales en producción** (el tiempo de extracción de texto, con Tesseract sobre todos):
+
+| métrica | valor |
+|---|---|
+| mínimo | 4.63 s |
+| máximo | 156.79 s |
+| **media** | **23.05 s** |
+| páginas totales | 899 |
+| **por página** | **9.49 s** |
+
+**⚠️⚠️ EL 100% DE EXACTITUD EN PRODUCCIÓN NO ES UNA MEDIDA DE GENERALIZACIÓN Y NO SE PUEDE REPORTAR COMO TAL EN LA TESIS.**
+
+La carga clasificó correctamente los 390 documentos contra sus etiquetas reales (370/370 en la corrida de continuación, 390/390 en total). **Ese número no mide capacidad predictiva.** El modelo desplegado en Modal es el que se **reentrenó sobre los 390 expedientes completos, sin partición** (ver "Modelo final" en la sección de entrenamiento), así que **vio estos mismos documentos durante su entrenamiento**. Que los clasifique todos bien es exactamente lo esperado, no un logro: es el modelo respondiendo sobre sus propios datos de entrenamiento.
+
+**LA MEDIDA HONESTA DE GENERALIZACIÓN SIGUE SIENDO EL F1 MACRO DE 0.9862 FUERA DE PLIEGUE**, con sus **3 errores sobre 390**, obtenido en la validación cruzada estratificada de 5 pliegues donde cada documento fue clasificado por un modelo que no lo había visto. **Ese es el número que va al Capítulo V como desempeño del modelo.** Confundir los dos sería el error metodológico más grave que se puede cometer con estos datos.
+
+**Lo que sí demuestra el 100%, y vale:** que el **pipeline completo funciona de punta a punta 390 veces consecutivas sin un solo fallo** — subida a R2, OCR con Tesseract, extracción de texto, llamada HTTP al clasificador en Modal, traducción de nombre de clase a `id_tipo`, y creación de cliente placeholder, expediente y documento en una sola transacción. **Es una verificación de integración, no de capacidad predictiva**, y como tal es un resultado sólido: cero errores, cero duplicados espurios, cero trabajos en limbo, y la numeración secuencial de clientes y expedientes sin una sola colisión.
+
+**`Desktop\SEPARAR_PDF\cargados.csv`** (fuera del repo) conserva las **390 filas** con archivo, `id_trabajo`, `id_expediente`, tipo real, tipo predicho, confianza y `tiempo_ocr_seg`. Es material del Capítulo V: de ahí salen las estadísticas de TPO de arriba y la comparación documento por documento.
 
 **⚠️ El margen del rescate de trabajos zombi se achicó con este cambio.** `worker.py` tiene `MINUTOS_ZOMBI = 15`: un trabajo que siga *En proceso* más de ese tiempo se considera colgado por un reinicio y **vuelve a la cola**. Antes, con la bifurcación, los PDF con capa salían en ~1 segundo y el margen era enorme; ahora todos pasan por OCR. **Peor caso del corpus actual: el expediente más largo tiene 16 páginas, unos ~160 segundos en Render — contra un límite de 900.** Sigue habiendo más de 5× de margen, así que **no se cambió nada**. Pero si algún día se suben documentos bastante más largos —cientos de páginas—, un trabajo podría superar los 15 minutos, volver a la cola **mientras todavía se está procesando**, y terminar procesado dos veces. **Es el primer lugar donde mirar** si aparece ese síntoma.
 
