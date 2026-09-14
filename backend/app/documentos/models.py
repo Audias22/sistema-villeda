@@ -18,6 +18,20 @@ class Documento(db.Model):
     es_duplicado_exacto     = db.Column(db.Boolean, nullable=False, default=False)
     id_documento_original   = db.Column(db.Integer, db.ForeignKey('documentos.id_documento'))
     texto_completo          = db.Column(db.Text)
+    # Copia de texto_completo con unaccent() ya aplicado. Existe para que la
+    # búsqueda por contenido no tenga que llamar a unaccent() sobre cada fila:
+    # envolver la columna en una función invalidaba cualquier índice e impedía
+    # al planificador estimar la selectividad. Con la columna cruda, la consulta
+    # bajó de 59.6 ms a 12.1 ms y pasó a usar el índice GIN.
+    #
+    # LA LLENA EL TRIGGER trg_normalizar_texto DE LA BASE, NO EL BACKEND. Es
+    # deliberado: así el valor es idéntico por construcción al unaccent() que
+    # usa la búsqueda, y ningún punto de escritura futuro puede olvidarse de
+    # llenarla. No asignar esta columna desde Python.
+    #
+    # No se expone en to_dict() ni en to_dict_completo(): es de uso interno para
+    # búsqueda, no dato de negocio, y duplicaría el texto en cada respuesta.
+    texto_normalizado       = db.Column(db.Text)
     # Segundos que tardó la extracción del texto, sin contar la detección de
     # formato ni la subida a R2. Nulo en los documentos cargados antes de que
     # se empezara a medir.

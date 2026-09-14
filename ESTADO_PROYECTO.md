@@ -88,7 +88,8 @@
 | Datos seed (roles, permisos, áreas, etc.) | ✅ |
 | Extensión pg_trgm | ✅ |
 | Extensión unaccent | ✅ |
-| Índice GIN texto_completo | ✅ |
+| ~~Índice GIN texto_completo~~ → **índice GIN sobre `texto_normalizado`** (13 de septiembre de 2026). El GIN original sobre `texto_completo` nunca se usó (0 escaneos) porque la consulta envolvía la columna en `unaccent()`; ver "Columna `texto_normalizado`" abajo | ✅ |
+| Columna `documentos.texto_normalizado` + trigger `trg_normalizar_texto` | ✅ |
 | Usuario ovilleda creado | ✅ |
 | Permisos asignados a los 5 roles | ✅ |
 | Esquema de `clientes` verificado (17 columnas — el 6 de agosto de 2026 se agregaron `telefono` VARCHAR(20), `email` VARCHAR(100) y `direccion` VARCHAR(255), las 3 nullable, con ALTER TABLE manual en el SQL Editor de Supabase) | ✅ |
@@ -206,7 +207,7 @@ backend/
 
 │   │   ├── schemas.py       ✅ BusquedaSchema
 
-│   │   ├── services.py      ✅ Medición TBR con time.perf_counter(), unaccent en criterios 1 y 4, métricas agregadas
+│   │   ├── services.py      ✅ Medición TBR con time.perf_counter(), unaccent en el criterio 1 (clientes) y columna texto_normalizado en el criterio 4 (contenido), métricas agregadas
 
 │   │   └── routes.py        ✅ POST /busquedas, GET /historial, GET /metricas
 
@@ -696,7 +697,82 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 
 **Medición de TBR:** se usa `time.perf_counter()` (no `time.time()`) porque está diseñado específicamente para medir duraciones cortas con mayor precisión y no se ve afectado por ajustes del reloj del sistema. El tiempo se mide únicamente alrededor de la consulta a la base de datos, sin incluir validación de esquema ni serialización de la respuesta — esto asegura que el TBR reflejado en el Capítulo V sea el tiempo real de búsqueda y recuperación, no el tiempo total de la petición HTTP.
 
-**Búsqueda insensible a acentos:** se detectó que ILIKE de PostgreSQL no ignora tildes ("jurídico" ≠ "juridico"), lo cual afectaría la usabilidad real en la oficina. Se resolvió con la extensión `unaccent` de PostgreSQL aplicada en los criterios de búsqueda por nombre de cliente y por contenido OCR.
+**Búsqueda insensible a acentos:** se detectó que ILIKE de PostgreSQL no ignora tildes ("jurídico" ≠ "juridico"), lo cual afectaría la usabilidad real en la oficina. Se resolvió con la extensión `unaccent` de PostgreSQL aplicada en los criterios de búsqueda por nombre de cliente y por contenido OCR. *(El criterio 4 cambió el 13 de septiembre de 2026 a una columna normalizada — ver la sección siguiente. El criterio 1, sobre clientes, sigue usando `unaccent()` sobre las columnas.)*
+
+**Columna `texto_normalizado` y el índice que sí se usa — búsqueda por contenido 80% más rápida (13 de septiembre de 2026)**
+
+**El problema: los cinco criterios de búsqueda hacían recorrido completo de tabla.** Medido con `EXPLAIN ANALYZE` sobre los 390 expedientes reales en producción, ninguno usaba un índice. El caso grave era el criterio 4, búsqueda por contenido: **59.6 ms**, mil veces más lento que los demás.
+
+**⚠️ `idx_documentos_texto`, el GIN que existía desde el diseño original, NUNCA se usó: 0 escaneos** desde su creación, confirmado con `pg_stat_user_indexes`. Ocupaba 3128 kB y penalizaba cada `INSERT` de documento. **La causa:** el índice estaba sobre la columna cruda, pero la consulta filtraba por `unaccent(texto_completo) ILIKE unaccent(...)`. **Envolver una columna en una función invalida cualquier índice sobre esa columna** — y además impide al planificador estimar la selectividad, así que ni siquiera podía evaluar si le convenía.
+
+**Por qué no se pudo indexar la expresión.** `unaccent` es **STABLE, no IMMUTABLE** (verificado: `provolatile = 's'` en las dos signaturas), y PostgreSQL **solo indexa expresiones con funciones IMMUTABLE**. La razón la explica Tom Lane en el hilo del BUG #5781: *"depends on the behavior of a dictionary that it has no hard-wired connection to (…) that dictionary depends on external configuration files which are easily changeable"*. Lo que puede cambiar es **`unaccent.rules`, un archivo de texto en el servidor, fuera de la base**.
+
+Eso descartó **dos** vías que parecían obvias:
+
+- **Columna generada** (`GENERATED ALWAYS AS ... STORED`): imposible, exige expresión IMMUTABLE.
+- **Envoltorio `f_unaccent` declarado IMMUTABLE**, que es la receta más citada: se descartó porque **miente sobre la volatilidad**. Si `unaccent.rules` cambiara —una actualización mayor de PostgreSQL o de la extensión—, el índice quedaría con valores viejos mientras la función devuelve los nuevos, y **las búsquedas dejarían de encontrar documentos que sí están, en silencio y sin error**.
+
+**⚠️ HALLAZGO QUE DECIDIÓ EL DISEÑO — normalizar en Python NO funciona, y el fallo habría sido silencioso.** Se evaluó que el backend calculara la normalización con `unicodedata.normalize('NFD')` descartando marcas combinantes, que es la receta habitual en Python. **Se comparó contra `unaccent()` documento por documento sobre los 390 reales:**
+
+```
+documentos comparados:   390
+coinciden exactamente:     9
+DIFIEREN:                381   (97.7%)
+```
+
+**Las tildes sí coinciden. Lo que difiere es la puntuación**, porque `unaccent.rules` además translitera signos que Python deja intactos:
+
+| original | Python | PostgreSQL |
+|---|---|---|
+| `—` raya (U+2014) | `—` sin tocar | **`-`** |
+| `»` comilla angular (U+00BB) | `»` sin tocar | **`>>`** |
+
+```
+doc 1  original : 'Identificación —-CUI- número mil'
+       python   : 'Identificacion —-CUI- numero mil'
+       postgres : 'Identificacion --CUI- numero mil'
+```
+
+En texto de OCR de documentos escaneados esos signos aparecen por todas partes. Con la columna normalizada por un criterio y el término de búsqueda por otro, **cualquier búsqueda con uno de esos signos cerca habría fallado sin dar error**. Replicar `unaccent.rules` en Python tampoco es viable: son cientos de reglas que quedarían desincronizadas en la próxima actualización.
+
+**La solución: columna `texto_normalizado` llena por un trigger de la base.**
+
+```sql
+ALTER TABLE documentos ADD COLUMN texto_normalizado text;
+
+CREATE FUNCTION fn_normalizar_texto_documento() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.texto_normalizado := public.unaccent(NEW.texto_completo);
+    RETURN NEW;
+END; $$;
+
+CREATE TRIGGER trg_normalizar_texto
+BEFORE INSERT OR UPDATE OF texto_completo ON documentos
+FOR EACH ROW EXECUTE FUNCTION fn_normalizar_texto_documento();
+
+CREATE INDEX CONCURRENTLY idx_documentos_texto_norm
+ON documentos USING gin (texto_normalizado gin_trgm_ops);
+```
+
+**LA LLENA EL TRIGGER, NO EL BACKEND, y es deliberado.** Dos razones: el valor es **idéntico por construcción** al `unaccent()` que usa la búsqueda —es la misma función sobre la misma fila, no una reimplementación—, y **ningún punto de escritura futuro puede olvidarse de llenarla**. Los tres puntos que insertan documentos (`documentos/services.py`, y dos en `clasificacion/services.py`) **no se tocaron**. Un trigger puede llamar funciones STABLE sin problema: la restricción de IMMUTABLE aplica a expresiones de índice, no a triggers. **No asignar `texto_normalizado` desde Python.**
+
+**El cambio en la consulta es de una línea** (`busquedas/services.py`, criterio 4): la columna va **cruda** —ya está normalizada— y solo el término pasa por `unaccent()`, o sea **una vez por consulta en vez de una vez por fila**.
+
+**RESULTADO MEDIDO, mejor de lo estimado:**
+
+| | antes | después |
+|---|---|---|
+| plan | **Seq Scan** | **Bitmap Index Scan** sobre `idx_documentos_texto_norm` |
+| tiempo | **59.6 ms** | **12.1 ms** |
+| mejora | | **80 %** |
+
+**El planificador elige el índice solo, sin forzarlo.** Se había estimado que con 390 documentos seguiría prefiriendo el recorrido secuencial —el costo del seq scan era 25.88 contra 28.42 del índice— y que la ganancia vendría solo de quitar `unaccent` de la consulta (~56%). **Esa estimación resultó pesimista y la razón es instructiva: al no ir envuelta en una función, el planificador puede estimar la selectividad de la columna y ve que el índice conviene.** Con `unaccent(texto_completo)` no tenía forma de saberlo. O sea que envolver la columna costaba las dos cosas a la vez, y quitarla las recupera a las dos.
+
+El índice nuevo pesa **1232 kB**, bastante menos que los 3128 kB del viejo pese a indexar el mismo contenido. Parte de esa diferencia es probablemente hinchazón acumulada en el viejo por el ciclo de borrado y recarga de los 180 expedientes del 11 de septiembre — no se verificó, pero es un argumento más para eliminarlo.
+
+**Verificación de equivalencia**, lo más importante de todo: la consulta nueva devuelve **exactamente los mismos resultados** que la vieja. Comprobado sobre cinco términos —`compraventa` 115=115, `donacion` 125=125, `donación` 125=125, `DECLARACION` 249=249, `Zacapa` 377=377— y con `0 discrepancias` entre `texto_normalizado` y `unaccent(texto_completo)` sobre las 390 filas. La insensibilidad a acentos se conserva: `donacion` y `donación` devuelven los mismos 125.
+
+**Para la variable UBI del Capítulo III:** este es el primer criterio de búsqueda del sistema que **realmente aprovecha un índice**. Los otros cuatro siguen haciendo recorrido secuencial, y a la escala actual —`expedientes` 19 páginas, `clientes` 7— seguirían haciéndolo aunque se les creara índice, porque leer la tabla entera cuesta menos. El criterio 1 (nombre de cliente) **sigue usando `unaccent()` sobre las columnas de `clientes` y no se tocó**: mismo patrón, pero sobre una tabla de 7 páginas donde no hay nada que ganar todavía.
 
 **Reporte Excel priorizado sobre PDF:** se decidió construir primero el listado de expedientes en Excel (más útil para uso diario del Lic. Villeda y demuestra integración de 4 tablas) y dejar la exportación PDF individual para después, ya que tiene menor prioridad para el Capítulo V que el panel web.
 
@@ -971,7 +1047,7 @@ El mapeo va **en el código y no se lee de la base**, a propósito: el modelo pr
 - id_formato en documentos: 1=PDF escaneado, 2=PDF digital, 3=Word, 4=Excel, 5=JPG, 6=PNG. Para PDF se detecta automáticamente con pdfplumber cuál de los dos (1 o 2) corresponde
 - to_dict() en Documento NO incluye texto_completo (puede ser muy largo); usar to_dict_completo() solo en detalle individual
 - id_criterio en busquedas: 1=nombre_cliente, 2=fecha, 3=area, 4=contenido, 5=numero_expediente
-- Criterios 1 y 4 usan func.unaccent() en ambos lados de la comparación ILIKE para ignorar tildes
+- Criterio 1 usa func.unaccent() en ambos lados de la comparación ILIKE para ignorar tildes. **El criterio 4 ya NO**: desde el 13 de septiembre de 2026 compara `documentos.texto_normalizado` (columna cruda, que el trigger `trg_normalizar_texto` mantiene con unaccent() ya aplicado) contra el término normalizado. No volver a envolver esa columna en unaccent(): invalida el índice y el planificador pierde la estimación de selectividad
 - Si el primer "git push origin main" da error "src refspec main does not match any", simplemente repetir el comando — es un glitch de timing, no un problema real
 - El .env de panel-web NUNCA se sube a GitHub — está en .gitignore (solo panel-web/.env.example se sube como plantilla)
 - panel-web/node_modules/ y panel-web/dist/ NUNCA se suben a GitHub — están en .gitignore de la raíz
