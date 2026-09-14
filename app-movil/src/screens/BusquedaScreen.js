@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,11 +14,7 @@ import AppHeader from '../components/AppHeader'
 import api from '../services/api'
 import { colors } from '../theme/colors'
 import { fontFamily, fontSize } from '../theme/typography'
-
-// id_area del área Notarial. Los 390 expedientes del despacho son de esa área,
-// así que el criterio 3 pasó de área a tipo de acto el 13 de septiembre de 2026:
-// filtrar por área devolvía siempre el corpus entero o vacío.
-const ID_AREA_NOTARIAL = 1
+import { ID_AREA_NOTARIAL, soloClasesDelModelo } from '../constants/clasificacion'
 
 const CRITERIOS = [
   { id: 1, label: 'Cliente', icono: '👤', tipo: 'texto', placeholder: 'Nombre del cliente' },
@@ -42,7 +37,7 @@ function formatearFechaVisible(fechaIso) {
   return `${dd}/${mm}/${yyyy}`
 }
 
-export default function BusquedaScreen() {
+export default function BusquedaScreen({ navigation }) {
   const [idCriterio, setIdCriterio] = useState(1)
   const [terminoTexto, setTerminoTexto] = useState('')
   const [fechaSeleccionada, setFechaSeleccionada] = useState(null)
@@ -51,6 +46,11 @@ export default function BusquedaScreen() {
   const [mostrarTipos, setMostrarTipos] = useState(false)
 
   const [resultados, setResultados] = useState([])
+  // Milisegundos que informa el backend en tiempo_respuesta_ms. Es el MISMO
+  // valor que se guarda en la tabla busquedas, medido allá con perf_counter
+  // alrededor de la consulta. La app solo lo muestra: nunca mide con su propio
+  // reloj, porque eso incluiría la latencia de red y no sería el TBR.
+  const [tiempoMs, setTiempoMs] = useState(null)
   const [haBuscado, setHaBuscado] = useState(false)
   const [buscando, setBuscando] = useState(false)
   const [error, setError] = useState(null)
@@ -60,7 +60,12 @@ export default function BusquedaScreen() {
   useEffect(() => {
     api
       .get('/catalogos/tipos-expediente', { params: { id_area: ID_AREA_NOTARIAL } })
-      .then(({ data }) => setTipos(data.tipos_expediente || []))
+      // El catálogo devuelve los 6 tipos activos; acá se dejan solo los 4 que
+      // el modelo puede predecir. Es una decisión de presentación de ESTA
+      // pantalla: el endpoint y la base no se tocan, y Expedientes sigue
+      // ofreciendo los 6 para que un expediente corregido a Mandato o
+      // Matrimonio siga siendo encontrable.
+      .then(({ data }) => setTipos(soloClasesDelModelo(data.tipos_expediente)))
       .catch(() => {})
   }, [])
 
@@ -115,6 +120,7 @@ export default function BusquedaScreen() {
         desde_plataforma: 'movil',
       })
       setResultados(data.resultados || [])
+      setTiempoMs(data.tiempo_respuesta_ms ?? null)
       setHaBuscado(true)
     } catch (err) {
       if (err.code === 'SESSION_EXPIRED') {
@@ -131,10 +137,13 @@ export default function BusquedaScreen() {
   }
 
   function verDetalle(expediente) {
-    Alert.alert(
-      expediente.numero_expediente,
-      `Cliente: ${expediente.cliente_nombre || '—'}\nTipo de acto: ${expediente.tipo_nombre || '—'}\nEstado: ${expediente.estado_nombre || '—'}\nFecha de apertura: ${formatearFechaVisible(expediente.fecha_apertura)}`
-    )
+    // Antes esto solo abría un diálogo nativo con cuatro datos sueltos. Ahora
+    // abre el detalle real, que vive en BusquedaStack junto a esta pantalla.
+    //
+    // Solo se pasa el id: ExpedienteDetalleScreen hace sus propias llamadas a
+    // GET /expedientes/:id y a /documentos. Por eso no importa que
+    // POST /busquedas devuelva una forma distinta a GET /expedientes.
+    navigation.navigate('ExpedienteDetalle', { id_expediente: expediente.id_expediente })
   }
 
   return (
@@ -229,6 +238,17 @@ export default function BusquedaScreen() {
 
         {haBuscado && !buscando && resultados.length === 0 && !error && (
           <Text style={styles.estadoTexto}>Sin resultados para tu búsqueda</Text>
+        )}
+
+        {/* Solo se muestra si hubo resultados, como se pidió: una búsqueda vacía
+            no informa el tiempo. El número viene del backend en
+            tiempo_respuesta_ms — es el mismo que se guarda en la tabla busquedas
+            y NO se mide acá, porque el reloj de la app incluiría la latencia de
+            red y dejaría de ser el TBR de la tesis. */}
+        {!buscando && resultados.length > 0 && tiempoMs !== null && (
+          <Text style={styles.tiempoTexto}>
+            {resultados.length} {resultados.length === 1 ? 'resultado' : 'resultados'} · Consulta: {tiempoMs} ms
+          </Text>
         )}
 
         {resultados.map((exp) => (
@@ -358,6 +378,12 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 0,
     flexGrow: 1,
+  },
+  tiempoTexto: {
+    fontFamily: fontFamily.regular,
+    fontSize: fontSize.small,
+    color: colors.textSecondary,
+    marginBottom: 10,
   },
   estadoTexto: {
     fontFamily: fontFamily.regular,

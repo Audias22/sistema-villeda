@@ -18,12 +18,7 @@ import AppHeader from '../components/AppHeader'
 import api from '../services/api'
 import { colors } from '../theme/colors'
 import { fontFamily, fontSize } from '../theme/typography'
-
-// id_area del área Notarial. El filtro pasó de área a tipo de acto el 13 de
-// septiembre de 2026: los 390 expedientes del despacho son de esa área, así que
-// el desplegable de áreas ofrecía tres opciones que devolvían siempre vacío y
-// una que devolvía el corpus entero.
-const ID_AREA_NOTARIAL = 1
+import { ID_AREA_NOTARIAL } from '../constants/clasificacion'
 
 function formatearFechaISO(fecha) {
   const yyyy = fecha.getFullYear()

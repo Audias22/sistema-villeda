@@ -1,10 +1,10 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { Text } from 'react-native'
 import DashboardScreen from '../screens/DashboardScreen'
-import BusquedaScreen from '../screens/BusquedaScreen'
 import ReportesScreen from '../screens/ReportesScreen'
 import PerfilScreen from '../screens/PerfilScreen'
 import ExpedientesStack from './ExpedientesStack'
+import BusquedaStack from './BusquedaStack'
 import { colors } from '../theme/colors'
 
 const Tab = createBottomTabNavigator()
@@ -33,7 +33,7 @@ export default function AppNavigator() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Expedientes" component={ExpedientesStack} />
-      <Tab.Screen name="Busqueda" component={BusquedaScreen} options={{ tabBarLabel: 'Búsqueda' }} />
+      <Tab.Screen name="Busqueda" component={BusquedaStack} options={{ tabBarLabel: 'Búsqueda' }} />
       <Tab.Screen name="Reportes" component={ReportesScreen} />
       <Tab.Screen name="Perfil" component={PerfilScreen} />
     </Tab.Navigator>

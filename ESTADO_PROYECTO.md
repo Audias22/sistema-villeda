@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — Sistema Villeda
-**Última actualización:** 15 de agosto de 2026
+**Última actualización:** 14 de septiembre de 2026
 **Desarrollador:** Rudi Audias Guevara Mejicanos — Carné 1190-22-8232
 
 ---
@@ -38,7 +38,7 @@
 | Render.com — backend v2 (Docker) | ✅ Activo | https://sistema-villeda-backend-v2.onrender.com — Plan Starter ($7/mes, 0.5 CPU / 512MB RAM) desde 30 de julio de 2026 — antes Free tier |
 | Render.com — backend v1 (nativo) | ⏸️ Suspendido | https://sistema-villeda-backend.onrender.com — conservado, no eliminado, por si hace falta consultar logs históricos |
 | Vercel | ✅ Activo | Panel web desplegado — https://sistema-villeda-panel.vercel.app |
-| Modal | ⏳ No creado | Se usará para servir BETO/RoBERTa como microservicio serverless cuando llegue la Fase 7/8 |
+| Modal | ✅ Desplegado (6 de septiembre de 2026) | Sirve RoBERTa-bne como microservicio serverless. App `villeda-clasificador`, desplegada con `backend/modal_app/clasificador_modal.py`; el backend la llama por HTTP desde `app/services/modal_service.py` |
 
 ---
 
@@ -807,6 +807,37 @@ El índice nuevo pesa **1232 kB**, bastante menos que los 3128 kB del viejo pese
 | **2** | por número de expediente | **localiza un expediente único** por su identificador |
 
 **La búsqueda por área nunca estuvo clasificada en ninguno de los tres niveles**, y ese hueco desaparece al reemplazarla por tipo de acto: el tipo entra en el nivel 1 por ser estructuralmente idéntico a la búsqueda por fecha —igualdad sobre una columna escalar de `expedientes`, sin join, devolviendo un subconjunto—. Sin esa clasificación, una búsqueda por ese criterio durante las mediciones del Capítulo V no habría podido ubicarse en la escala.
+
+**Navegación desde Búsqueda, filtros en Expedientes y tiempo de consulta visible (14 de septiembre de 2026)**
+
+Cuatro mejoras de la app móvil, **sin una sola línea de backend**: todo lo que hacía falta ya estaba.
+
+**1. Los resultados de Búsqueda abren el detalle real.** Antes mostraban un diálogo nativo con cuatro datos sueltos. El obstáculo era estructural: `BusquedaScreen` era una pantalla suelta del tab navigator y `ExpedienteDetalle` vive dentro de `ExpedientesStack`, así que su `navigation` no conocía esa ruta.
+
+Se creó **`src/navigation/BusquedaStack.js`** y el tab Búsqueda pasó a usarlo. **Se descartó la navegación cruzada entre tabs** —`navigate('Expedientes', { screen: 'ExpedienteDetalle' })`—, que no costaba ningún cambio estructural pero saltaba al tab Expedientes y hacía que el botón atrás llevara a la lista de expedientes en vez de a los resultados: el usuario perdía su búsqueda y tenía que rehacerla para ver el segundo resultado. Con un stack propio, cada tab conserva su pila.
+
+**⚠️ El stack registra CUATRO pantallas, no una.** Además de `BusquedaLista` y `ExpedienteDetalle` van `CargarDocumento` y `EscanearDocumento`, porque el detalle navega a la primera y esa a la segunda. Omitirlas habría roto el botón "Cargar documento" **únicamente al llegar desde Búsqueda** — un camino fácil de no probar. `ExpedienteDetalle` queda registrada en dos stacks: son rutas independientes con su propio estado, no código duplicado.
+
+Solo se pasa `id_expediente`: `ExpedienteDetalleScreen` hace sus propias llamadas a `GET /expedientes/:id`, así que no importa que `POST /busquedas` devuelva una forma distinta a `GET /expedientes`.
+
+**2. Filtros por tipo de acto y por estado en Expedientes**, contra `GET /expedientes`, que **ya aceptaba `id_tipo` e `id_estado`** desde la tanda del 13 de septiembre. **Sin caja de texto libre**, a propósito: la búsqueda medida vive solo en la pantalla Búsqueda, que usa `POST /busquedas` y registra el TBR; un campo de texto en Expedientes generaría consultas sin medir y contaminaría el Capítulo V.
+
+**Detalle que podía fallar en silencio:** `cargarPagina` tenía `useCallback` con dependencias vacías. Al agregar los filtros como estado sin incluirlos en las dependencias, la función habría capturado los valores viejos y cambiar un filtro habría vuelto a pedir la página con el filtro anterior, **sin error visible**. Ahora `idTipo` e `idEstado` están en las dependencias, lo que además resuelve el reset de paginación solo: al cambiar un filtro, `cargarPagina` cambia de identidad, el efecto vuelve a correr y pide la página 1.
+
+**3. 📐 EL REPARTO 4/6 ENTRE BÚSQUEDA Y EXPEDIENTES.** Las dos pantallas ofrecen listas distintas de tipos, y es deliberado:
+
+| pantalla | tipos que ofrece | por qué |
+|---|---|---|
+| **Búsqueda** | **4** — las clases del modelo | Es la pantalla **medida**, la que registra TBR en `busquedas`. Ofrecer tipos que el modelo nunca asigna solo produce búsquedas vacías que ensucian las mediciones |
+| **Expedientes** | **6** — el catálogo activo completo | **No es una pantalla medida.** Un expediente corregido a Mandato o Matrimonio desde el modal de confirmación del panel **sigue siendo encontrable desde el teléfono** |
+
+Este reparto **resuelve sin deuda** la tensión con la decisión del 13 de septiembre, que había elegido ofrecer seis justamente para que esos expedientes no quedaran inencontrables: siguen sin quedarlo, por Expedientes. Búsqueda refleja **las clases del modelo**; Expedientes refleja **el catálogo**.
+
+**⚠️ El filtro es por ID, nunca por índice ni por nombre.** `IDS_CLASES_MODELO = [1, 15, 16, 18]` en el módulo nuevo `src/constants/clasificacion.js`. Los ids del catálogo **no son consecutivos y no siguen el orden de las clases**: Compraventa 1, Mandato 2, Testamento 3 (inactivo), **Acta notarial 4 (inactivo)**, Donación 15, Declaración Jurada 16, Matrimonio 17, Otro 18. Un mapeo por posición (0→1, 1→2, 2→3, 3→4) haría coincidir la cuarta clase con "Acta notarial", que además está inactivo y no tiene un solo expediente. El endpoint de catálogos y la base **no se tocaron**: el filtro es de presentación.
+
+Ese módulo unifica además **`ID_AREA_NOTARIAL`, que estaba duplicado** en `BusquedaScreen` y `ReportesScreen`; ahora se declara una vez y se importa en las tres pantallas que lo usan.
+
+**4. Tiempo de consulta visible.** `POST /busquedas` **ya devolvía `tiempo_respuesta_ms`** en su respuesta —el mismo valor que guarda en la tabla `busquedas`— y la app lo descartaba. Ahora lo muestra junto a los resultados: *"115 resultados · Consulta: 12 ms"*. **No se tocó nada de la medición**: el `perf_counter` del backend quedó exactamente como estaba y la app **nunca mide con su propio reloj**, porque eso incluiría la latencia de red y dejaría de ser el TBR de la tesis. Si la búsqueda no devuelve resultados, no se muestra nada.
 
 **Reporte Excel priorizado sobre PDF:** se decidió construir primero el listado de expedientes en Excel (más útil para uso diario del Lic. Villeda y demuestra integración de 4 tablas) y dejar la exportación PDF individual para después, ya que tiene menor prioridad para el Capítulo V que el panel web.
 
