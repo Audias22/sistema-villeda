@@ -9,15 +9,24 @@ import Button from '../components/common/Button'
 import Skeleton from '../components/common/Skeleton'
 import EmptyState from '../components/common/EmptyState'
 import api from '../services/api'
-import { formatearFechaHora, areaClaseCss, estadoClaseCss } from '../utils/formatters'
+import { formatearFechaHora, tipoClaseCss, estadoClaseCss } from '../utils/formatters'
 
-const CRITERIO_AREA = 3
+// El criterio 3 pasó de área a tipo de acto el 13 de septiembre de 2026: los
+// 390 expedientes son del área Notarial, así que filtrar por área devolvía
+// siempre el corpus entero o vacío. La fila 3 de criterios_busqueda se conserva
+// y solo cambió lo que representa.
+const CRITERIO_TIPO = 3
 const CRITERIO_FECHA = 2
+
+// id_area del área Notarial, para pedir sus seis tipos activos.
+const ID_AREA_NOTARIAL = 1
 
 function Busqueda() {
   const navigate = useNavigate()
   const { datos: criteriosData } = useFetch('/catalogos/criterios-busqueda')
-  const { datos: areasData } = useFetch('/catalogos/areas-juridicas')
+  const { datos: tiposData } = useFetch('/catalogos/tipos-expediente', {
+    params: { id_area: ID_AREA_NOTARIAL },
+  })
   const { datos: historialData, recargar: recargarHistorial } = useFetch('/busquedas/historial', {
     params: { por_pagina: 10 },
   })
@@ -75,12 +84,12 @@ function Busqueda() {
 
         <div className="campo-filtro" style={{ flex: 1 }}>
           <label className="input-label">Término de búsqueda</label>
-          {Number(idCriterio) === CRITERIO_AREA ? (
+          {Number(idCriterio) === CRITERIO_TIPO ? (
             <select className="select-field" value={termino} onChange={(e) => setTermino(e.target.value)}>
-              <option value="">Selecciona un área...</option>
-              {areasData?.areas_juridicas?.map((a) => (
-                <option key={a.id_area} value={a.id_area}>
-                  {a.nombre}
+              <option value="">Selecciona un tipo de acto...</option>
+              {tiposData?.tipos_expediente?.map((t) => (
+                <option key={t.id_tipo} value={t.id_tipo}>
+                  {t.nombre}
                 </option>
               ))}
             </select>
@@ -116,7 +125,7 @@ function Busqueda() {
                 <tr>
                   <th>Expediente</th>
                   <th>Cliente</th>
-                  <th>Área</th>
+                  <th>Tipo de acto</th>
                   <th>Estado</th>
                 </tr>
               </thead>
@@ -130,7 +139,7 @@ function Busqueda() {
                     <td>{exp.numero_expediente}</td>
                     <td>{exp.cliente_nombre || '—'}</td>
                     <td>
-                      <Badge tono={areaClaseCss(exp.area_nombre)}>{exp.area_nombre || '—'}</Badge>
+                      <Badge tono={tipoClaseCss(exp.tipo_nombre)}>{exp.tipo_nombre || '—'}</Badge>
                     </td>
                     <td>
                       <Badge tono={estadoClaseCss(exp.estado_nombre)}>{exp.estado_nombre || '—'}</Badge>

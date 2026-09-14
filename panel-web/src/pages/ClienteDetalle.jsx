@@ -12,7 +12,7 @@ import EmptyState from '../components/common/EmptyState'
 import Modal from '../components/common/Modal'
 import ClienteFormulario from '../components/ClienteFormulario'
 import api from '../services/api'
-import { formatearFecha, nombreCompletoCliente, areaClaseCss, estadoClaseCss } from '../utils/formatters'
+import { formatearFecha, nombreCompletoCliente, tipoClaseCss, estadoClaseCss } from '../utils/formatters'
 import './ExpedienteDetalle.css'
 
 function ClienteDetalle() {
@@ -136,7 +136,7 @@ function ClienteDetalle() {
           <tr>
             <th>Expediente</th>
             <th>Título</th>
-            <th>Área</th>
+            <th>Tipo de acto</th>
             <th>Estado</th>
             <th>Fecha apertura</th>
           </tr>
@@ -160,7 +160,7 @@ function ClienteDetalle() {
                 <td>{exp.numero_expediente}</td>
                 <td>{exp.titulo}</td>
                 <td>
-                  <Badge tono={areaClaseCss(exp.area_nombre)}>{exp.area_nombre || '—'}</Badge>
+                  <Badge tono={tipoClaseCss(exp.tipo_nombre)}>{exp.tipo_nombre || '—'}</Badge>
                 </td>
                 <td>
                   <Badge tono={estadoClaseCss(exp.estado_nombre)}>{exp.estado_nombre || '—'}</Badge>

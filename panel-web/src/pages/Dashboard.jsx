@@ -9,7 +9,7 @@ import Badge from '../components/common/Badge'
 import PieChart from '../components/charts/PieChart'
 import AreaChart from '../components/charts/AreaChart'
 import BarChart from '../components/charts/BarChart'
-import { formatearFecha, areaClaseCss, estadoClaseCss } from '../utils/formatters'
+import { formatearFecha, tipoClaseCss, estadoClaseCss } from '../utils/formatters'
 import './Dashboard.css'
 
 const contenedor = {
@@ -104,12 +104,18 @@ function Dashboard() {
       </div>
 
       <div className="dashboard-graficas">
+        {/* Antes acá estaba la distribución por área jurídica. Se reemplazó el
+            13 de septiembre de 2026: los 390 expedientes son del área Notarial,
+            así que la dona mostraba una sola porción del 100%. El estado del
+            expediente sí varía y no estaba representado en ningún lado.
+            expedientes_por_area se conserva en la respuesta del backend porque
+            la app móvil lo consume. */}
         <Card>
-          <h3>Distribución por área jurídica</h3>
+          <h3>Distribución por estado</h3>
           {cargandoDashboard ? (
             <Skeleton height="260px" />
           ) : (
-            <PieChart datos={dashboard?.expedientes_por_area || []} />
+            <PieChart datos={dashboard?.expedientes_por_estado || []} dataKeyNombre="estado" />
           )}
         </Card>
         <Card>
@@ -128,7 +134,7 @@ function Dashboard() {
           <tr>
             <th>Expediente</th>
             <th>Cliente</th>
-            <th>Área</th>
+            <th>Tipo de acto</th>
             <th>Estado</th>
             <th>Fecha</th>
           </tr>
@@ -147,7 +153,7 @@ function Dashboard() {
                   <td>{exp.numero_expediente}</td>
                   <td>{exp.cliente_nombre || '—'}</td>
                   <td>
-                    <Badge tono={areaClaseCss(exp.area_nombre)}>{exp.area_nombre || '—'}</Badge>
+                    <Badge tono={tipoClaseCss(exp.tipo_nombre)}>{exp.tipo_nombre || '—'}</Badge>
                   </td>
                   <td>
                     <Badge tono={estadoClaseCss(exp.estado_nombre)}>{exp.estado_nombre || '—'}</Badge>

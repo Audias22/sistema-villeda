@@ -12,7 +12,7 @@ import EmptyState from '../components/common/EmptyState'
 import Modal from '../components/common/Modal'
 import Input from '../components/common/Input'
 import api from '../services/api'
-import { formatearFecha, formatearFechaHora, areaClaseCss, estadoClaseCss } from '../utils/formatters'
+import { formatearFecha, formatearFechaHora, areaClaseCss, tipoClaseCss, estadoClaseCss } from '../utils/formatters'
 import './ExpedienteDetalle.css'
 
 const TRANSICIONES_VALIDAS = {
@@ -110,10 +110,21 @@ function ExpedienteDetalle() {
             <span className="label">Cliente</span>
             <p>{expediente.cliente_nombre || '—'}</p>
           </div>
+          {/* Esta pantalla muestra AMBOS, área y tipo, a diferencia de los
+              listados, que desde el 13 de septiembre de 2026 solo muestran el
+              tipo. Acá el área describe el expediente en vez de filtrarlo, y es
+              información legítima: el sistema sigue pudiendo registrar
+              expedientes civiles, laborales y penales. */}
           <div>
             <span className="label">Área</span>
             <p>
               <Badge tono={areaClaseCss(expediente.area_nombre)}>{expediente.area_nombre}</Badge>
+            </p>
+          </div>
+          <div>
+            <span className="label">Tipo de acto</span>
+            <p>
+              <Badge tono={tipoClaseCss(expediente.tipo_nombre)}>{expediente.tipo_nombre || '—'}</Badge>
             </p>
           </div>
           <div>

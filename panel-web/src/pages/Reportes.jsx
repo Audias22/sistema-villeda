@@ -9,16 +9,22 @@ import PieChart from '../components/charts/PieChart'
 import AreaChart from '../components/charts/AreaChart'
 import api from '../services/api'
 
+// id_area del area Notarial. Los 390 expedientes del despacho son de esa area,
+// asi que filtrar por area no filtraba nada: se filtra por tipo de acto.
+const ID_AREA_NOTARIAL = 1
+
 function Reportes() {
-  const [idArea, setIdArea] = useState('')
+  const [idTipo, setIdTipo] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
   const [exportando, setExportando] = useState(false)
 
-  const { datos: areasData } = useFetch('/catalogos/areas-juridicas')
+  const { datos: tiposData } = useFetch('/catalogos/tipos-expediente', {
+    params: { id_area: ID_AREA_NOTARIAL },
+  })
   const { datos: reporte, cargando } = useFetch('/reportes/dashboard', {
     params: {
-      id_area: idArea || undefined,
+      id_tipo: idTipo || undefined,
       fecha_desde: fechaDesde || undefined,
       fecha_hasta: fechaHasta || undefined,
     },
@@ -29,7 +35,7 @@ function Reportes() {
     try {
       const respuesta = await api.get('/reportes/expedientes/excel', {
         params: {
-          id_area: idArea || undefined,
+          id_tipo: idTipo || undefined,
           fecha_desde: fechaDesde || undefined,
           fecha_hasta: fechaHasta || undefined,
         },
@@ -57,12 +63,12 @@ function Reportes() {
 
       <div className="filtros-barra" style={{ marginTop: 20 }}>
         <div className="campo-filtro">
-          <label className="input-label">Área jurídica</label>
-          <select className="select-field" value={idArea} onChange={(e) => setIdArea(e.target.value)}>
-            <option value="">Todas</option>
-            {areasData?.areas_juridicas?.map((a) => (
-              <option key={a.id_area} value={a.id_area}>
-                {a.nombre}
+          <label className="input-label">Tipo de acto</label>
+          <select className="select-field" value={idTipo} onChange={(e) => setIdTipo(e.target.value)}>
+            <option value="">Todos</option>
+            {tiposData?.tipos_expediente?.map((t) => (
+              <option key={t.id_tipo} value={t.id_tipo}>
+                {t.nombre}
               </option>
             ))}
           </select>
@@ -103,20 +109,19 @@ function Reportes() {
         </Card>
       </div>
 
-      <div className="dashboard-graficas">
-        <Card>
-          <h3>Distribución por área jurídica</h3>
-          {cargando ? <Skeleton height="260px" /> : <PieChart datos={reporte?.expedientes_por_area || []} />}
-        </Card>
-        <Card>
-          <h3>Distribución por estado</h3>
-          {cargando ? (
-            <Skeleton height="260px" />
-          ) : (
-            <PieChart datos={reporte?.expedientes_por_estado || []} dataKeyNombre="estado" />
-          )}
-        </Card>
-      </div>
+      {/* La dona de área jurídica se eliminó el 13 de septiembre de 2026: los
+          390 expedientes son del área Notarial, así que mostraba una sola
+          porción del 100%. La de estado, que ya existía aquí, sí distingue.
+          Al quedar sola se sacó de la grilla de dos columnas, que la habría
+          dejado con media pantalla vacía al lado. */}
+      <Card className="dashboard-grafica-ancha">
+        <h3>Distribución por estado</h3>
+        {cargando ? (
+          <Skeleton height="260px" />
+        ) : (
+          <PieChart datos={reporte?.expedientes_por_estado || []} dataKeyNombre="estado" />
+        )}
+      </Card>
 
       <Card style={{ marginTop: 16 }}>
         <h3>Expedientes por mes</h3>

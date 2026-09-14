@@ -9,25 +9,35 @@ import Skeleton from '../components/common/Skeleton'
 import Pagination from '../components/common/Pagination'
 import EmptyState from '../components/common/EmptyState'
 import NuevoExpedienteModal from './NuevoExpedienteModal'
-import { formatearFecha, areaClaseCss, estadoClaseCss } from '../utils/formatters'
+import { formatearFecha, tipoClaseCss, estadoClaseCss } from '../utils/formatters'
 import { FolderOpen } from 'lucide-react'
 
 const POR_PAGINA = 10
 
+// id_area del area Notarial. Los 390 expedientes del despacho son de esa area.
+const ID_AREA_NOTARIAL = 1
+
 function Expedientes() {
   const navigate = useNavigate()
   const [pagina, setPagina] = useState(1)
-  const [idArea, setIdArea] = useState('')
+  const [idTipo, setIdTipo] = useState('')
   const [idEstado, setIdEstado] = useState('')
   const [modalAbierto, setModalAbierto] = useState(false)
 
-  const { datos: areas } = useFetch('/catalogos/areas-juridicas')
+  // Solo los tipos ACTIVOS del area Notarial: son seis, y el catalogo ya
+  // filtra por activo. Se ofrecen los seis y no los cuatro que predice el
+  // modelo, porque la secretaria puede corregir un expediente a Mandato o
+  // Matrimonio desde el modal de confirmacion y si el filtro no los ofreciera
+  // esos expedientes quedarian inencontrables.
+  const { datos: tipos } = useFetch('/catalogos/tipos-expediente', {
+    params: { id_area: ID_AREA_NOTARIAL },
+  })
   const { datos: estados } = useFetch('/catalogos/estados-expediente')
   const { datos, cargando, recargar } = useFetch('/expedientes', {
     params: {
       pagina,
       por_pagina: POR_PAGINA,
-      id_area: idArea || undefined,
+      id_tipo: idTipo || undefined,
       id_estado: idEstado || undefined,
     },
   })
@@ -38,19 +48,19 @@ function Expedientes() {
 
       <div className="filtros-barra" style={{ marginTop: 20 }}>
         <div className="campo-filtro">
-          <label className="input-label">Área jurídica</label>
+          <label className="input-label">Tipo de acto</label>
           <select
             className="select-field"
-            value={idArea}
+            value={idTipo}
             onChange={(e) => {
-              setIdArea(e.target.value)
+              setIdTipo(e.target.value)
               setPagina(1)
             }}
           >
-            <option value="">Todas</option>
-            {areas?.areas_juridicas?.map((a) => (
-              <option key={a.id_area} value={a.id_area}>
-                {a.nombre}
+            <option value="">Todos</option>
+            {tipos?.tipos_expediente?.map((t) => (
+              <option key={t.id_tipo} value={t.id_tipo}>
+                {t.nombre}
               </option>
             ))}
           </select>
@@ -86,7 +96,7 @@ function Expedientes() {
           <tr>
             <th>Expediente</th>
             <th>Cliente</th>
-            <th>Área</th>
+            <th>Tipo de acto</th>
             <th>Estado</th>
             <th>Fecha creación</th>
           </tr>
@@ -110,7 +120,7 @@ function Expedientes() {
                 <td>{exp.numero_expediente}</td>
                 <td>{exp.cliente_nombre || '—'}</td>
                 <td>
-                  <Badge tono={areaClaseCss(exp.area_nombre)}>{exp.area_nombre || '—'}</Badge>
+                  <Badge tono={tipoClaseCss(exp.tipo_nombre)}>{exp.tipo_nombre || '—'}</Badge>
                 </td>
                 <td>
                   <Badge tono={estadoClaseCss(exp.estado_nombre)}>{exp.estado_nombre || '—'}</Badge>

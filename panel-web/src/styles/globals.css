@@ -37,7 +37,9 @@
   --info: #185FA5;
   --info-fondo: #E6F1FB;
 
-  /* Áreas jurídicas */
+  /* Áreas jurídicas — se conservan: el sistema sigue pudiendo registrar
+     expedientes civiles, laborales y penales, y la pantalla de detalle de
+     expediente sigue mostrando el área. */
   --notarial: #3B6D11;
   --notarial-fondo: #E8F0E4;
   --civil: #185FA5;
@@ -46,6 +48,22 @@
   --laboral-fondo: #FAEEDA;
   --penal: #A32D2D;
   --penal-fondo: #FCEBEB;
+
+  /* Tipos de acto notarial — seis, los que ofrece el catálogo activo.
+     Son los que se muestran en los listados desde el 13 de septiembre de 2026:
+     el chip de área repetía "Notarial" en los 390 expedientes y no aportaba. */
+  --compraventa: #1F6F5C;
+  --compraventa-fondo: #E3F1ED;
+  --donacion: #7A3E9D;
+  --donacion-fondo: #F1E9F7;
+  --declaracion: #185FA5;
+  --declaracion-fondo: #E6F1FB;
+  --mandato: #854F0B;
+  --mandato-fondo: #FAEEDA;
+  --matrimonio: #B03060;
+  --matrimonio-fondo: #FBE9F0;
+  --otro-tipo: #5A6472;
+  --otro-tipo-fondo: #EDEFF2;
 
   /* Sombras */
   --sombra-tarjeta: 0 1px 3px rgba(27, 42, 74, 0.06);

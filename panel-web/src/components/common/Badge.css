@@ -28,6 +28,37 @@
   color: var(--penal);
 }
 
+/* Tipos de acto notarial */
+.badge-compraventa {
+  background: var(--compraventa-fondo);
+  color: var(--compraventa);
+}
+
+.badge-donacion {
+  background: var(--donacion-fondo);
+  color: var(--donacion);
+}
+
+.badge-declaracion {
+  background: var(--declaracion-fondo);
+  color: var(--declaracion);
+}
+
+.badge-mandato {
+  background: var(--mandato-fondo);
+  color: var(--mandato);
+}
+
+.badge-matrimonio {
+  background: var(--matrimonio-fondo);
+  color: var(--matrimonio);
+}
+
+.badge-otro-tipo {
+  background: var(--otro-tipo-fondo);
+  color: var(--otro-tipo);
+}
+
 .badge-exito {
   background: var(--exito-fondo);
   color: var(--exito);
