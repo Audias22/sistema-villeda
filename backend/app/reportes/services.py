@@ -111,16 +111,22 @@ def marcar_exportacion_fallida(id_exportacion, error):
         logging.error(f"[exportaciones] no se pudo registrar el fallo de {id_exportacion}: {e}")
 
 
-def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None):
+def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None, id_tipo=None):
     """
     Estadísticas generales del sistema para el dashboard principal y para
-    la pantalla de Reportes (que además puede filtrar por área y rango de fechas
-    de apertura del expediente).
+    la pantalla de Reportes (que además puede filtrar por tipo de acto y rango
+    de fechas de apertura del expediente).
+
+    id_area se conserva aunque la interfaz ya no lo ofrezca: la app móvil vieja
+    todavía puede mandarlo, y el sistema sigue pudiendo registrar expedientes de
+    otras áreas. Si llegan los dos, se aplican los dos.
     """
 
     filtro_expediente = []
     if id_area:
         filtro_expediente.append(Expediente.id_area == id_area)
+    if id_tipo:
+        filtro_expediente.append(Expediente.id_tipo_expediente == id_tipo)
     if fecha_desde:
         filtro_expediente.append(Expediente.fecha_apertura >= fecha_desde)
     if fecha_hasta:
@@ -176,6 +182,9 @@ def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None):
             'clientes':    total_clientes,
             'busquedas':   total_busquedas
         },
+        # Se conserva aunque el panel web ya no lo grafique: la app móvil lo
+        # consume como lista de texto y en el PDF de reportes. Quitarlo la
+        # rompería en cualquier versión no actualizada.
         'expedientes_por_area': [
             {'area': nombre, 'total': total} for nombre, total in expedientes_por_area
         ],
@@ -198,11 +207,16 @@ def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None):
     }
 
 
-def exportar_expedientes_excel(id_area=None, id_estado=None, fecha_desde=None, fecha_hasta=None):
+def exportar_expedientes_excel(id_area=None, id_estado=None, fecha_desde=None,
+                                fecha_hasta=None, id_tipo=None):
     """
     Genera un archivo Excel con el listado completo de expedientes,
     combinando datos de cliente, área, tipo, estado, prioridad,
     usuario asignado y conteo de documentos.
+
+    El Excel conserva las columnas de Área Y de Tipo: es un entregable para el
+    despacho y las dos son datos reales del expediente, aunque la interfaz ya
+    solo filtre por tipo.
     """
 
     query = db.session.query(
@@ -234,6 +248,9 @@ def exportar_expedientes_excel(id_area=None, id_estado=None, fecha_desde=None, f
 
     if id_area:
         query = query.filter(Expediente.id_area == id_area)
+
+    if id_tipo:
+        query = query.filter(Expediente.id_tipo_expediente == id_tipo)
 
     if id_estado:
         query = query.filter(Expediente.id_estado == id_estado)

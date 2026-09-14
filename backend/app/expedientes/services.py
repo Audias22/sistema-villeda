@@ -106,11 +106,21 @@ def crear_expediente(datos, id_usuario):
 
 
 def listar_expedientes(pagina=1, por_pagina=20, id_area=None, id_estado=None,
-                        id_usuario_asignado=None, id_cliente=None, busqueda=None):
+                        id_usuario_asignado=None, id_cliente=None, busqueda=None,
+                        id_tipo=None):
+    """
+    id_area se conserva aunque la interfaz ya no lo ofrezca: el sistema sigue
+    pudiendo registrar expedientes civiles, laborales y penales, y el día que
+    el despacho registre uno hará falta de nuevo. Hoy la interfaz filtra por
+    id_tipo, que es lo que realmente distingue entre los expedientes existentes.
+    """
     query = Expediente.query
 
     if id_area:
         query = query.filter_by(id_area=id_area)
+
+    if id_tipo:
+        query = query.filter_by(id_tipo_expediente=id_tipo)
 
     if id_estado:
         query = query.filter_by(id_estado=id_estado)

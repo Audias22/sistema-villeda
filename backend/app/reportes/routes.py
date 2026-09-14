@@ -18,10 +18,11 @@ reportes_bp = Blueprint('reportes', __name__)
 @require_permission('ver_dashboard')
 def dashboard():
     id_area = request.args.get('id_area', type=int)
+    id_tipo = request.args.get('id_tipo', type=int)
     fecha_desde = request.args.get('fecha_desde')
     fecha_hasta = request.args.get('fecha_hasta')
 
-    return jsonify(obtener_dashboard(id_area, fecha_desde, fecha_hasta)), 200
+    return jsonify(obtener_dashboard(id_area, fecha_desde, fecha_hasta, id_tipo)), 200
 
 
 @reportes_bp.route('/api/v1/reportes/expedientes/excel', methods=['GET'])
@@ -30,6 +31,7 @@ def exportar_excel():
     identity = json.loads(get_jwt_identity())
 
     id_area = request.args.get('id_area', type=int)
+    id_tipo = request.args.get('id_tipo', type=int)
     id_estado = request.args.get('id_estado', type=int)
     fecha_desde = request.args.get('fecha_desde')
     fecha_hasta = request.args.get('fecha_hasta')
@@ -40,6 +42,7 @@ def exportar_excel():
         clave: valor
         for clave, valor in (
             ('id_area', id_area),
+            ('id_tipo', id_tipo),
             ('id_estado', id_estado),
             ('fecha_desde', fecha_desde),
             ('fecha_hasta', fecha_hasta)
@@ -51,7 +54,7 @@ def exportar_excel():
 
     try:
         ruta_archivo, nombre_archivo = exportar_expedientes_excel(
-            id_area, id_estado, fecha_desde, fecha_hasta
+            id_area, id_estado, fecha_desde, fecha_hasta, id_tipo
         )
     except Exception as e:
         marcar_exportacion_fallida(id_exportacion, e)

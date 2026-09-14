@@ -43,6 +43,7 @@ def listar():
     pagina = request.args.get('pagina', 1, type=int)
     por_pagina = request.args.get('por_pagina', 20, type=int)
     id_area = request.args.get('id_area', type=int)
+    id_tipo = request.args.get('id_tipo', type=int)
     id_estado = request.args.get('id_estado', type=int)
     id_usuario_asignado = request.args.get('id_usuario_asignado', type=int)
     id_cliente = request.args.get('id_cliente', type=int)
@@ -52,6 +53,7 @@ def listar():
         pagina=pagina,
         por_pagina=por_pagina,
         id_area=id_area,
+        id_tipo=id_tipo,
         id_estado=id_estado,
         id_usuario_asignado=id_usuario_asignado,
         id_cliente=id_cliente,

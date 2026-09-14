@@ -8,10 +8,18 @@ from app.documentos.models import Documento
 from sqlalchemy import func
 
 
+# Espejo de la tabla criterios_busqueda. Mantenerlo en sincronía con ella: es
+# solo documentación, pero una copia desactualizada engaña más que la ausencia.
+#
+# El criterio 3 pasó de 'area' a 'tipo' el 13 de septiembre de 2026. La fila 3
+# del catálogo se conserva y solo cambió lo que representa: los 390 expedientes
+# del despacho son del área Notarial, así que filtrar por área no filtraba nada
+# —tres de sus cuatro opciones devolvían siempre vacío y la cuarta devolvía el
+# corpus entero—, mientras que el tipo de acto sí distingue entre expedientes.
 CRITERIOS = {
     1: 'nombre_cliente',
     2: 'fecha',
-    3: 'area',
+    3: 'tipo',
     4: 'contenido',
     5: 'numero_expediente'
 }
@@ -44,9 +52,13 @@ def ejecutar_busqueda_por_criterio(id_criterio, termino):
             Expediente.fecha_apertura == termino
         ).all()
 
-    elif id_criterio == 3:  # area
+    elif id_criterio == 3:  # tipo de acto notarial
+        # Antes filtraba por Expediente.id_area. Se cambió porque el área no
+        # discriminaba: los 390 expedientes son del área Notarial. La forma de
+        # la consulta es idéntica —igualdad sobre una columna entera de
+        # expedientes, sin join—, así que el TBR sigue midiendo lo mismo.
         resultados = Expediente.query.filter(
-            Expediente.id_area == int(termino)
+            Expediente.id_tipo_expediente == int(termino)
         ).all()
 
     elif id_criterio == 4:  # contenido (insensible a acentos)
