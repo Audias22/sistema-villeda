@@ -97,7 +97,7 @@
 | Esquema de `documentos` verificado (16 columnas) | ✅ |
 | Esquema de `busquedas` verificado (8 columnas) | ✅ |
 | Esquema de `formatos_documento` verificado (6 formatos: PDF escaneado=1, PDF digital=2, Word=3, Excel=4, JPG=5, PNG=6) | ✅ |
-| `criterios_busqueda` verificado (5 criterios: nombre_cliente=1, fecha=2, area=3, contenido=4, numero_expediente=5) | ✅ |
+| `criterios_busqueda` verificado (5 criterios: nombre_cliente=1, fecha=2, **tipo=3**, contenido=4, numero_expediente=5). El criterio 3 era `area` hasta el 13 de septiembre de 2026: se conserva la fila y solo cambió lo que representa, ver "Filtro por tipo de acto" abajo | ✅ |
 | `estados_fisico_doc` ajustada a 3 niveles (Deteriorado=1, Regular=2, Bueno=3) según marco metodológico (variable EFD) | ✅ |
 | `tipos_expediente`: catálogo Notarial corregido a 6 tipos reales (Compraventa, Mandato, Donación, Declaración Jurada, Matrimonio, Otro), confirmados con la secretaria del Lic. Villeda (30 de julio de 2026) — Civil/Laboral/Penal sin cambios (14 tipos originales, aún sin validar, ver nota de alcance abajo) | 🔄 Notarial confirmado, resto pendiente |
 | 1 cliente real de prueba creado (id_cliente: 1) | ✅ |
@@ -311,7 +311,7 @@ backend/
 | POST | /api/v1/busquedas | ✅ Funcionando (mide y registra TBR real) | Sí — buscar_expediente |
 | GET | /api/v1/busquedas/historial | ✅ Funcionando (paginado + filtros usuario/criterio) | Sí — buscar_expediente |
 | GET | /api/v1/busquedas/metricas | ✅ Funcionando (promedio/min/max TBR) | Sí — ver_dashboard |
-| GET | /api/v1/reportes/dashboard | ✅ Funcionando (totales + por área + por estado + por tipo notarial + por mes + TBR + duplicados) | Sí — ver_dashboard |
+| GET | /api/v1/reportes/dashboard | ✅ Funcionando (totales + por área + por estado + por tipo notarial + por mes + TBR + duplicados). Filtra por `id_tipo`, `id_area`, `fecha_desde` y `fecha_hasta`; `expedientes_por_area` se conserva en la respuesta aunque el panel ya no lo grafique, porque la app móvil lo consume | Sí — ver_dashboard |
 | POST | /api/v1/clasificacion/trabajos | ✅ Funcionando (encola y responde 202 sin procesar) | Sí — cargar_documento |
 | GET | /api/v1/clasificacion/trabajos/\<id\> | ✅ Funcionando (estado del trabajo en la cola) | Sí — cargar_documento |
 | POST | /api/v1/clasificacion/trabajos/\<id\>/confirmar | ✅ Funcionando (crea el expediente con el tipo confirmado) | Sí — revisar_clasificacion |
@@ -340,12 +340,12 @@ backend/
 | Pantalla | Ruta | Estado |
 |----------|------|--------|
 | Login | /login | ✅ Autenticación JWT con AuthContext |
-| Dashboard | /dashboard | ✅ Totales, distribución por área/estado, TBR, gráficas (Bar/Pie/Area) |
+| Dashboard | /dashboard | ✅ Totales, distribución por tipo notarial (barras) y por estado (dona), TBR, gráficas (Bar/Pie/Area). La dona de área jurídica se reemplazó por la de estado el 13 de septiembre de 2026 |
 | Expedientes (lista + detalle) | /expedientes, /expedientes/:id | ✅ Listado paginado, filtros, detalle con documentos, modal de nuevo expediente (permite crear el cliente al vuelo si la búsqueda no lo encuentra) |
 | Clientes (lista + detalle) | /clientes, /clientes/:id | ✅ Listado paginado con búsqueda y filtro activos/todos, modal crear/editar, detalle con datos de contacto y sus expedientes, desactivación con confirmación |
 | Cargar documento | /cargar | ✅ Subida de archivo con OCR/pdfplumber automático |
 | Clasificar con IA | /clasificar | ✅ Sube un documento suelto sin elegir expediente: el worker lo clasifica y crea el expediente solo. Responde de inmediato y el resultado llega por la campanita |
-| Búsqueda | /busqueda | ✅ Búsqueda por los 5 criterios con medición de TBR |
+| Búsqueda | /busqueda | ✅ Búsqueda por los 5 criterios con medición de TBR (el criterio 3 es tipo de acto desde el 13 de septiembre de 2026, antes era área) |
 | Usuarios | /usuarios | ✅ CRUD conectado a /api/v1/usuarios |
 | Reportes | /reportes | ✅ Dashboard de reportes + exportación Excel |
 
@@ -486,7 +486,7 @@ Los documentos y trabajos anteriores a este cambio quedan en NULL, sin inventar 
 - `src/navigation/AppNavigator.js` — reemplazado por bottom tab navigator (Dashboard / Búsqueda / Perfil), iconos con emoji, `tabBarActiveTintColor` navy / `tabBarInactiveTintColor` textSecondary / `tabBarStyle` fondo cream
 - `src/components/AppHeader.js` — header reutilizable (fondo blanco, logo real 40x40 + título DM Serif Display h3, borde inferior)
 - `src/screens/DashboardScreen.js` — consume `GET /reportes/dashboard`; 5 tarjetas (expedientes, documentos, clientes, búsquedas, TBR promedio) en grid de 2 columnas; loading con `ActivityIndicator`, error de red con botón Reintentar
-- `src/screens/BusquedaScreen.js` — consume `POST /busquedas` con los **5 criterios completos** (no solo texto libre, por decisión explícita: en la práctica del despacho se busca tanto por fecha y área como por cliente): selector de chips (Cliente/Fecha/Área/Contenido/No. Expediente) que cambia el tipo de input (texto, date picker nativo `@react-native-community/datetimepicker`, o dropdown de áreas cargado de `GET /catalogos/areas-juridicas`); envía `desde_plataforma: 'movil'` en cada búsqueda (el backend ya soportaba este campo desde antes, sin cambios necesarios); resultado por tarjeta con Alert nativo al presionar (detalle real queda para Fase 4B)
+- `src/screens/BusquedaScreen.js` — consume `POST /busquedas` con los **5 criterios completos** (no solo texto libre, por decisión explícita: en la práctica del despacho se busca tanto por fecha y área como por cliente): selector de chips (Cliente/Fecha/**Tipo de acto**/Contenido/No. Expediente) que cambia el tipo de input (texto, date picker nativo `@react-native-community/datetimepicker`, o dropdown de tipos cargado de `GET /catalogos/tipos-expediente?id_area=1` — era un dropdown de áreas hasta el 13 de septiembre de 2026); envía `desde_plataforma: 'movil'` en cada búsqueda (el backend ya soportaba este campo desde antes, sin cambios necesarios); resultado por tarjeta con Alert nativo al presionar (detalle real queda para Fase 4B)
 - `src/screens/PerfilScreen.js` — logo real 120x120, datos del usuario (`nombre + apellido`, `nombre_usuario`, `rol`, todos ya presentes en la respuesta de `/auth/login`, sin cambios de `AuthContext` necesarios), botón Cerrar sesión con Alert de confirmación
 - Nueva dependencia: `@react-native-community/datetimepicker` (instalada con `npx expo install`, SDK 54 compatible)
 - `src/assets/logo-villeda.jpg` (logo real del despacho, ya existente en el repo) ahora es una dependencia real del código (`require()` en AppHeader y PerfilScreen) — se agregó al control de versiones
@@ -646,7 +646,7 @@ En Docker de producción, además de las dependencias Python de arriba, el siste
 ---
 
 ## FLUJO END-TO-END VALIDADO
-**Confirmado funcionando completo:** Cliente → Expediente → Documento (carga con OCR/pdfplumber automático) → Texto extraído y almacenado → Detección de duplicados por hash → Búsqueda (5 criterios) con medición real de TBR → Métricas agregadas → Dashboard consolidado → Exportación Excel descargable.
+**Confirmado funcionando completo:** Cliente → Expediente → Documento (carga con OCR/pdfplumber automático) → Texto extraído y almacenado → Detección de duplicados por hash → Búsqueda (5 criterios, el 3 por tipo de acto) con medición real de TBR → Métricas agregadas → Dashboard consolidado → Exportación Excel descargable.
 
 Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expediente NOT-2026-0001, texto extraído correctamente con Tesseract, segunda carga del mismo archivo detectada como duplicado exacto del documento ID 1, búsqueda por número de expediente y por contenido (con y sin tildes) funcionando, 4 búsquedas registradas con TBR real entre 93-117 ms, dashboard mostrando todos los totales y distribuciones correctamente, archivo Excel descargado con formato profesional (encabezados con color, filtros automáticos, panel congelado).
 
@@ -681,7 +681,7 @@ Prueba real ejecutada: documento jurídico guatemalteco (PNG) cargado al expedie
 3. ⏳ **Limpiar el expediente de prueba NOT-2026-0001 completo** (incluyendo los 2 PNG huérfanos con `ruta_almacenamiento` como ruta local de Windows, previos a la migración a R2) cuando empiece la carga en limpio con los expedientes reales del Licenciado.
 4. ✅ **Nombre real de la app + ícono + splash screen + build de APK real con EAS** — completado el 6 de septiembre de 2026 (ver "Build de APK con EAS").
 5. ⏳ **Migración de Flask dev server a gunicorn** en el Docker de producción — warning actual, no urgente.
-6. ⏳ **Corregir el momento en que se marca "ya se preguntó" por la biometría** (prioridad baja) — en `ofrecerBiometria()` de `app-movil/src/screens/LoginScreen.js`, `saveBiometriaPreguntada()` se llama antes de mostrar el `Alert`, así que si el diálogo no llega a verse el ofrecimiento no reaparece nunca. **No bloquea nada**: el interruptor de `PerfilScreen` permite activar la biometría igual. Fix: mover esa llamada a dentro de los dos `onPress` del `Alert`. **Hacerlo cuando toque reconstruir el APK por otro motivo**, porque un build de ~10 minutos solo para esto no se justifica. Detectado en la verificación en dispositivo del 6 de septiembre de 2026.
+6. ✅ **Corregir el momento en que se marca "ya se preguntó" por la biometría** — **cerrado el 13 de septiembre de 2026**, aprovechando que el cambio de filtro por tipo de acto obligaba a reconstruir el APK de todas formas, que era la condición que esperaba. `saveBiometriaPreguntada()` pasó a llamarse dentro de los dos `onPress` del `Alert` en `ofrecerBiometria()`, así que un diálogo que no llegue a verse se vuelve a ofrecer la próxima vez. Detectado en la verificación en dispositivo del 6 de septiembre de 2026.
 7. ⏳ **Aclarar y/o construir el flujo real de "carga masiva"** — la pantalla actual de Cargar Documento (panel-web y app-movil) es de un archivo a la vez por diseño (`POST /api/v1/documentos` recibe un solo campo `archivo` por petición) — esto es correcto para el uso diario del despacho, no es un bug. Existe un concepto de carga masiva planeado para cuando se digitalicen los ~300 expedientes físicos del Lic. Villeda (tablas `CARGAS_MASIVAS`/`DETALLE_CARGA_MASIVA` ya creadas en Supabase, y la convención ya definida de cliente placeholder "Cliente NNN" para esos documentos), pero no está confirmado si ese mecanismo ya está construido en el backend o si solo existen las tablas esperando esa fase. Confirmar y/o construir cuando llegue el momento de la digitalización masiva — no antes.
 
 ---
@@ -773,6 +773,40 @@ El índice nuevo pesa **1232 kB**, bastante menos que los 3128 kB del viejo pese
 **Verificación de equivalencia**, lo más importante de todo: la consulta nueva devuelve **exactamente los mismos resultados** que la vieja. Comprobado sobre cinco términos —`compraventa` 115=115, `donacion` 125=125, `donación` 125=125, `DECLARACION` 249=249, `Zacapa` 377=377— y con `0 discrepancias` entre `texto_normalizado` y `unaccent(texto_completo)` sobre las 390 filas. La insensibilidad a acentos se conserva: `donacion` y `donación` devuelven los mismos 125.
 
 **Para la variable UBI del Capítulo III:** este es el primer criterio de búsqueda del sistema que **realmente aprovecha un índice**. Los otros cuatro siguen haciendo recorrido secuencial, y a la escala actual —`expedientes` 19 páginas, `clientes` 7— seguirían haciéndolo aunque se les creara índice, porque leer la tabla entera cuesta menos. El criterio 1 (nombre de cliente) **sigue usando `unaccent()` sobre las columnas de `clientes` y no se tocó**: mismo patrón, pero sobre una tabla de 7 páginas donde no hay nada que ganar todavía.
+
+**Filtro por tipo de acto notarial en lugar de área jurídica (13 de septiembre de 2026)**
+
+**El motivo: el filtro por área no filtraba nada.** Los 390 expedientes del despacho son del área Notarial, así que de las cuatro opciones del desplegable **tres devolvían siempre vacío y la cuarta devolvía el corpus entero**. Lo que sí distingue entre expedientes es el tipo de acto —Compraventa, Donación, Declaración Jurada…—, que vive en `expedientes.id_tipo_expediente`.
+
+**Se REEMPLAZA, no se agrega un segundo filtro.** El día que el despacho registre un expediente civil, se vuelve a agregar el de área.
+
+**⚠️ NO SE TOCÓ LA ESTRUCTURA DE LA BASE.** Las cuatro áreas jurídicas siguen en el catálogo, `expedientes.id_area` sigue existiendo y guardando 1 (Notarial) en los 390, y **el sistema conserva intacta la capacidad de registrar expedientes civiles, laborales y penales**. `NuevoExpedienteModal` del panel **sigue pidiendo el área** y no se tocó: es flujo de creación, no de filtrado, y además `id_area` es NOT NULL. Solo cambió lo que la interfaz ofrece y por qué columna se filtra.
+
+**Backend** (`84051c5`). El criterio 3 de búsqueda pasa a filtrar por `Expediente.id_tipo_expediente`; la forma de la consulta es idéntica —igualdad sobre una columna entera de `expedientes`, sin join— así que **el `perf_counter` sigue envolviendo exactamente lo mismo y el TBR sigue midiendo lo mismo**. Se actualizó además el dict `CRITERIOS` de `busquedas/services.py`, que decía `3: 'area'` y era documentación muerta pero engañosa. `listar_expedientes()`, `obtener_dashboard()` y `exportar_expedientes_excel()` aceptan `id_tipo`.
+
+**El backend conserva el filtro `id_area` además del nuevo `id_tipo`**, por dos razones: el sistema sigue pudiendo registrar otras áreas, y **la app móvil sin actualizar todavía lo manda**. Y **`expedientes_por_area` se conserva en la respuesta del dashboard** aunque el panel ya no lo grafique, porque la app móvil lo consume en su listado y en el PDF de reportes: quitarlo rompería cualquier versión no actualizada.
+
+**Panel web** (`3b8cea9`). Desplegable de tipo en Expedientes y Reportes; el criterio "Área" de Búsqueda pasa a "Tipo de acto"; los chips de los listados muestran el tipo con **seis colores nuevos**, lo que exigió tocar `formatters.js` (función `tipoClaseCss`), `Badge.jsx` (mapa `TONOS_TIPO`), `Badge.css` y `globals.css` — no alcanzaba con el primero. `ExpedienteDetalle` muestra **ambos, área y tipo**: ahí el área describe el expediente en vez de filtrarlo, y es información legítima, a diferencia de los listados donde el chip "Notarial" repetido 390 veces no aportaba nada. `ClienteDetalle` también pasó a tipo, para que no quedara como la única pantalla mostrando área.
+
+**Gráficas.** La dona de área jurídica del **Dashboard se reemplazó por distribución por estado**, que es información real y no estaba representada en ningún lado; la barra de tipos notariales que ya existía se conserva. En **Reportes la dona de área se eliminó**, porque esa pantalla ya tenía una de estado y habrían quedado dos iguales; al quedar sola, la de estado se sacó de la grilla de dos columnas que la habría dejado con media pantalla vacía al lado.
+
+**App móvil** (`c712ada`). Mismos cambios en `BusquedaScreen` y `ReportesScreen`; los chips de `ExpedientesScreen` pasan a tipo. `ExpedienteDetalleScreen` muestra ambos, con el tipo ahora como chip en vez de texto plano.
+
+**El desplegable ofrece los SEIS tipos activos, no los cuatro que predice el modelo.** Los activos del área 1 son Compraventa (1), Mandato (2), Donación (15), Declaración Jurada (16), Matrimonio (17) y Otro (18); Testamento (3) y Acta notarial (4) están **inactivos** y el catálogo ya los excluye por su filtro `activo=True`. La razón de ofrecer seis: **la secretaria puede corregir un expediente a Mandato o Matrimonio desde el modal de confirmación de baja confianza**, y si el filtro no los ofreciera, esos expedientes quedarían inencontrables. `GET /catalogos/tipos-expediente?id_area=1` ya devolvía exactamente eso, así que no hizo falta tocar el catálogo.
+
+**Se corrigió también el fallo pendiente de la biometría**, aprovechando que la app necesitaba un APK nuevo de todas formas: `saveBiometriaPreguntada()` pasó a llamarse **dentro de los dos `onPress` del `Alert`** en `ofrecerBiometria()` de `LoginScreen.js`. Estaba antes del diálogo, así que si este no llegaba a verse la marca quedaba guardada igual y el ofrecimiento no volvía a aparecer nunca. Cierra el punto 6 de MEJORAS FUTURAS.
+
+**⚠️ Deuda conocida — `ExpedientesScreen.js` y `ExpedienteDetalleScreen.js` divergieron.** Los dos tenían el bloque `TONOS` + `normalizar()` + `tonoArea()` + `tonoEstado()` **duplicado literalmente**; ahora el primero ya no tiene `tonoArea()` porque su listado dejó de mostrar el área. **"Casi iguales" es más frágil que "idénticos"**: alguien que arregle uno va a asumir que el otro es igual y no lo es. La duplicación es anterior a esta tanda y no se resolvió acá; lo correcto sería extraer ese bloque a un módulo compartido, por ejemplo `src/theme/tonos.js`. Se dejaron a propósito los cuatro tonos de área sin uso en `ExpedientesScreen`, porque el comentario del archivo declara que `TONOS` está sincronizado con `formatters.js` del panel, donde esos colores siguen vivos: romper la simetría en un archivo y no en el otro sería peor que cuatro constantes sin usar.
+
+**📐 DEFINICIÓN DE LA VARIABLE UBI PARA EL CAPÍTULO III.** Es decisión de tesis, no de código: no hay nada implementado y no debe implementarse. **UBI mide cuán dirigida es la consulta**, con tres niveles:
+
+| nivel | criterio | por qué |
+|---|---|---|
+| **0** | por contenido del documento | recorre el texto completo. Aunque desde el 13 de septiembre use un índice GIN, sigue siendo el más caro: **12.1 ms contra menos de 2 ms de todos los demás** |
+| **1** | por nombre de cliente, por fecha o **por tipo de acto** | consultas sobre columnas de `expedientes` que devuelven **subconjuntos**. Agrupan, no localizan |
+| **2** | por número de expediente | **localiza un expediente único** por su identificador |
+
+**La búsqueda por área nunca estuvo clasificada en ninguno de los tres niveles**, y ese hueco desaparece al reemplazarla por tipo de acto: el tipo entra en el nivel 1 por ser estructuralmente idéntico a la búsqueda por fecha —igualdad sobre una columna escalar de `expedientes`, sin join, devolviendo un subconjunto—. Sin esa clasificación, una búsqueda por ese criterio durante las mediciones del Capítulo V no habría podido ubicarse en la escala.
 
 **Reporte Excel priorizado sobre PDF:** se decidió construir primero el listado de expedientes en Excel (más útil para uso diario del Lic. Villeda y demuestra integración de 4 tablas) y dejar la exportación PDF individual para después, ya que tiene menor prioridad para el Capítulo V que el panel web.
 
@@ -1046,7 +1080,7 @@ El mapeo va **en el código y no se lee de la base**, a propósito: el modelo pr
 - Todos los modelos SQLAlchemy referenciados por Foreign Key deben existir como clase Python, aunque la tabla ya exista en Supabase — error típico: NoReferencedTableError
 - id_formato en documentos: 1=PDF escaneado, 2=PDF digital, 3=Word, 4=Excel, 5=JPG, 6=PNG. Para PDF se detecta automáticamente con pdfplumber cuál de los dos (1 o 2) corresponde
 - to_dict() en Documento NO incluye texto_completo (puede ser muy largo); usar to_dict_completo() solo en detalle individual
-- id_criterio en busquedas: 1=nombre_cliente, 2=fecha, 3=area, 4=contenido, 5=numero_expediente
+- id_criterio en busquedas: 1=nombre_cliente, 2=fecha, **3=tipo** (era `area` hasta el 13 de septiembre de 2026; la fila del catálogo se conserva y solo cambió lo que representa), 4=contenido, 5=numero_expediente
 - Criterio 1 usa func.unaccent() en ambos lados de la comparación ILIKE para ignorar tildes. **El criterio 4 ya NO**: desde el 13 de septiembre de 2026 compara `documentos.texto_normalizado` (columna cruda, que el trigger `trg_normalizar_texto` mantiene con unaccent() ya aplicado) contra el término normalizado. No volver a envolver esa columna en unaccent(): invalida el índice y el planificador pierde la estimación de selectividad
 - Si el primer "git push origin main" da error "src refspec main does not match any", simplemente repetir el comando — es un glitch de timing, no un problema real
 - El .env de panel-web NUNCA se sube a GitHub — está en .gitignore (solo panel-web/.env.example se sube como plantilla)
