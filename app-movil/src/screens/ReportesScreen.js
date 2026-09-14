@@ -19,6 +19,12 @@ import api from '../services/api'
 import { colors } from '../theme/colors'
 import { fontFamily, fontSize } from '../theme/typography'
 
+// id_area del área Notarial. El filtro pasó de área a tipo de acto el 13 de
+// septiembre de 2026: los 390 expedientes del despacho son de esa área, así que
+// el desplegable de áreas ofrecía tres opciones que devolvían siempre vacío y
+// una que devolvía el corpus entero.
+const ID_AREA_NOTARIAL = 1
+
 function formatearFechaISO(fecha) {
   const yyyy = fecha.getFullYear()
   const mm = String(fecha.getMonth() + 1).padStart(2, '0')
@@ -27,9 +33,9 @@ function formatearFechaISO(fecha) {
 }
 
 export default function ReportesScreen() {
-  const [idArea, setIdArea] = useState(null)
-  const [areas, setAreas] = useState([])
-  const [mostrarAreas, setMostrarAreas] = useState(false)
+  const [idTipo, setIdTipo] = useState(null)
+  const [tipos, setTipos] = useState([])
+  const [mostrarTipos, setMostrarTipos] = useState(false)
   const [fechaDesde, setFechaDesde] = useState(null)
   const [fechaHasta, setFechaHasta] = useState(null)
 
@@ -42,8 +48,8 @@ export default function ReportesScreen() {
 
   useEffect(() => {
     api
-      .get('/catalogos/areas-juridicas')
-      .then(({ data }) => setAreas(data.areas_juridicas || []))
+      .get('/catalogos/tipos-expediente', { params: { id_area: ID_AREA_NOTARIAL } })
+      .then(({ data }) => setTipos(data.tipos_expediente || []))
       .catch(() => {})
   }, [])
 
@@ -80,7 +86,7 @@ export default function ReportesScreen() {
     try {
       const { data } = await api.get('/reportes/dashboard', {
         params: {
-          id_area: idArea || undefined,
+          id_tipo: idTipo || undefined,
           fecha_desde: fechaDesde ? formatearFechaISO(fechaDesde) : undefined,
           fecha_hasta: fechaHasta ? formatearFechaISO(fechaHasta) : undefined,
         },
@@ -104,8 +110,10 @@ export default function ReportesScreen() {
   }
 
   function construirHtmlReporte(logoBase64) {
-    const filasTabla = (items, campoNombre) =>
-      items.map((item) => `<tr><td>${item[campoNombre]}</td><td>${item.total}</td></tr>`).join('')
+    // campoTotal existe porque expedientes_por_tipo_notarial usa 'cantidad'
+    // mientras que las demás listas del dashboard usan 'total'.
+    const filasTabla = (items, campoNombre, campoTotal = 'total') =>
+      items.map((item) => `<tr><td>${item[campoNombre]}</td><td>${item[campoTotal]}</td></tr>`).join('')
 
     return `
       <html>
@@ -131,10 +139,10 @@ export default function ReportesScreen() {
           <p>Documentos: ${datos.totales?.documentos ?? 0}</p>
           <p>Documentos duplicados: ${datos.documentos_duplicados ?? 0}</p>
 
-          <h2>Por área jurídica</h2>
+          <h2>Por tipo de acto</h2>
           <table>
-            <tr><th>Área</th><th>Cantidad</th></tr>
-            ${filasTabla(datos.expedientes_por_area || [], 'area')}
+            <tr><th>Tipo de acto</th><th>Cantidad</th></tr>
+            ${filasTabla(datos.expedientes_por_tipo_notarial || [], 'nombre', 'cantidad')}
           </table>
 
           <h2>Por estado</h2>
@@ -202,35 +210,35 @@ export default function ReportesScreen() {
         <View style={styles.filtroFila}>
           <TouchableOpacity
             style={[styles.input, styles.inputFlex]}
-            onPress={() => setMostrarAreas((v) => !v)}
+            onPress={() => setMostrarTipos((v) => !v)}
           >
-            <Text style={idArea ? styles.inputTexto : styles.inputPlaceholder}>
-              {idArea ? areas.find((a) => a.id_area === idArea)?.nombre : 'Todas las áreas'}
+            <Text style={idTipo ? styles.inputTexto : styles.inputPlaceholder}>
+              {idTipo ? tipos.find((t) => t.id_tipo === idTipo)?.nombre : 'Todos los tipos'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {mostrarAreas && (
+        {mostrarTipos && (
           <View style={styles.dropdown}>
             <TouchableOpacity
               style={styles.dropdownItem}
               onPress={() => {
-                setIdArea(null)
-                setMostrarAreas(false)
+                setIdTipo(null)
+                setMostrarTipos(false)
               }}
             >
-              <Text style={styles.dropdownItemTexto}>Todas las áreas</Text>
+              <Text style={styles.dropdownItemTexto}>Todos los tipos</Text>
             </TouchableOpacity>
-            {areas.map((a) => (
+            {tipos.map((t) => (
               <TouchableOpacity
-                key={a.id_area}
+                key={t.id_tipo}
                 style={styles.dropdownItem}
                 onPress={() => {
-                  setIdArea(a.id_area)
-                  setMostrarAreas(false)
+                  setIdTipo(t.id_tipo)
+                  setMostrarTipos(false)
                 }}
               >
-                <Text style={styles.dropdownItemTexto}>{a.nombre}</Text>
+                <Text style={styles.dropdownItemTexto}>{t.nombre}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -289,9 +297,9 @@ export default function ReportesScreen() {
               </View>
             </View>
 
-            <Text style={styles.tituloSeccion}>Por área jurídica</Text>
-            {(datos.expedientes_por_area || []).map((item) => (
-              <Text key={item.area} style={styles.filaLista}>{item.area} — {item.total}</Text>
+            <Text style={styles.tituloSeccion}>Por tipo de acto</Text>
+            {(datos.expedientes_por_tipo_notarial || []).map((item) => (
+              <Text key={item.id_tipo} style={styles.filaLista}>{item.nombre} — {item.cantidad}</Text>
             ))}
 
             <Text style={styles.tituloSeccion}>Por estado</Text>

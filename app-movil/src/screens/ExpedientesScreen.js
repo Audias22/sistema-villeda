@@ -15,6 +15,15 @@ const TONOS = {
   civil: { color: '#185FA5', fondo: '#E6F1FB' },
   laboral: { color: '#854F0B', fondo: '#FAEEDA' },
   penal: { color: '#A32D2D', fondo: '#FCEBEB' },
+  // Tipos de acto notarial. Los listados muestran el tipo desde el 13 de
+  // septiembre de 2026: el chip de área repetía "Notarial" en los 390
+  // expedientes y no distinguía nada.
+  compraventa: { color: '#1F6F5C', fondo: '#E3F1ED' },
+  donacion: { color: '#7A3E9D', fondo: '#F1E9F7' },
+  declaracion: { color: '#185FA5', fondo: '#E6F1FB' },
+  mandato: { color: '#854F0B', fondo: '#FAEEDA' },
+  matrimonio: { color: '#B03060', fondo: '#FBE9F0' },
+  otroTipo: { color: '#5A6472', fondo: '#EDEFF2' },
   exito: { color: '#3B6D11', fondo: '#E8F0E4' },
   peligro: { color: '#A32D2D', fondo: '#FCEBEB' },
   advertencia: { color: '#854F0B', fondo: '#FAEEDA' },
@@ -28,13 +37,17 @@ function normalizar(texto) {
     .toLowerCase()
 }
 
-function tonoArea(nombreArea) {
-  const n = normalizar(nombreArea)
-  if (n.includes('notarial')) return TONOS.notarial
-  if (n.includes('civil')) return TONOS.civil
-  if (n.includes('laboral')) return TONOS.laboral
-  if (n.includes('penal')) return TONOS.penal
-  return TONOS.info
+// Este listado ya no muestra el área, así que no hay tonoArea acá. La pantalla
+// de detalle sí la conserva: ahí el área describe el expediente en vez de
+// filtrarlo.
+function tonoTipo(nombreTipo) {
+  const n = normalizar(nombreTipo)
+  if (n.includes('compraventa')) return TONOS.compraventa
+  if (n.includes('donacion')) return TONOS.donacion
+  if (n.includes('declaracion')) return TONOS.declaracion
+  if (n.includes('mandato')) return TONOS.mandato
+  if (n.includes('matrimonio')) return TONOS.matrimonio
+  return TONOS.otroTipo
 }
 
 function tonoEstado(nombreEstado) {
@@ -134,7 +147,7 @@ export default function ExpedientesScreen({ navigation }) {
       {expedientes.length > 0 && (
         <ScrollView contentContainerStyle={styles.contenido}>
           {expedientes.map((exp) => {
-            const area = tonoArea(exp.area_nombre)
+            const tipo = tonoTipo(exp.tipo_nombre)
             const estado = tonoEstado(exp.estado_nombre)
             return (
               <TouchableOpacity
@@ -145,9 +158,9 @@ export default function ExpedientesScreen({ navigation }) {
                 <Text style={styles.numero}>{exp.numero_expediente}</Text>
                 <Text style={styles.cliente}>{exp.cliente_nombre || '—'}</Text>
                 <View style={styles.chips}>
-                  <View style={[styles.chip, { backgroundColor: area.fondo }]}>
-                    <Text style={[styles.chipTexto, { color: area.color }]}>
-                      {exp.area_nombre || '—'}
+                  <View style={[styles.chip, { backgroundColor: tipo.fondo }]}>
+                    <Text style={[styles.chipTexto, { color: tipo.color }]}>
+                      {exp.tipo_nombre || '—'}
                     </Text>
                   </View>
                   <View style={[styles.chip, { backgroundColor: estado.fondo }]}>

@@ -16,10 +16,15 @@ import api from '../services/api'
 import { colors } from '../theme/colors'
 import { fontFamily, fontSize } from '../theme/typography'
 
+// id_area del área Notarial. Los 390 expedientes del despacho son de esa área,
+// así que el criterio 3 pasó de área a tipo de acto el 13 de septiembre de 2026:
+// filtrar por área devolvía siempre el corpus entero o vacío.
+const ID_AREA_NOTARIAL = 1
+
 const CRITERIOS = [
   { id: 1, label: 'Cliente', icono: '👤', tipo: 'texto', placeholder: 'Nombre del cliente' },
   { id: 2, label: 'Fecha', icono: '📅', tipo: 'fecha' },
-  { id: 3, label: 'Área', icono: '⚖️', tipo: 'area' },
+  { id: 3, label: 'Tipo de acto', icono: '⚖️', tipo: 'tipo' },
   { id: 4, label: 'Contenido', icono: '📄', tipo: 'texto', placeholder: 'Palabra clave en el documento' },
   { id: 5, label: 'No. Expediente', icono: '#️⃣', tipo: 'texto', placeholder: 'Número de expediente' },
 ]
@@ -41,9 +46,9 @@ export default function BusquedaScreen() {
   const [idCriterio, setIdCriterio] = useState(1)
   const [terminoTexto, setTerminoTexto] = useState('')
   const [fechaSeleccionada, setFechaSeleccionada] = useState(null)
-  const [idArea, setIdArea] = useState(null)
-  const [areas, setAreas] = useState([])
-  const [mostrarAreas, setMostrarAreas] = useState(false)
+  const [idTipo, setIdTipo] = useState(null)
+  const [tipos, setTipos] = useState([])
+  const [mostrarTipos, setMostrarTipos] = useState(false)
 
   const [resultados, setResultados] = useState([])
   const [haBuscado, setHaBuscado] = useState(false)
@@ -54,15 +59,15 @@ export default function BusquedaScreen() {
 
   useEffect(() => {
     api
-      .get('/catalogos/areas-juridicas')
-      .then(({ data }) => setAreas(data.areas_juridicas || []))
+      .get('/catalogos/tipos-expediente', { params: { id_area: ID_AREA_NOTARIAL } })
+      .then(({ data }) => setTipos(data.tipos_expediente || []))
       .catch(() => {})
   }, [])
 
   function cambiarCriterio(id) {
     setIdCriterio(id)
     setError(null)
-    setMostrarAreas(false)
+    setMostrarTipos(false)
   }
 
   function abrirSelectorFecha() {
@@ -92,12 +97,12 @@ export default function BusquedaScreen() {
         return
       }
       termino = formatearFechaISO(fechaSeleccionada)
-    } else if (criterioActivo.tipo === 'area') {
-      if (!idArea) {
-        setError('Selecciona un área')
+    } else if (criterioActivo.tipo === 'tipo') {
+      if (!idTipo) {
+        setError('Selecciona un tipo de acto')
         return
       }
-      termino = String(idArea)
+      termino = String(idTipo)
     }
 
     setError(null)
@@ -128,7 +133,7 @@ export default function BusquedaScreen() {
   function verDetalle(expediente) {
     Alert.alert(
       expediente.numero_expediente,
-      `Cliente: ${expediente.cliente_nombre || '—'}\nÁrea: ${expediente.area_nombre || '—'}\nEstado: ${expediente.estado_nombre || '—'}\nFecha de apertura: ${formatearFechaVisible(expediente.fecha_apertura)}`
+      `Cliente: ${expediente.cliente_nombre || '—'}\nTipo de acto: ${expediente.tipo_nombre || '—'}\nEstado: ${expediente.estado_nombre || '—'}\nFecha de apertura: ${formatearFechaVisible(expediente.fecha_apertura)}`
     )
   }
 
@@ -173,13 +178,13 @@ export default function BusquedaScreen() {
             </TouchableOpacity>
           )}
 
-          {criterioActivo.tipo === 'area' && (
+          {criterioActivo.tipo === 'tipo' && (
             <TouchableOpacity
               style={[styles.input, styles.inputFlex]}
-              onPress={() => setMostrarAreas((v) => !v)}
+              onPress={() => setMostrarTipos((v) => !v)}
             >
-              <Text style={idArea ? styles.inputTexto : styles.inputPlaceholder}>
-                {idArea ? areas.find((a) => a.id_area === idArea)?.nombre : 'Selecciona un área'}
+              <Text style={idTipo ? styles.inputTexto : styles.inputPlaceholder}>
+                {idTipo ? tipos.find((t) => t.id_tipo === idTipo)?.nombre : 'Selecciona un tipo de acto'}
               </Text>
             </TouchableOpacity>
           )}
@@ -193,18 +198,18 @@ export default function BusquedaScreen() {
           </TouchableOpacity>
         </View>
 
-        {criterioActivo.tipo === 'area' && mostrarAreas && (
+        {criterioActivo.tipo === 'tipo' && mostrarTipos && (
           <View style={styles.dropdown}>
-            {areas.map((a) => (
+            {tipos.map((t) => (
               <TouchableOpacity
-                key={a.id_area}
+                key={t.id_tipo}
                 style={styles.dropdownItem}
                 onPress={() => {
-                  setIdArea(a.id_area)
-                  setMostrarAreas(false)
+                  setIdTipo(t.id_tipo)
+                  setMostrarTipos(false)
                 }}
               >
-                <Text style={styles.dropdownItemTexto}>{a.nombre}</Text>
+                <Text style={styles.dropdownItemTexto}>{t.nombre}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -231,7 +236,7 @@ export default function BusquedaScreen() {
             <Text style={styles.tarjetaNumero}>{exp.numero_expediente}</Text>
             <Text style={styles.tarjetaDato}>{exp.cliente_nombre || '—'}</Text>
             <View style={styles.tarjetaFila}>
-              <Text style={styles.tarjetaDatoSecundario}>{exp.area_nombre || '—'}</Text>
+              <Text style={styles.tarjetaDatoSecundario}>{exp.tipo_nombre || '—'}</Text>
               <Text style={styles.tarjetaDatoSecundario}>{formatearFechaVisible(exp.fecha_apertura)}</Text>
             </View>
           </TouchableOpacity>

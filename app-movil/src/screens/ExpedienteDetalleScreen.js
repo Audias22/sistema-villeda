@@ -23,6 +23,15 @@ const TONOS = {
   civil: { color: '#185FA5', fondo: '#E6F1FB' },
   laboral: { color: '#854F0B', fondo: '#FAEEDA' },
   penal: { color: '#A32D2D', fondo: '#FCEBEB' },
+  // Tipos de acto notarial. Los listados muestran el tipo desde el 13 de
+  // septiembre de 2026: el chip de área repetía "Notarial" en los 390
+  // expedientes y no distinguía nada.
+  compraventa: { color: '#1F6F5C', fondo: '#E3F1ED' },
+  donacion: { color: '#7A3E9D', fondo: '#F1E9F7' },
+  declaracion: { color: '#185FA5', fondo: '#E6F1FB' },
+  mandato: { color: '#854F0B', fondo: '#FAEEDA' },
+  matrimonio: { color: '#B03060', fondo: '#FBE9F0' },
+  otroTipo: { color: '#5A6472', fondo: '#EDEFF2' },
   exito: { color: '#3B6D11', fondo: '#E8F0E4' },
   peligro: { color: '#A32D2D', fondo: '#FCEBEB' },
   advertencia: { color: '#854F0B', fondo: '#FAEEDA' },
@@ -43,6 +52,16 @@ function tonoArea(nombreArea) {
   if (n.includes('laboral')) return TONOS.laboral
   if (n.includes('penal')) return TONOS.penal
   return TONOS.info
+}
+
+function tonoTipo(nombreTipo) {
+  const n = normalizar(nombreTipo)
+  if (n.includes('compraventa')) return TONOS.compraventa
+  if (n.includes('donacion')) return TONOS.donacion
+  if (n.includes('declaracion')) return TONOS.declaracion
+  if (n.includes('mandato')) return TONOS.mandato
+  if (n.includes('matrimonio')) return TONOS.matrimonio
+  return TONOS.otroTipo
 }
 
 function tonoEstado(nombreEstado) {
@@ -153,13 +172,18 @@ export default function ExpedienteDetalleScreen({ route, navigation }) {
   }
 
   const area = tonoArea(expediente.area_nombre)
+  const tipo = tonoTipo(expediente.tipo_nombre)
   const estado = tonoEstado(expediente.estado_nombre)
 
   const campos = [
     { label: 'Cliente', valor: expediente.cliente_nombre, completo: true },
+    // Se muestran el área Y el tipo, a diferencia de los listados, que desde el
+    // 13 de septiembre de 2026 solo muestran el tipo. Acá el área describe el
+    // expediente en vez de filtrarlo, y es información legítima: el sistema
+    // sigue pudiendo registrar expedientes civiles, laborales y penales.
     { label: 'Área', chip: { texto: expediente.area_nombre, tono: area } },
+    { label: 'Tipo de acto', chip: { texto: expediente.tipo_nombre, tono: tipo } },
     { label: 'Estado', chip: { texto: expediente.estado_nombre, tono: estado } },
-    { label: 'Tipo', valor: expediente.tipo_nombre },
     { label: 'Prioridad', valor: expediente.prioridad_nombre },
     { label: 'Asignado a', valor: expediente.usuario_asignado_nombre, completo: true },
     { label: 'Fecha apertura', valor: formatearFechaVisible(expediente.fecha_apertura) },

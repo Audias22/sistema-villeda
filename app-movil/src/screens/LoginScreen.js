@@ -46,9 +46,15 @@ export default function LoginScreen() {
    * Ofrece el desbloqueo biométrico una sola vez, tras el primer login exitoso.
    *
    * Solo se pregunta si el dispositivo puede hacerlo y si no se preguntó antes.
-   * La marca de "ya se preguntó" se guarda pase lo que pase con la respuesta:
-   * sin eso, un "Ahora no" reaparecería en cada inicio de sesión. Quien cambie
-   * de opinión después tiene el interruptor en la pantalla de Perfil.
+   * Quien cambie de opinión después tiene el interruptor en la pantalla de Perfil.
+   *
+   * LA MARCA DE "YA SE PREGUNTÓ" SE GUARDA DENTRO DE CADA onPress, NO ANTES DEL
+   * Alert. Estaba antes y se corrigió el 13 de septiembre de 2026: si el
+   * diálogo no llegaba a verse —el usuario cerraba sesión muy rápido tras el
+   * login, o la app se iba a segundo plano— la marca quedaba guardada igual y
+   * el ofrecimiento no volvía a aparecer nunca. Guardándola solo cuando el
+   * usuario efectivamente respondió algo, un diálogo que no se vio se vuelve a
+   * ofrecer la próxima vez.
    *
    * Nunca lanza: si algo falla acá, el login tiene que completarse igual.
    */
@@ -58,7 +64,6 @@ export default function LoginScreen() {
       if (!(await biometriaDisponible())) return
 
       const etiqueta = await etiquetaBiometria()
-      await saveBiometriaPreguntada()
 
       await new Promise((resolver) => {
         Alert.alert(
@@ -66,10 +71,18 @@ export default function LoginScreen() {
           `La próxima vez que abras la app podrás desbloquearla con tu ${etiqueta} ` +
             'en lugar de escribir tu contraseña. Puedes cambiarlo después desde Perfil.',
           [
-            { text: 'Ahora no', style: 'cancel', onPress: () => resolver() },
+            {
+              text: 'Ahora no',
+              style: 'cancel',
+              onPress: async () => {
+                await saveBiometriaPreguntada()
+                resolver()
+              },
+            },
             {
               text: 'Sí, activar',
               onPress: async () => {
+                await saveBiometriaPreguntada()
                 await saveBiometriaActiva(true)
                 resolver()
               },
