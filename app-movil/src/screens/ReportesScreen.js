@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
 import { File, Paths } from 'expo-file-system'
 import AppHeader from '../components/AppHeader'
+import { LOGO_BASE64 } from '../assets/logoBase64'
 import api from '../services/api'
 import { colors } from '../theme/colors'
 import { fontFamily, fontSize } from '../theme/typography'
@@ -97,11 +97,16 @@ export default function ReportesScreen() {
     }
   }
 
-  async function obtenerLogoBase64() {
-    const asset = Image.resolveAssetSource(require('../assets/logo-villeda.jpg'))
-    const destino = new File(Paths.cache, 'logo-villeda-reporte.jpg')
-    const archivoLogo = await File.downloadFileAsync(asset.uri, destino, { idempotent: true })
-    return archivoLogo.base64()
+  // El logo viene incrustado como constante (ver src/assets/logoBase64.js). No se
+  // resuelve el asset ni se descarga nada: Image.resolveAssetSource() devuelve un
+  // nombre de recurso drawable en un build de release, no una URL, y
+  // File.downloadFileAsync() no puede consumirlo. Devuelve null si por lo que sea
+  // la constante no esta disponible, para que el reporte se genere sin membrete.
+  function obtenerLogoBase64() {
+    if (typeof LOGO_BASE64 === 'string' && LOGO_BASE64.length > 0) {
+      return LOGO_BASE64
+    }
+    return null
   }
 
   function construirHtmlReporte(logoBase64) {
@@ -109,6 +114,10 @@ export default function ReportesScreen() {
     // mientras que las demás listas del dashboard usan 'total'.
     const filasTabla = (items, campoNombre, campoTotal = 'total') =>
       items.map((item) => `<tr><td>${item[campoNombre]}</td><td>${item[campoTotal]}</td></tr>`).join('')
+
+    // Si el logo no esta disponible el reporte se genera igual, sin membrete.
+    // Un reporte sin logo es mucho mejor que ningun reporte.
+    const membrete = logoBase64 ? `<img src="data:image/jpeg;base64,${logoBase64}" />` : ''
 
     return `
       <html>
@@ -127,7 +136,7 @@ export default function ReportesScreen() {
         </head>
         <body>
           <div class="encabezado">
-            <img src="data:image/jpeg;base64,${logoBase64}" />
+            ${membrete}
             <h1>Reporte — Sistema Villeda</h1>
           </div>
           <p>Expedientes: ${datos.totales?.expedientes ?? 0}</p>
@@ -163,11 +172,19 @@ export default function ReportesScreen() {
 
   async function generarPdf() {
     setGenerandoPdf(true)
+    // paso nombra la etapa en curso para que el Alert diga que fue lo que fallo
+    // en vez de un mensaje generico. El catch de antes se tragaba el error y por
+    // eso el bug del logo sobrevivio tres builds sin diagnostico.
+    let paso = 'armar el contenido del reporte'
+
     try {
-      const logoBase64 = await obtenerLogoBase64()
+      const logoBase64 = obtenerLogoBase64()
       const html = construirHtmlReporte(logoBase64)
+
+      paso = 'crear el archivo PDF'
       const { uri } = await Print.printToFileAsync({ html })
 
+      paso = 'guardar el PDF en el dispositivo'
       const nombreArchivo = `reporte-villeda-${formatearFechaISO(new Date())}.pdf`
       const archivoTemporal = new File(uri)
       const destino = new File(Paths.document, nombreArchivo)
@@ -180,7 +197,8 @@ export default function ReportesScreen() {
       setPdfUri(destino.uri)
       Alert.alert('PDF generado', 'El reporte está listo. Usa "Compartir" para guardarlo o enviarlo.')
     } catch (err) {
-      Alert.alert('Error', 'No pudimos generar el PDF. Intenta de nuevo.')
+      console.error(`[Reportes] Fallo al ${paso}:`, err)
+      Alert.alert('Error', `No pudimos ${paso}. Detalle: ${err?.message || 'error desconocido'}`)
     } finally {
       setGenerandoPdf(false)
     }
@@ -191,7 +209,8 @@ export default function ReportesScreen() {
     try {
       await Sharing.shareAsync(pdfUri, { mimeType: 'application/pdf' })
     } catch (err) {
-      Alert.alert('Error', 'No pudimos compartir el PDF. Intenta de nuevo.')
+      console.error('[Reportes] Fallo al compartir el PDF:', err)
+      Alert.alert('Error', `No pudimos compartir el PDF. Detalle: ${err?.message || 'error desconocido'}`)
     }
   }
 
