@@ -60,8 +60,13 @@ def login():
             limitador.registrar_fallo(clave)
         return jsonify({'error': error}), 401
 
-    for clave in claves:
-        limitador.limpiar(clave)
+    # Solo se limpia el contador del usuario, nunca el del origen. Si al
+    # entrar bien se borrara tambien el de origen, alguien con una cuenta
+    # valida, aunque fuera de rol bajo, podria reiniciar el limite global
+    # a voluntad y seguir probando contrasenas de otros usuarios sin topar
+    # nunca con el. El contador de origen se vacia solo al salir de la
+    # ventana de tiempo.
+    limitador.limpiar(claves[0])
 
     identity = json.dumps({
         'id_usuario': usuario.id_usuario,

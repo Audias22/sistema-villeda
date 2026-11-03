@@ -1133,6 +1133,8 @@ El mapeo va **en el código y no se lee de la base**, a propósito: el modelo pr
 **Corrección del comentario de métrica.** `clasificacion/clasificador.py` documentaba el modelo de Modal con F1 macro 0.9862, valor que no coincide con el 0.9845 reportado en el Capítulo V. Corregido a 0.9845 para que código y tesis digan lo mismo.
 
 Verificado en local contra el panel: inicio de sesión correcto (CORS), cinco respuestas 401 seguidas de 429 en el sexto intento, y mismo mensaje para usuario inexistente y para contraseña incorrecta.
+
+**Corrección al limitador tras la prueba en producción (2 de noviembre de 2026):** al verificar el despliegue se bloqueó una cuenta con seis intentos fallidos y acto seguido se entró con la otra cuenta de la oficina, que funcionó como corresponde porque el candado es por usuario más origen. Esa prueba dejó ver un hueco en la versión inicial: el inicio de sesión correcto limpiaba **los dos** contadores, el del usuario y el del origen. Eso permitía que alguien con una cuenta válida, aunque fuera de rol bajo, reiniciara a voluntad el límite de 15 por origen y siguiera probando contraseñas de otros usuarios sin toparse nunca con él. Corregido: al entrar bien solo se limpia el contador de usuario más origen (`claves[0]`), y el contador de origen se vacía únicamente al salir de la ventana de 5 minutos.
 ---
 
 ## NOTAS IMPORTANTES
