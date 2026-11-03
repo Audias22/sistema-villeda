@@ -230,3 +230,19 @@ panel-web/.env
 app-movil/node_modules/
 app-movil/.env
 app-movil/.expo/
+
+# Datos de la poblacion de nombres de clientes.
+# Contienen nombres reales de otorgantes de la notaria: son datos
+# personales de terceros y no se versionan. Los scripts que los producen
+# si estan en el repositorio, que es lo que documenta el metodo.
+backend/pruebas/nombres_a_mano.csv
+backend/pruebas/nombres_propuestos.csv
+backend/pruebas/nombres_propuestos.xlsx
+backend/pruebas/nombres_finales.xlsx
+backend/pruebas/revisados_cortos.csv
+backend/pruebas/respaldo_clientes_*.csv
+backend/pruebas/a_corregir.csv
+backend/pruebas/__pycache__/
+
+# Archivos temporales que Excel crea mientras un libro esta abierto.
+~$*
