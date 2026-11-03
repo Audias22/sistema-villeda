@@ -15,7 +15,7 @@ ID_AREA_NOTARIAL = 1
 ID_MODELO_MOCK = 3
 
 # RoBERTa-bne notarial, la fila 4 de modelos_ml: arquitectura RoBERTa-base-bne,
-# F1 macro 0.9862, 4 clases, activo. Es el modelo real servido desde Modal.
+# F1 macro 0.9845, 4 clases, activo. Es el modelo real servido desde Modal.
 ID_MODELO_MODAL = 4
 
 # 'modal' llama al servicio real; 'mock' usa el aleatorio de abajo. El default

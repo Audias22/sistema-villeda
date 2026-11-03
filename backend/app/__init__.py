@@ -12,7 +12,11 @@ bcrypt = Bcrypt()
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
-    CORS(app)
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}},
+        supports_credentials=False
+    )
     db.init_app(app)
     jwt.init_app(app)
     bcrypt.init_app(app)
