@@ -1,6 +1,7 @@
 from app import db
 from app.clientes.models import Cliente
 from datetime import datetime
+import unicodedata
 
 
 def validar_consistencia_persona(datos):
@@ -52,9 +53,59 @@ def buscar_cliente_duplicado(dpi, nit, tipo_persona, id_excluir=None):
     return None, None
 
 
+def _clave_nombre(cliente_o_datos):
+    """Nombre completo en mayusculas y sin tildes, para comparar sin ruido."""
+    def valor(campo):
+        if isinstance(cliente_o_datos, dict):
+            return cliente_o_datos.get(campo)
+        return getattr(cliente_o_datos, campo, None)
+
+    if valor('razon_social'):
+        partes = [valor('razon_social')]
+    else:
+        partes = [valor('primer_nombre'), valor('segundo_nombre'),
+                  valor('primer_apellido'), valor('segundo_apellido')]
+
+    texto = ' '.join(p.strip() for p in partes if p and p.strip()).upper()
+    texto = unicodedata.normalize('NFD', texto)
+
+    return ' '.join(''.join(ch for ch in texto
+                            if unicodedata.category(ch) != 'Mn').split())
+
+
+def buscar_cliente_mismo_nombre(datos, id_excluir=None):
+    """
+    Busca un cliente activo que ya tenga exactamente el mismo nombre.
+
+    A diferencia del DPI, esto NO es un impedimento: dos personas pueden
+    llamarse igual y el despacho debe poder registrarlas. Sirve para avisar
+    y ofrecer reutilizar el registro existente, que es de donde salieron los
+    144 duplicados de la carga inicial. Quien insista puede continuar
+    enviando permitir_nombre_duplicado.
+    """
+    clave = _clave_nombre(datos)
+    if not clave:
+        return None
+
+    query = Cliente.query.filter_by(activo=True)
+    if id_excluir:
+        query = query.filter(Cliente.id_cliente != id_excluir)
+
+    for candidato in query.all():
+        if _clave_nombre(candidato) == clave:
+            return candidato
+
+    return None
+
+
 def crear_cliente(datos, id_usuario):
-    """Devuelve (cliente, error, cliente_existente). El tercer valor solo viene con
-    dato cuando el error es un duplicado, para que la ruta pueda ofrecer reutilizarlo."""
+    """
+    Devuelve (cliente, error, conflicto).
+
+    conflicto es None o un diccionario {'cliente', 'motivo', 'bloqueante'}.
+    El motivo DPI o NIT es bloqueante. El motivo nombre no lo es: avisa y deja
+    continuar si el usuario confirma con permitir_nombre_duplicado.
+    """
     es_valido, error = validar_consistencia_persona(datos)
     if not es_valido:
         return None, error, None
@@ -64,7 +115,16 @@ def crear_cliente(datos, id_usuario):
     )
     if existente:
         valor = datos.get('dpi') if campo == 'DPI' else datos.get('nit')
-        return None, f"Ya existe un cliente registrado con el {campo} {valor}", existente
+        return None, f"Ya existe un cliente registrado con el {campo} {valor}", {
+            'cliente': existente, 'motivo': campo, 'bloqueante': True
+        }
+
+    if not datos.get('permitir_nombre_duplicado'):
+        mismo = buscar_cliente_mismo_nombre(datos)
+        if mismo:
+            return None, "Ya existe un cliente registrado con ese mismo nombre", {
+                'cliente': mismo, 'motivo': 'nombre', 'bloqueante': False
+            }
 
     cliente = Cliente(
         tipo_persona=datos.get('tipo_persona'),
@@ -97,10 +157,20 @@ def listar_clientes(pagina=1, por_pagina=20, solo_activos=True, busqueda=None):
 
     if busqueda:
         termino = f"%{busqueda}%"
+        # Se busca contra el nombre completo armado, no campo por campo. Antes
+        # escribir "Pedro Hernandez" no devolvia nada porque el nombre y el
+        # apellido viven en columnas distintas, y de ahi salian clientes
+        # repetidos: quien no encontraba a la persona la volvia a crear.
+        nombre_completo = db.func.concat_ws(
+            ' ',
+            Cliente.primer_nombre,
+            Cliente.segundo_nombre,
+            Cliente.primer_apellido,
+            Cliente.segundo_apellido
+        )
         query = query.filter(
             db.or_(
-                Cliente.primer_nombre.ilike(termino),
-                Cliente.primer_apellido.ilike(termino),
+                nombre_completo.ilike(termino),
                 Cliente.razon_social.ilike(termino),
                 Cliente.dpi.ilike(termino),
                 Cliente.nit.ilike(termino)
@@ -133,7 +203,23 @@ def actualizar_cliente(id_cliente, datos):
     )
     if existente:
         valor = datos.get('dpi') if campo == 'DPI' else datos.get('nit')
-        return None, f"Ya existe otro cliente registrado con el {campo} {valor}", existente
+        return None, f"Ya existe otro cliente registrado con el {campo} {valor}", {
+            'cliente': existente, 'motivo': campo, 'bloqueante': True
+        }
+
+    if not datos.get('permitir_nombre_duplicado'):
+        # El PUT puede venir parcial, asi que se compara el nombre que quedaria
+        # despues del cambio, no solo los campos que llegaron en la peticion.
+        resultante = {campo: getattr(cliente, campo) for campo in
+                      ('primer_nombre', 'segundo_nombre', 'primer_apellido',
+                       'segundo_apellido', 'razon_social')}
+        resultante.update({k: v for k, v in datos.items() if k in resultante})
+
+        mismo = buscar_cliente_mismo_nombre(resultante, id_excluir=id_cliente)
+        if mismo:
+            return None, "Ya existe otro cliente registrado con ese mismo nombre", {
+                'cliente': mismo, 'motivo': 'nombre', 'bloqueante': False
+            }
 
     campos_permitidos = [
         'tipo_persona', 'primer_nombre', 'segundo_nombre',

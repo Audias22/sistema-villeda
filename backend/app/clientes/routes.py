@@ -43,11 +43,20 @@ def instantanea(cliente):
     return {campo: getattr(cliente, campo) for campo in CAMPOS_AUDITABLES}
 
 
-def respuesta_duplicado(error, existente):
-    """409 Conflict con el id del cliente que ya ocupa ese DPI o NIT, para que el
-    panel pueda ofrecer reutilizarlo en vez de dejar al usuario sin salida."""
+def respuesta_duplicado(error, conflicto):
+    """
+    409 Conflict con el cliente que ya existe, para que el panel pueda ofrecer
+    reutilizarlo en vez de dejar al usuario sin salida.
+
+    Un DPI o NIT repetido es un impedimento real y bloqueante queda en True.
+    Un nombre repetido es solo un aviso, porque dos personas pueden llamarse
+    igual, y el panel lo deja continuar reenviando permitir_nombre_duplicado.
+    """
+    existente = conflicto['cliente']
     return jsonify({
         'error':      error,
+        'motivo':     conflicto['motivo'],
+        'bloqueante': conflicto['bloqueante'],
         'id_cliente': existente.id_cliente,
         'cliente':    existente.to_dict()
     }), 409
@@ -64,12 +73,12 @@ def crear():
     except ValidationError as err:
         return jsonify({'error': 'Datos inválidos', 'detalles': err.messages}), 400
 
-    cliente, error, existente = crear_cliente(datos, identity['id_usuario'])
+    cliente, error, conflicto = crear_cliente(datos, identity['id_usuario'])
 
     # El 409 por duplicado no se audita: no hubo cambio en la base que registrar.
     if error:
-        if existente:
-            return respuesta_duplicado(error, existente)
+        if conflicto:
+            return respuesta_duplicado(error, conflicto)
         return jsonify({'error': error}), 400
 
     # La respuesta se arma antes de auditar: registrar_auditoria() commitea y deja
@@ -138,11 +147,11 @@ def actualizar(id_cliente):
 
     datos_anteriores = instantanea(obtener_cliente_por_id(id_cliente))
 
-    cliente, error, existente = actualizar_cliente(id_cliente, datos)
+    cliente, error, conflicto = actualizar_cliente(id_cliente, datos)
 
     if error:
-        if existente:
-            return respuesta_duplicado(error, existente)
+        if conflicto:
+            return respuesta_duplicado(error, conflicto)
         codigo = 404 if error == "Cliente no encontrado" else 400
         return jsonify({'error': error}), codigo
 

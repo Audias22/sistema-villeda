@@ -194,25 +194,86 @@ button {
   border-top: 1px solid var(--borde-suave);
 }
 
+/* El aviso de cliente repetido se monta en document.body, por encima del modal
+   de Nuevo expediente, que tiene z-index 1000 y recorta con overflow */
+.aviso-duplicado-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(27, 42, 74, 0.45);
+  animation: aviso-duplicado-entrada 0.15s ease-out;
+}
+
 .aviso-duplicado {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  background: var(--fondo-tarjeta);
+  border-top: 4px solid var(--advertencia);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-elevada);
+}
+
+.aviso-duplicado-encabezado {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--advertencia);
+}
+
+.aviso-duplicado-encabezado svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.aviso-duplicado-nombre {
+  padding: 10px 12px;
   background: var(--advertencia-fondo);
-  border: 1px solid var(--advertencia);
   border-radius: var(--radio-md);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--texto-primario);
 }
 
 .aviso-duplicado-texto {
   font-size: 14px;
-  color: var(--advertencia);
+  line-height: 1.5;
+  color: var(--texto-secundario);
 }
 
-.aviso-duplicado-nombre {
-  font-size: 15px;
-  font-weight: 600;
+.aviso-duplicado-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.aviso-duplicado-volver {
+  background: none;
+  border: none;
+  padding: 4px;
+  font-size: 14px;
+  color: var(--texto-muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.aviso-duplicado-volver:hover {
   color: var(--texto-primario);
+}
+
+@keyframes aviso-duplicado-entrada {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .filtros-barra {

@@ -14,6 +14,11 @@ class ClienteSchema(Schema):
     email            = fields.Email(allow_none=True, validate=validate.Length(max=100))
     direccion        = fields.String(allow_none=True, validate=validate.Length(max=255))
 
+    # No es un campo del cliente. Lo envia el panel cuando el usuario ya vio el
+    # aviso de nombre repetido y aun asi decide registrar a la persona, porque
+    # dos clientes distintos si pueden llamarse igual.
+    permitir_nombre_duplicado = fields.Boolean(load_default=False)
+
     @validates('tipo_persona')
     def validar_consistencia_persona(self, value, **kwargs):
         pass

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
+import { AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Input from './common/Input'
 import Button from './common/Button'
@@ -96,13 +98,12 @@ function ClienteFormulario({ modo = 'crear', datosIniciales, onSubmit, onCancel,
     return Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined))
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const enviar = async (extra = {}) => {
     setDuplicado(null)
     setEnviando(true)
 
     try {
-      await onSubmit(construirPayload())
+      await onSubmit({ ...construirPayload(), ...extra })
     } catch (error) {
       if (error.response?.status === 409) {
         setDuplicado(error.response.data)
@@ -114,9 +115,20 @@ function ClienteFormulario({ modo = 'crear', datosIniciales, onSubmit, onCancel,
     }
   }
 
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    enviar()
+  }
+
   const usarExistente = () => {
     onSubmit(duplicado.cliente, { reutilizado: true })
   }
+
+  // El aviso por nombre repetido no impide guardar: se reenvia lo mismo con la
+  // confirmacion, porque dos clientes distintos si pueden llamarse igual.
+  const guardarIgual = () => enviar({ permitir_nombre_duplicado: true })
+
+  const cerrarAviso = () => setDuplicado(null)
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -256,14 +268,41 @@ function ClienteFormulario({ modo = 'crear', datosIniciales, onSubmit, onCancel,
         </label>
       )}
 
-      {duplicado && (
-        <div className="aviso-duplicado">
-          <span className="aviso-duplicado-texto">{duplicado.error}</span>
-          <span className="aviso-duplicado-nombre">{nombreCompletoCliente(duplicado.cliente)}</span>
-          <Button variant="secundario" onClick={usarExistente}>
-            Usar el cliente existente
-          </Button>
-        </div>
+      {duplicado && createPortal(
+        <div className="aviso-duplicado-fondo" onClick={cerrarAviso}>
+          <div className="aviso-duplicado" onClick={(e) => e.stopPropagation()}>
+            <div className="aviso-duplicado-encabezado">
+              <AlertTriangle size={20} />
+              <span>{duplicado.error}</span>
+            </div>
+
+            <span className="aviso-duplicado-nombre">{nombreCompletoCliente(duplicado.cliente)}</span>
+
+            <span className="aviso-duplicado-texto">
+              {duplicado.bloqueante === false
+                ? 'Si es la misma persona, use el registro que ya existe. Si es otra persona con el mismo nombre, puede continuar.'
+                : 'Ese documento de identificacion ya esta en uso, asi que no es posible registrarlo dos veces.'}
+            </span>
+
+            <div className="aviso-duplicado-acciones">
+              {!(esEdicion && duplicado.bloqueante === false) && (
+                <Button variant="acento" onClick={usarExistente} disabled={enviando} fullWidth>
+                  Usar el cliente existente
+                </Button>
+              )}
+              {duplicado.bloqueante === false && (
+                <Button variant="secundario" onClick={guardarIgual} disabled={enviando} fullWidth>
+                  {esEdicion ? 'Guardar de todos modos' : 'Registrar de todos modos'}
+                </Button>
+              )}
+            </div>
+
+            <button type="button" className="aviso-duplicado-volver" onClick={cerrarAviso}>
+              Volver a corregir los datos
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
 
       <div style={{ display: 'flex', gap: 12 }}>
