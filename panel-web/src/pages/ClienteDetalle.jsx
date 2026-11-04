@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Pencil, UserRound, UserX, FolderOpen } from 'lucide-react'
+import { ArrowLeft, Pencil, UserRound, UserX, FolderOpen } from 'lucide-react'
 import { useFetch } from '../hooks/useFetch'
 import Card from '../components/common/Card'
 import Badge from '../components/common/Badge'
@@ -21,6 +21,10 @@ function ClienteDetalle() {
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false)
   const [modalDesactivarAbierto, setModalDesactivarAbierto] = useState(false)
   const [desactivando, setDesactivando] = useState(false)
+  const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroAnio, setFiltroAnio] = useState('')
+  const [filtroDesde, setFiltroDesde] = useState('')
+  const [filtroHasta, setFiltroHasta] = useState('')
 
   const { datos, cargando, recargar } = useFetch(`/clientes/${id}`)
   const { datos: expedientesData, cargando: cargandoExpedientes } = useFetch('/expedientes', {
@@ -29,6 +33,48 @@ function ClienteDetalle() {
 
   const cliente = datos?.cliente
   const expedientes = expedientesData?.expedientes || []
+
+  // Los filtros trabajan sobre lo que ya se trajo, sin pedir nada mas al
+  // servidor. El año se saca de la fecha de apertura para que se pueda
+  // acotar sin obligar a elegir un dia exacto.
+  const tiposDisponibles = useMemo(
+    () => [...new Set(expedientes.map((e) => e.tipo_nombre).filter(Boolean))].sort(),
+    [expedientes],
+  )
+
+  const aniosDisponibles = useMemo(
+    () =>
+      [...new Set(expedientes.map((e) => (e.fecha_apertura || '').slice(0, 4)).filter(Boolean))].sort(
+        (a, b) => b.localeCompare(a),
+      ),
+    [expedientes],
+  )
+
+  const expedientesFiltrados = useMemo(
+    () =>
+      expedientes.filter((e) => {
+        const fecha = e.fecha_apertura || ''
+
+        if (filtroTipo && e.tipo_nombre !== filtroTipo) return false
+        if (filtroAnio && !fecha.startsWith(filtroAnio)) return false
+        // El rango se compara como texto porque la fecha viene en formato
+        // ISO, donde el orden alfabetico coincide con el cronologico.
+        if (filtroDesde && fecha < filtroDesde) return false
+        if (filtroHasta && fecha > filtroHasta) return false
+
+        return true
+      }),
+    [expedientes, filtroTipo, filtroAnio, filtroDesde, filtroHasta],
+  )
+
+  const hayFiltro = Boolean(filtroTipo || filtroAnio || filtroDesde || filtroHasta)
+
+  const limpiarFiltros = () => {
+    setFiltroTipo('')
+    setFiltroAnio('')
+    setFiltroDesde('')
+    setFiltroHasta('')
+  }
 
   const guardar = async (payload) => {
     await api.put(`/clientes/${id}`, payload)
@@ -68,6 +114,11 @@ function ClienteDetalle() {
 
   return (
     <div>
+      <Button variant="secundario" onClick={() => navigate('/clientes')} style={{ marginBottom: 16 }}>
+        <ArrowLeft size={16} />
+        Volver a clientes
+      </Button>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1>{nombreCompletoCliente(cliente)}</h1>
         <div style={{ display: 'flex', gap: 12 }}>
@@ -129,7 +180,86 @@ function ClienteDetalle() {
         </div>
       </Card>
 
-      <h3 style={{ marginTop: 32 }}>Expedientes de este cliente</h3>
+      <h3 style={{ marginTop: 32, marginBottom: 12 }}>
+        Expedientes de este cliente
+        <span style={{ color: 'var(--texto-muted)', fontWeight: 400, marginLeft: 10 }}>
+          {hayFiltro ? `${expedientesFiltrados.length} de ${expedientes.length}` : expedientes.length}
+        </span>
+      </h3>
+
+      {expedientes.length > 1 && (
+        <div className="filtros-barra">
+          <div className="campo-filtro">
+            <label className="label" htmlFor="filtro-tipo">
+              Tipo de acto
+            </label>
+            <select
+              id="filtro-tipo"
+              className="select-field"
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {tiposDisponibles.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="campo-filtro" style={{ minWidth: 120 }}>
+            <label className="label" htmlFor="filtro-anio">
+              Año
+            </label>
+            <select
+              id="filtro-anio"
+              className="select-field"
+              value={filtroAnio}
+              onChange={(e) => setFiltroAnio(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {aniosDisponibles.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="campo-filtro" style={{ minWidth: 150 }}>
+            <label className="label" htmlFor="filtro-desde">
+              Desde
+            </label>
+            <input
+              id="filtro-desde"
+              type="date"
+              className="input-field"
+              value={filtroDesde}
+              onChange={(e) => setFiltroDesde(e.target.value)}
+            />
+          </div>
+
+          <div className="campo-filtro" style={{ minWidth: 150 }}>
+            <label className="label" htmlFor="filtro-hasta">
+              Hasta
+            </label>
+            <input
+              id="filtro-hasta"
+              type="date"
+              className="input-field"
+              value={filtroHasta}
+              onChange={(e) => setFiltroHasta(e.target.value)}
+            />
+          </div>
+
+          {hayFiltro && (
+            <Button variant="secundario" onClick={limpiarFiltros}>
+              Limpiar
+            </Button>
+          )}
+        </div>
+      )}
 
       <Table>
         <thead>
@@ -151,7 +281,7 @@ function ClienteDetalle() {
               </tr>
             ))}
           {!cargandoExpedientes &&
-            expedientes.map((exp) => (
+            expedientesFiltrados.map((exp) => (
               <tr
                 key={exp.id_expediente}
                 onClick={() => navigate(`/expedientes/${exp.id_expediente}`)}
@@ -176,6 +306,14 @@ function ClienteDetalle() {
           icon={FolderOpen}
           titulo="Sin expedientes"
           descripcion="Este cliente todavía no tiene expedientes asociados"
+        />
+      )}
+
+      {!cargandoExpedientes && expedientes.length > 0 && expedientesFiltrados.length === 0 && (
+        <EmptyState
+          icon={FolderOpen}
+          titulo="Sin resultados"
+          descripcion="Ningún expediente de este cliente coincide con el filtro"
         />
       )}
 

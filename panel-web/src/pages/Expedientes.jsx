@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
+import Input from '../components/common/Input'
 import { useFetch } from '../hooks/useFetch'
 import Table from '../components/common/Table'
 import Badge from '../components/common/Badge'
@@ -22,6 +23,7 @@ function Expedientes() {
   const [pagina, setPagina] = useState(1)
   const [idTipo, setIdTipo] = useState('')
   const [idEstado, setIdEstado] = useState('')
+  const [busqueda, setBusqueda] = useState('')
   const [modalAbierto, setModalAbierto] = useState(false)
 
   // Solo los tipos ACTIVOS del area Notarial: son seis, y el catalogo ya
@@ -39,6 +41,7 @@ function Expedientes() {
       por_pagina: POR_PAGINA,
       id_tipo: idTipo || undefined,
       id_estado: idEstado || undefined,
+      busqueda: busqueda.trim() || undefined,
     },
   })
 
@@ -47,6 +50,22 @@ function Expedientes() {
       <h1>Expedientes</h1>
 
       <div className="filtros-barra" style={{ marginTop: 20 }}>
+        {/* Busqueda rapida del listado. Usa GET /expedientes, que no deja
+            registro: la busqueda instrumentada con historial es la de la
+            pantalla Busqueda. */}
+        <div className="campo-filtro" style={{ flex: 1, minWidth: 260 }}>
+          <Input
+            id="busqueda-expedientes"
+            label="Buscar"
+            placeholder="Número de expediente, título o cliente..."
+            value={busqueda}
+            onChange={(e) => {
+              setBusqueda(e.target.value)
+              setPagina(1)
+            }}
+          />
+        </div>
+
         <div className="campo-filtro">
           <label className="input-label">Tipo de acto</label>
           <select

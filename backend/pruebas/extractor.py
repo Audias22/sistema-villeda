@@ -98,8 +98,13 @@ ANOTACIONES = re.compile(ANOT + r'|\(\s*\)', re.IGNORECASE)
 PALABRA = r'[' + LETRAS + r']{2,}\.?'
 SEPARADOR = r'(?:[\s|]*\d{1,3})?[\s|]*(?:' + ANOT + r')?[\s|]+'
 
+# La Y enlaza apellidos compuestos muy comunes en la zona: GOMEZ Y GOMEZ,
+# MIRANDA Y MIRANDA, HERNANDEZ Y HERNANDEZ. Sin esto el nombre se parte ahi
+# y el patron termina quedandose con el apellido de otro compareciente.
+ENLACE = r'(?:Y' + SEPARADOR + r')?'
+
 CANDIDATO = re.compile(
-    PALABRA + r'(?:' + SEPARADOR + PALABRA + r'){1,5}'
+    PALABRA + r'(?:' + SEPARADOR + ENLACE + PALABRA + r'){1,6}'
 )
 
 # Numeros de linea que quedaron dentro del nombre.
@@ -473,12 +478,19 @@ CORRECCIONES_APROBADAS = {
     'DARLOS':    'CARLOS',
     'DRTIZ':     'ORTIZ',
     'FASTRO':    'CASTRO',
-    'OLIBERTO':  'ROBERTO',
     'MORTENCIA': 'HORTENCIA',
     'NORTENCIA': 'HORTENCIA',
     'ENRIOUJE':  'ENRIQUE',
     'ANTCNIC':   'ANTONIO',
     'EHDCDOJ':   'CHOCOOJ',
+    'DLIBERTO':  'OLIBERTO',
+    'ZDILA':     'ZOILA',
+    'MIRARDA':   'MIRANDA',
+    'GERCÍA':    'GARCÍA',
+    'BÚMEZ':     'GÓMEZ',
+    'GÚMEZ':     'GÓMEZ',
+    'HERNÁPDEZ': 'HERNÁNDEZ',
+    'PERSIÁRDEZ':'HERNÁNDEZ',
     # Restos del membrete del papel sellado.
     'RUGIETRC':  '',
     'IGICTRO':   '',

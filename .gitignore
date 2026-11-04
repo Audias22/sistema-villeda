@@ -241,6 +241,8 @@ backend/pruebas/nombres_propuestos.xlsx
 backend/pruebas/nombres_finales.xlsx
 backend/pruebas/revisados_cortos.csv
 backend/pruebas/respaldo_clientes_*.csv
+backend/pruebas/cambios_de_nombre.xlsx
+backend/pruebas/respaldo_unificacion_*.csv
 backend/pruebas/a_corregir.csv
 backend/pruebas/__pycache__/
 

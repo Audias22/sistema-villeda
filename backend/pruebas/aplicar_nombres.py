@@ -169,6 +169,65 @@ def revertir(engine, ruta):
 
 
 
+
+def exportar_cambios(plan):
+    """
+    Hoja con los expedientes cuyo nombre quedaria distinto al que hoy tiene
+    la base. Es lo unico que hace falta revisar antes de volver a escribir.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    import unicodedata
+
+    def clave(t):
+        t = unicodedata.normalize('NFD', (t or '').upper())
+        return ' '.join(''.join(c for c in t
+                                if unicodedata.category(c) != 'Mn').split())
+
+    cambios = [p for p in plan
+               if clave(p['nombre_actual']) != clave(p['nombre_nuevo'])]
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Cambios'
+    ws.append(['numero_expediente', 'nombre_en_la_base', 'nombre_nuevo',
+               'origen', 'revisar'])
+
+    for celda in ws[1]:
+        celda.font = Font(bold=True, color='FFFFFF')
+        celda.fill = PatternFill('solid', fgColor='1F4E79')
+
+    manual = PatternFill('solid', fgColor='E2EFDA')
+
+    for p in cambios:
+        ws.append([p['numero_expediente'], p['nombre_actual'],
+                   p['nombre_nuevo'], p['origen'], ''])
+        if p['origen'] == 'manual':
+            for celda in ws[ws.max_row]:
+                celda.fill = manual
+
+    for letra, ancho in (('A', 20), ('B', 44), ('C', 44), ('D', 12), ('E', 14)):
+        ws.column_dimensions[letra].width = ancho
+
+    ws.freeze_panes = 'A2'
+    ws.auto_filter.ref = ws.dimensions
+
+    salida = os.path.join(AQUI, 'cambios_de_nombre.xlsx')
+    wb.save(salida)
+
+    print('')
+    print('Expedientes cuyo nombre cambiaria: %d' % len(cambios))
+    print('Archivo: %s' % salida)
+    print('')
+    for p in cambios[:25]:
+        print('  %-14s %-38s -> %s' %
+              (p['numero_expediente'], p['nombre_actual'][:38], p['nombre_nuevo']))
+    if len(cambios) > 25:
+        print('  ... y %d mas en el Excel' % (len(cambios) - 25))
+    print('')
+
+
 def exportar_lista(filas, plan):
     """
     Hoja con el nombre final de los 390 expedientes, para revisar antes de
@@ -241,6 +300,8 @@ def main():
     ap.add_argument('--forzar', action='store_true',
                     help='tambien reescribe clientes que ya tienen nombre real')
     ap.add_argument('--revertir', metavar='ARCHIVO')
+    ap.add_argument('--cambios', action='store_true',
+                    help='exporta solo los expedientes cuyo nombre cambiaria')
     ap.add_argument('--lista', action='store_true',
                     help='exporta los 390 nombres finales a Excel para revisarlos')
     args = ap.parse_args()
@@ -252,6 +313,10 @@ def main():
         return
 
     filas, plan = construir(engine)
+
+    if args.cambios:
+        exportar_cambios(plan)
+        return
 
     if args.lista:
         exportar_lista(filas, plan)

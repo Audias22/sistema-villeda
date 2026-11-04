@@ -7,11 +7,23 @@ from datetime import datetime
 
 
 def _nombre_cliente(cliente):
+    """
+    Nombre completo del cliente, con los dos nombres y los dos apellidos.
+
+    Antes devolvia solo primer nombre y primer apellido, de modo que el
+    listado de expedientes mostraba un nombre distinto al de la pantalla de
+    clientes y dos personas de la misma familia se veian iguales.
+    """
     if not cliente:
         return None
+
     if cliente.razon_social:
         return cliente.razon_social
-    return ' '.join(filter(None, [cliente.primer_nombre, cliente.primer_apellido]))
+
+    partes = [cliente.primer_nombre, cliente.segundo_nombre,
+              cliente.primer_apellido, cliente.segundo_apellido]
+
+    return ' '.join(p.strip() for p in partes if p and p.strip())
 
 
 def _nombre_usuario(usuario):
@@ -133,10 +145,32 @@ def listar_expedientes(pagina=1, por_pagina=20, id_area=None, id_estado=None,
 
     if busqueda:
         termino = f"%{busqueda}%"
-        query = query.filter(
+
+        # Esta es la busqueda rapida del listado y NO deja registro en la
+        # tabla BUSQUEDAS, que es la que alimenta el analisis del Capitulo V.
+        # La busqueda instrumentada, con historial y criterio, sigue siendo
+        # la de POST /busquedas.
+        #
+        # Se incluye el nombre del cliente porque es lo primero que alguien
+        # escribe viendo el listado. Los cuatro campos se concatenan para que
+        # 'PEDRO HERNANDEZ' encuentre al cliente aunque el nombre y el
+        # apellido vivan en columnas distintas.
+        nombre_cliente = db.func.concat_ws(
+            ' ',
+            Cliente.primer_nombre,
+            Cliente.segundo_nombre,
+            Cliente.primer_apellido,
+            Cliente.segundo_apellido,
+        )
+
+        query = query.outerjoin(
+            Cliente, Cliente.id_cliente == Expediente.id_cliente
+        ).filter(
             db.or_(
                 Expediente.numero_expediente.ilike(termino),
-                Expediente.titulo.ilike(termino)
+                Expediente.titulo.ilike(termino),
+                nombre_cliente.ilike(termino),
+                Cliente.razon_social.ilike(termino),
             )
         )
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Upload, FileText } from 'lucide-react'
+import { ArrowLeft, Upload, FileText } from 'lucide-react'
 import { useFetch } from '../hooks/useFetch'
 import Card from '../components/common/Card'
 import Badge from '../components/common/Badge'
@@ -86,6 +86,13 @@ function ExpedienteDetalle() {
 
   return (
     <div>
+      {/* Vuelve a la pantalla anterior, que puede ser el listado de
+          expedientes o la ficha del cliente desde donde se entro. */}
+      <Button variant="secundario" onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
+        <ArrowLeft size={16} />
+        Volver
+      </Button>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1>{expediente.numero_expediente}</h1>
         <div style={{ display: 'flex', gap: 12 }}>
