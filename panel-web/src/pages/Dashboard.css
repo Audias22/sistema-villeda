@@ -17,14 +17,69 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow: hidden;
 }
 
-.metrica-card-icono {
+/* Filo de color propio de cada métrica, para distinguirlas de un vistazo */
+.metrica-card::before {
+  content: '';
   position: absolute;
-  top: 16px;
-  right: 16px;
-  color: var(--dorado);
-  opacity: 0.3;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--metrica-color, var(--dorado));
+}
+
+.metrica-card-burbuja {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: var(--metrica-fondo, var(--dorado-suave));
+  color: var(--metrica-color, var(--dorado));
+  transition: var(--transicion);
+}
+
+/* Las que llevan a otra pantalla se comportan como un control, no como texto */
+.metrica-card-enlace {
+  cursor: pointer;
+}
+
+.metrica-card-enlace:hover {
+  transform: translateY(-3px);
+  border-color: var(--metrica-color, var(--borde-medio));
+}
+
+.metrica-card-enlace:hover .metrica-card-burbuja {
+  transform: scale(1.08);
+}
+
+.metrica-card-enlace:focus-visible {
+  outline: 2px solid var(--metrica-color, var(--dorado));
+  outline-offset: 2px;
+}
+
+.metrica-card-azul   { --metrica-color: var(--info);        --metrica-fondo: var(--info-fondo); }
+.metrica-card-verde  { --metrica-color: var(--exito);       --metrica-fondo: var(--exito-fondo); }
+.metrica-card-dorado { --metrica-color: var(--advertencia); --metrica-fondo: var(--advertencia-fondo); }
+.metrica-card-morado { --metrica-color: var(--donacion);    --metrica-fondo: var(--donacion-fondo); }
+
+/* El número no debe saltar de ancho mientras cuenta */
+.metrica-card .metrica {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metrica-card-enlace:hover {
+    transform: none;
+  }
+  .metrica-card-enlace:hover .metrica-card-burbuja {
+    transform: none;
+  }
 }
 
 .dashboard-grafica-ancha {

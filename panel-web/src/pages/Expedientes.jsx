@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import Input from '../components/common/Input'
 import { useFetch } from '../hooks/useFetch'
@@ -20,6 +20,7 @@ const ID_AREA_NOTARIAL = 1
 
 function Expedientes() {
   const navigate = useNavigate()
+  const [parametrosUrl] = useSearchParams()
   const [pagina, setPagina] = useState(1)
   const [idTipo, setIdTipo] = useState('')
   const [idEstado, setIdEstado] = useState('')
@@ -35,6 +36,21 @@ function Expedientes() {
     params: { id_area: ID_AREA_NOTARIAL },
   })
   const { datos: estados } = useFetch('/catalogos/estados-expediente')
+
+  // El dashboard enlaza aquí con ?estado=Activo. Manda el nombre y no el id
+  // porque el endpoint del dashboard agrupa por nombre y no devuelve el id,
+  // así que se resuelve contra el catálogo ya cargado.
+  const estadoEnLaUrl = parametrosUrl.get('estado')
+
+  useEffect(() => {
+    if (!estadoEnLaUrl) return
+
+    const encontrado = estados?.estados_expediente?.find(
+      (e) => e.nombre?.toLowerCase() === estadoEnLaUrl.toLowerCase()
+    )
+
+    if (encontrado) setIdEstado(String(encontrado.id_estado))
+  }, [estadoEnLaUrl, estados])
   const { datos, cargando, recargar } = useFetch('/expedientes', {
     params: {
       pagina,

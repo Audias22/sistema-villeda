@@ -11,6 +11,8 @@
   cursor: pointer;
   transition: var(--transicion);
   white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .btn:active:not(:disabled) {

@@ -37,10 +37,12 @@ function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">
-        <span className="sidebar-sello">V</span>
-        <span className="sidebar-nombre">Villeda</span>
-      </div>
+      <NavLink to="/dashboard" className="sidebar-logo">
+        <img
+          src="/logo-villeda-blanco.png"
+          alt="Lic. Otto Ronaldo Villeda Portillo, Abogado y Notario"
+        />
+      </NavLink>
 
       <nav className="sidebar-nav">
         {items.map(({ to, label, icon: Icon }) => (

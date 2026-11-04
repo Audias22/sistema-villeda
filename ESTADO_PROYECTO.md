@@ -1167,8 +1167,22 @@ Se agrego `buscar_cliente_mismo_nombre` en `backend/app/clientes/services.py`, q
 La comparacion corre en Python y no en SQL para no depender de la extension `unaccent` en Supabase ni de una migracion de esquema a pocos dias de la defensa. Con 246 clientes el costo es irrelevante y solo se paga al crear o editar.
 
 Ademas se corrigio la causa humana del problema, que estaba en el buscador. `listar_clientes` comparaba campo por campo y ni siquiera miraba `segundo_nombre` ni `segundo_apellido`, de modo que escribir "Pedro Hernandez" no devolvia nada: quien no encontraba a la persona la volvia a crear. Ahora busca contra el nombre completo con `concat_ws`, igual que el listado de expedientes.
----
+**Rediseno del panel con la identidad del despacho (4 de noviembre de 2026).** El Lic. Villeda proporciono el logo de la oficina, un JPG de 395x395 en blanco y negro. Se le quito el fondo por canal alfa y se generaron dos versiones en `panel-web/public/`: `logo-villeda-blanco.png` para fondo oscuro y `logo-villeda.png` en azul notarial para fondo claro.
 
+**Login.** Paso de una tarjeta centrada a pantalla partida: a la izquierda la marca sobre un degradado azul con trama diagonal, vineta en las orillas y un marco de cuatro esquinas doradas alrededor del logo, a la derecha el acceso sobre blanco con el rotulo OFICINA JURIDICA VILLEDA en versalitas doradas. Los campos y el boton del login son mas altos que los del resto del panel a proposito: esa pantalla esta vacia y con la medida normal se veian pequenos. En menos de 860 px el panel se vuelve encabezado y el formulario queda debajo, sin maquetacion aparte.
+
+**Dashboard.** Las cuatro tarjetas de metrica dejaron de ser rotulos. Cada una lleva filo e icono en burbuja de su propio color, se levanta al pasar el mouse y **enlaza a donde esta ese dato**: total y activos al listado, documentos a Cargar documento y TBR a Reportes. Funcionan con Tab y Enter. Los numeros cuentan desde cero con `hooks/useConteoAnimado.js`, que respeta `prefers-reduced-motion`. Las filas de Ultimos expedientes abren el expediente al hacer clic.
+
+El enlace de activos apunta a `/expedientes?estado=Activo` y manda el **nombre**, no el id, porque el endpoint del dashboard agrupa `expedientes_por_estado` por nombre y no devuelve el id. `Expedientes.jsx` lo resuelve contra el catalogo ya cargado.
+
+**Sidebar.** El circulo dorado con la V y la palabra Villeda se reemplazaron por el logo real en blanco, que enlaza al dashboard. El menu ahora se desplaza si la pantalla es baja, en vez de aplastarse.
+
+**Favicon y titulo.** El favicon seguia siendo el morado de la plantilla de Vite y el titulo de la pestana decia `panel-web`. Se probo recortar el logo para el icono y **ninguna zona sobrevive legible a 32 px**, porque el texto se superpone en todas: el mazo arrastra "Lic. OTTO RO" y la V arrastra el nombre a los lados. Por eso el icono es tipografico, la V en DM Serif Display dorada sobre azul con borde dorado, legible hasta en 16 px. Titulo nuevo: `Oficina Villeda - Sistema de expedientes`, y `lang="es"` (estaba en `en`).
+
+**Correccion de un defecto real:** dos clics seguidos sobre el ojo de mostrar contrasena contaban como doble clic y el navegador seleccionaba la palabra mas cercana, que terminaba marcada en azul dentro del boton. Se corrigio con `user-select: none` en `.input-right` y en `.btn`, porque cualquier boton del panel tenia el mismo defecto.
+
+---
+
 ## NOTAS IMPORTANTES
 - El .env NUNCA se sube a GitHub — está en .gitignore
 - Los archivos .bin del modelo ML NUNCA van a GitHub

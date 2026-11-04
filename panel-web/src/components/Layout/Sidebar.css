@@ -9,30 +9,24 @@
   top: 0;
 }
 
+/* El logo del despacho, en su versión blanca, igual que en el login. Lleva al
+   dashboard, que es lo que uno espera al hacer clic en la marca. */
 .sidebar-logo {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 24px 20px;
-}
-
-.sidebar-sello {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--dorado);
-  color: var(--azul-notarial);
-  font-family: 'DM Serif Display', serif;
-  font-size: 18px;
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid rgba(212, 168, 83, 0.25);
+  transition: var(--transicion);
 }
 
-.sidebar-nombre {
-  font-family: 'DM Serif Display', serif;
-  font-size: 20px;
-  color: var(--dorado);
+.sidebar-logo img {
+  width: 100%;
+  max-width: 140px;
+  height: auto;
+}
+
+.sidebar-logo:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .sidebar-nav {
@@ -41,6 +35,8 @@
   flex-direction: column;
   gap: 2px;
   padding: 12px;
+  /* En pantallas bajas el menú se desplaza en lugar de aplastarse */
+  overflow-y: auto;
 }
 
 .sidebar-item {

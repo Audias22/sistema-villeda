@@ -45,6 +45,11 @@
   align-items: center;
   color: var(--texto-muted);
   cursor: pointer;
+  /* Dos clics seguidos sobre el icono cuentan como doble clic, y el navegador
+     responde seleccionando la palabra mas cercana. Pasaba al mostrar y ocultar
+     la contrasena varias veces seguidas. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .input-error {

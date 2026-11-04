@@ -42,3 +42,12 @@
 .table tbody tr:hover {
   background: #FAFAF8;
 }
+
+/* Filas que abren un detalle al hacer clic */
+.table tbody tr.fila-enlace {
+  cursor: pointer;
+}
+
+.table tbody tr.fila-enlace:hover {
+  background: var(--dorado-suave);
+}

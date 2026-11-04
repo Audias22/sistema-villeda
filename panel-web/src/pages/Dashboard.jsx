@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { FileText, FolderOpen, Upload, Gauge } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useFetch } from '../hooks/useFetch'
+import { useConteoAnimado } from '../hooks/useConteoAnimado'
 import Card from '../components/common/Card'
 import Skeleton from '../components/common/Skeleton'
 import Table from '../components/common/Table'
@@ -29,16 +31,52 @@ function saludo() {
   return 'Buenas noches'
 }
 
-function MetricaCard({ icono: Icono, valor, label, cargando }) {
+/**
+ * Tarjeta de métrica. Cuando recibe `destino` deja de ser un rótulo y pasa a
+ * ser una entrada: lleva a la pantalla donde está ese dato, que es lo que uno
+ * quiere hacer después de leer el número.
+ */
+function MetricaCard({ icono: Icono, valor, label, cargando, tono, destino, decimales = 0, sufijo = '' }) {
+  const navigate = useNavigate()
+  const animado = useConteoAnimado(cargando ? 0 : valor)
+
+  const irAlDestino = destino ? () => navigate(destino) : undefined
+
   return (
     <motion.div variants={tarjeta}>
-      <Card hover className="metrica-card">
-        <Icono className="metrica-card-icono" size={28} />
+      <Card
+        hover
+        className={`metrica-card metrica-card-${tono}${destino ? ' metrica-card-enlace' : ''}`}
+        onClick={irAlDestino}
+        role={destino ? 'button' : undefined}
+        tabIndex={destino ? 0 : undefined}
+        onKeyDown={
+          destino
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  navigate(destino)
+                }
+              }
+            : undefined
+        }
+      >
+        <span className="metrica-card-burbuja">
+          <Icono size={20} />
+        </span>
+
         {cargando ? (
-          <Skeleton width="60px" height="28px" />
+          <Skeleton width="72px" height="30px" />
         ) : (
-          <span className="metrica">{valor}</span>
+          <span className="metrica">
+            {animado.toLocaleString('es-GT', {
+              minimumFractionDigits: decimales,
+              maximumFractionDigits: decimales,
+            })}
+            {sufijo}
+          </span>
         )}
+
         <span className="label">{label}</span>
       </Card>
     </motion.div>
@@ -46,6 +84,7 @@ function MetricaCard({ icono: Icono, valor, label, cargando }) {
 }
 
 function Dashboard() {
+  const navigate = useNavigate()
   const { usuario } = useAuth()
   const { datos: dashboard, cargando: cargandoDashboard } = useFetch('/reportes/dashboard')
   const { datos: expedientesRecientes, cargando: cargandoExpedientes } = useFetch('/expedientes', {
@@ -68,27 +107,37 @@ function Dashboard() {
       <motion.div className="dashboard-metricas" variants={contenedor} initial="hidden" animate="show">
         <MetricaCard
           icono={FolderOpen}
+          tono="azul"
           valor={dashboard?.totales?.expedientes ?? 0}
           label="Total expedientes"
           cargando={cargandoDashboard}
+          destino="/expedientes"
         />
         <MetricaCard
           icono={FileText}
+          tono="verde"
           valor={expedientesActivos ?? 0}
           label="Expedientes activos"
           cargando={cargandoDashboard}
+          destino="/expedientes?estado=Activo"
         />
         <MetricaCard
           icono={Upload}
+          tono="dorado"
           valor={dashboard?.totales?.documentos ?? 0}
           label="Documentos cargados"
           cargando={cargandoDashboard}
+          destino="/cargar"
         />
         <MetricaCard
           icono={Gauge}
-          valor={`${dashboard?.tbr?.promedio_ms ?? 0} ms`}
+          tono="morado"
+          valor={dashboard?.tbr?.promedio_ms ?? 0}
           label="TBR promedio"
           cargando={cargandoDashboard}
+          decimales={2}
+          sufijo=" ms"
+          destino="/reportes"
         />
       </motion.div>
 
@@ -149,7 +198,11 @@ function Dashboard() {
                 </tr>
               ))
             : expedientesRecientes?.expedientes?.map((exp) => (
-                <tr key={exp.id_expediente}>
+                <tr
+                  key={exp.id_expediente}
+                  className="fila-enlace"
+                  onClick={() => navigate(`/expedientes/${exp.id_expediente}`)}
+                >
                   <td>{exp.numero_expediente}</td>
                   <td>{exp.cliente_nombre || '—'}</td>
                   <td>

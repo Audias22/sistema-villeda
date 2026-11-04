@@ -38,42 +38,62 @@ function Login() {
 
   return (
     <div className="login-page">
-      <div className="login-card">
-        <div className="login-sello">V</div>
-        <h1 className="login-titulo">Oficina Villeda</h1>
-        <p className="login-subtitulo">Sistema de gestión de expedientes</p>
+      <aside className="login-marca">
+        <div className="login-marca-contenido">
+          <div className="login-marco">
+            <span /><span /><span /><span />
+            <img
+              className="login-logo"
+              src="/logo-villeda-blanco.png"
+              alt="Lic. Otto Ronaldo Villeda Portillo, Abogado y Notario"
+            />
+          </div>
+          <p className="login-lema">Sistema de gestión y clasificación de expedientes notariales</p>
+        </div>
+      </aside>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <Input
-            id="nombre_usuario"
-            label="Usuario"
-            type="text"
-            placeholder="Ingresa tu usuario"
-            value={nombreUsuario}
-            onChange={(e) => setNombreUsuario(e.target.value)}
-            required
-          />
+      <main className="login-acceso">
+        <div className="login-form-caja">
+          <p className="login-despacho">Oficina Jurídica Villeda</p>
+          <h1 className="login-titulo">Bienvenido</h1>
+          <p className="login-subtitulo">Ingrese sus credenciales para continuar</p>
 
-          <Input
-            id="contrasena"
-            label="Contraseña"
-            type={mostrarContrasena ? 'text' : 'password'}
-            placeholder="Ingresa tu contraseña"
-            value={contrasena}
-            onChange={(e) => setContrasena(e.target.value)}
-            required
-            rightElement={
-              <span onClick={() => setMostrarContrasena((v) => !v)}>
-                {mostrarContrasena ? <EyeOff size={18} /> : <Eye size={18} />}
-              </span>
-            }
-          />
+          <form className="login-form" onSubmit={handleSubmit}>
+            <Input
+              id="nombre_usuario"
+              label="Usuario"
+              type="text"
+              placeholder="Ingresa tu usuario"
+              value={nombreUsuario}
+              onChange={(e) => setNombreUsuario(e.target.value)}
+              autoComplete="username"
+              required
+            />
 
-          <Button type="submit" variant="acento" fullWidth disabled={cargando}>
-            {cargando ? 'Ingresando...' : 'Iniciar sesión'}
-          </Button>
-        </form>
-      </div>
+            <Input
+              id="contrasena"
+              label="Contraseña"
+              type={mostrarContrasena ? 'text' : 'password'}
+              placeholder="Ingresa tu contraseña"
+              value={contrasena}
+              onChange={(e) => setContrasena(e.target.value)}
+              autoComplete="current-password"
+              required
+              rightElement={
+                <span onClick={() => setMostrarContrasena((v) => !v)}>
+                  {mostrarContrasena ? <EyeOff size={18} /> : <Eye size={18} />}
+                </span>
+              }
+            />
+
+            <Button type="submit" variant="acento" fullWidth disabled={cargando}>
+              {cargando ? 'Ingresando...' : 'Iniciar sesión'}
+            </Button>
+          </form>
+
+          <p className="login-pie">San Diego, Zacapa &middot; Guatemala</p>
+        </div>
+      </main>
     </div>
   )
 }
