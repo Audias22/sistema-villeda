@@ -9,10 +9,17 @@ import { nombreCompletoCliente } from '../utils/formatters'
 
 const HOY = new Date().toISOString().slice(0, 10)
 
+// id_area del área Notarial. El despacho trabaja sobre todo el protocolo, así
+// que el formulario abre con Notarial puesta y solo queda elegir el tipo. Las
+// otras tres áreas siguen en el selector: el sistema conserva la capacidad de
+// registrar expedientes civiles, laborales y penales, que el despacho también
+// atiende, y lo que es exclusivamente notarial es la clasificación con IA.
+const ID_AREA_NOTARIAL = 1
+
 const VACIO = {
   titulo: '',
   descripcion: '',
-  id_area: '',
+  id_area: String(ID_AREA_NOTARIAL),
   id_tipo_expediente: '',
   prioridad: '',
   fecha_apertura: HOY,

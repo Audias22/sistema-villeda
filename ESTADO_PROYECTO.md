@@ -1158,8 +1158,8 @@ Verificado en local contra el panel: inicio de sesión correcto (CORS), cinco re
 
 **Panel web.** Se agrego boton de regreso en el detalle de cliente y de expediente, que no existia en ninguna pantalla. En el detalle de cliente, barra de filtros por tipo de acto, anio y rango de fechas con calendario nativo, trabajando sobre los expedientes ya cargados sin pedir nada al servidor. En el listado de expedientes, buscador rapido que consulta `GET /expedientes?busqueda=`, ampliado en el backend para incluir el nombre del cliente concatenando los cuatro campos. **Esa ruta NO deja registro en la tabla BUSQUEDAS**, que es la que alimenta el Capitulo V: la busqueda instrumentada, con criterio e historial, sigue siendo la de `POST /busquedas` en la pantalla Busqueda. Es el mismo criterio que ya se habia aplicado al buscador de la app movil. Ademas `_nombre_cliente` pasa a devolver el nombre completo con los dos nombres y los dos apellidos, para que el listado coincida con la pantalla de clientes.
 
-**Aviso para la defensa:** cada uso de la pantalla Busqueda inserta una fila en `busquedas`. El analisis del Capitulo V esta cerrado sobre 194 registros, de modo que si se consulta la tabla en vivo habra mas. Conviene declararlo antes de que lo pregunten: el estudio esta cerrado sobre esas 194 mediciones y lo posterior es uso normal del sistema.
-
+**Aviso para la defensa:** cada uso de la pantalla Busqueda inserta una fila en `busquedas`. El analisis del Capitulo V esta cerrado sobre 194 registros, de modo que si se consulta la tabla en vivo habra mas. Conviene declararlo antes de que lo pregunten: el estudio esta cerrado sobre esas 194 mediciones y lo posterior es uso normal del sistema.
+
 **Prevencion de duplicados (3 de noviembre de 2026).** Cerrar el agujero exigia distinguir dos cosas que se confundian. La carga masiva no es la que duplica: crea `Cliente 391`, `Cliente 392` y asi, con una secuencia atomica, y esos registros nunca chocan entre si. El duplicado nace cuando una persona se registra a mano y ya estaba en la base, que es justamente lo que produjo los 144 casos al ponerle nombre real a cada placeholder. El punto a cubrir, entonces, es la creacion y la edicion manual.
 
 Se agrego `buscar_cliente_mismo_nombre` en `backend/app/clientes/services.py`, que compara el nombre completo normalizado a mayusculas, sin tildes y sin espacios sobrantes, exactamente el mismo criterio con que se agruparon los 65 grupos de la unificacion. La diferencia de trato importa y es deliberada: un DPI repetido es un impedimento real y sigue bloqueando, mientras que un nombre repetido es solo un aviso, porque dos personas distintas si pueden llamarse igual. El 409 ahora lleva `motivo` y `bloqueante`, y el panel abre una ventana modal con dos salidas segun el caso: "Usar el cliente existente" o "Registrar de todos modos", que reenvia la peticion con `permitir_nombre_duplicado`. El aviso empezo como un bloque dentro del formulario y se cambio a modal porque quedaba abajo y habia que bajar la pagina para verlo. **Se monta con `createPortal` sobre `document.body`, no dentro del formulario:** `ClienteFormulario` tambien se usa en modo compacto dentro del modal de Nuevo expediente, y `.modal-content` recorta con `overflow-y: auto`, de modo que un overlay anidado quedaba atrapado dentro de esa caja. Por eso `.aviso-duplicado-fondo` lleva z-index 1100, por encima del 1000 de `.modal-overlay`. Ese campo se declaro en `ClienteSchema` porque marshmallow rechaza lo que no conoce, y no llega al modelo: la creacion asigna columna por columna y la edicion filtra contra `campos_permitidos`. En el PUT, que puede venir parcial, se compara el nombre que **quedaria** despues del cambio y no solo los campos enviados, porque editar unicamente el segundo apellido tambien puede crear un duplicado.
@@ -1181,8 +1181,26 @@ El enlace de activos apunta a `/expedientes?estado=Activo` y manda el **nombre**
 
 **Correccion de un defecto real:** dos clics seguidos sobre el ojo de mostrar contrasena contaban como doble clic y el navegador seleccionaba la palabra mas cercana, que terminaba marcada en azul dentro del boton. Se corrigio con `user-select: none` en `.input-right` y en `.btn`, porque cualquier boton del panel tenia el mismo defecto.
 
----
-
+---
+
+**Catalogo notarial reducido a cuatro tipos (4 de noviembre de 2026).** Mandato (id_tipo 2) y Matrimonio (id_tipo 17) quedaron **inactivos** en `tipos_expediente`. Se verifico antes con un SELECT que ninguno de los dos tenia un solo expediente: Compraventa 160, Donacion 65, Declaracion Jurada 148 y Otro 17 suman los 390. Testamento (3) y Acta notarial (4) ya estaban inactivos desde antes, asi que desactivar es el mecanismo normal de este catalogo.
+
+```sql
+UPDATE tipos_expediente SET activo = false WHERE id_tipo IN (2, 17);
+```
+
+**No se toco una sola linea de codigo y el cambio se propago solo**, al panel y a la app movil: `listar_tipos_expediente` filtra por `activo=True` y la grafica del dashboard tambien, de modo que los nueve consumidores del catalogo --filtros de Expedientes, Busqueda, Reportes, Nuevo expediente, el modal de confirmacion y las tres pantallas moviles-- quedaron alineados sin redesplegar nada. El mock del clasificador lee los tipos del catalogo justamente para esto, y el modelo real de Modal ya traducia solo cuatro clases en `MAPEO_CLASE_A_TIPO`, sin Mandato ni Matrimonio.
+
+**Lo que esto gana para la defensa:** el sistema queda declarando los mismos cuatro tipos de la Tabla 26 y las mismas cuatro clases del modelo real, con lo que desaparece la incoherencia entre el alcance de seis subtipos del Capitulo IV y los cuatro que se documentan en el Capitulo V. Si preguntan por Mandato y Matrimonio: tenian muy pocos casos para sostener una clase propia y quedaron agrupados en Otro. Para revertirlo basta con volver a poner `activo = true`.
+
+Queda desalineado un dato informativo que no afecta el funcionamiento: `modelos_ml` id 3 (el mock) sigue con `num_clases = 6`. En produccion corre el modelo de Modal, no el mock.
+
+**Area Notarial preseleccionada al crear expediente (4 de noviembre de 2026).** `NuevoExpedienteModal` abre con Notarial puesta, de modo que solo queda elegir el tipo y el selector de tipos carga de entrada en vez de esperar a que se elija el area.
+
+**Se evaluo desactivar Civil, Laboral y Penal y se decidio NO hacerlo.** No es el mismo caso que Mandato y Matrimonio: aquellos eran opciones que el modelo nunca predice y sin un solo expediente, mientras que las areas son capacidad real. El despacho atiende casos notariales, laborales, civiles y penales, `expedientes.id_area` es NOT NULL, y desactivarlas dejaria sin donde registrar un caso laboral el dia que llegue. Ademas ante la terna se sostiene mejor que el sistema gestiona las cuatro areas del despacho y que el modelo se especializo en los actos notariales porque el protocolo es 100% notarial, que explicar por que un sistema de gestion juridica solo admite una rama del derecho. La preseleccion resuelve la molestia sin amputar nada.
+
+---
+
 ## NOTAS IMPORTANTES
 - El .env NUNCA se sube a GitHub — está en .gitignore
 - Los archivos .bin del modelo ML NUNCA van a GitHub
