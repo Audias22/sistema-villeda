@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { UploadCloud, FileText, AlertTriangle } from 'lucide-react'
+import { UploadCloud, FileText, AlertTriangle, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import Card from '../components/common/Card'
 import Button from '../components/common/Button'
 import api from '../services/api'
@@ -11,6 +11,7 @@ const EXTENSIONES_PERMITIDAS = ['pdf', 'jpg', 'jpeg', 'png']
 
 function CargarDocumento() {
   const location = useLocation()
+  const navigate = useNavigate()
   const inputRef = useRef(null)
 
   const [busquedaExpediente, setBusquedaExpediente] = useState('')
@@ -52,6 +53,17 @@ function CargarDocumento() {
     }
     setArchivo(file)
     setResultado(null)
+  }
+
+  /**
+   * Deja listo el formulario para el siguiente archivo del MISMO expediente,
+   * que es el caso normal cuando se digitaliza: varios documentos seguidos.
+   */
+  const cargarOtro = () => {
+    setArchivo(null)
+    setResultado(null)
+    setProgreso(0)
+    if (inputRef.current) inputRef.current.value = ''
   }
 
   const quitarArchivo = () => {
@@ -107,8 +119,19 @@ function CargarDocumento() {
     }
   }
 
+  // Se llega aquí desde el detalle de un expediente o desde el menú. Solo en
+  // el primer caso hay a dónde volver.
+  const vinoDeUnExpediente = Boolean(location.state?.idExpediente)
+
   return (
     <div>
+      {vinoDeUnExpediente && (
+        <Button variant="secundario" onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
+          <ArrowLeft size={16} />
+          Volver
+        </Button>
+      )}
+
       <h1>Cargar documento</h1>
 
       <Card style={{ marginTop: 20, maxWidth: 640 }}>
@@ -205,10 +228,15 @@ function CargarDocumento() {
 
         {resultado && (
           <div className="resultado-ocr">
-            {resultado.aviso && (
+            {resultado.aviso ? (
               <div className="resultado-aviso">
                 <AlertTriangle size={16} />
                 <span>{resultado.aviso}</span>
+              </div>
+            ) : (
+              <div className="resultado-listo">
+                <CheckCircle2 size={16} />
+                <span>El documento quedó guardado en {expedienteSeleccionado?.numero_expediente}</span>
               </div>
             )}
             <div className="detalle-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
@@ -220,6 +248,21 @@ function CargarDocumento() {
                 <span className="label">Tamaño</span>
                 <p>{Math.round(resultado.tamano_bytes / 1024)} KB</p>
               </div>
+            </div>
+
+            {/* Antes la pantalla terminaba en estos dos numeros y no decia a
+                donde ir. Estas son las dos cosas que uno quiere hacer despues
+                de cargar: revisar el expediente, o seguir subiendo. */}
+            <div className="resultado-acciones">
+              <Button
+                variant="acento"
+                onClick={() => navigate(`/expedientes/${expedienteSeleccionado.id_expediente}`)}
+              >
+                Ver el expediente
+              </Button>
+              <Button variant="secundario" onClick={cargarOtro}>
+                Cargar otro documento
+              </Button>
             </div>
           </div>
         )}

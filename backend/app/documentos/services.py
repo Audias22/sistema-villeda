@@ -12,7 +12,7 @@ except ImportError:
 from app import db
 from app.documentos.models import Documento
 from app.ocr.services import calcular_hash, procesar_archivo
-from app.services.r2_service import subir_archivo, obtener_url_firmada
+from app.services.r2_service import subir_archivo, obtener_url_firmada, eliminar_archivo
 
 
 def _log_memoria(etapa):
@@ -214,3 +214,120 @@ def obtener_url_descarga(id_documento):
 
     url = obtener_url_firmada(documento.ruta_almacenamiento)
     return url, None
+
+# ---------------------------------------------------------------------------
+# Borrado
+# ---------------------------------------------------------------------------
+#
+# Existe para poder retirar un archivo subido por error sin tener que entrar a
+# Supabase y a Cloudflare a mano. Es borrado real y no un estado "inactivo":
+# el objeto sale de R2, porque la basura que molesta es justamente la que
+# sigue ocupando el bucket y contando en los totales del dashboard.
+#
+# La trazabilidad no se pierde: antes de borrar se arma una instantanea que la
+# ruta guarda en la tabla de auditoria, con quien, que y cuando.
+
+
+def instantanea_documento(documento):
+    """Lo que vale la pena conservar en auditoria de un documento que se va."""
+    if not documento:
+        return None
+
+    return {
+        'id_documento':            documento.id_documento,
+        'id_expediente':           documento.id_expediente,
+        'nombre_archivo_original': documento.nombre_archivo_original,
+        'nombre_archivo_sistema':  documento.nombre_archivo_sistema,
+        'ruta_almacenamiento':     documento.ruta_almacenamiento,
+        'tamano_bytes':            documento.tamano_bytes,
+        'num_paginas':             documento.num_paginas,
+        'hash_archivo':            documento.hash_archivo,
+        'es_duplicado_exacto':     documento.es_duplicado_exacto,
+        'cargado_por':             documento.cargado_por,
+    }
+
+
+def desvincular_documento(documento):
+    """
+    Suelta todo lo que apunta al documento y borra su fila. NO hace commit y
+    NO toca R2: devuelve la key del archivo para que el llamador la borre
+    despues de que la transaccion haya quedado confirmada.
+
+    El orden no es arbitrario. `clasificaciones_ml.id_documento` es NOT NULL y
+    no admite quedar en nulo, de modo que esas filas se borran con el
+    documento. Las notificaciones y el trabajo de clasificacion si aceptan
+    nulo y se conservan como historial: pierden la referencia pero queda el
+    registro de que el archivo paso por ahi. Lo mismo con los duplicados que
+    senalen a este documento como original.
+
+    Los imports van adentro a proposito: `clasificacion.services` ya importa de
+    este modulo y hacerlos arriba seria un import circular.
+    """
+    from app.clasificacion.models import ClasificacionML, TrabajoClasificacion
+    from app.notificaciones.models import Notificacion
+
+    id_documento = documento.id_documento
+    key = documento.ruta_almacenamiento
+
+    ClasificacionML.query.filter_by(id_documento=id_documento).delete(synchronize_session=False)
+
+    Notificacion.query.filter_by(id_documento=id_documento).update(
+        {'id_documento': None}, synchronize_session=False
+    )
+    TrabajoClasificacion.query.filter_by(id_documento_creado=id_documento).update(
+        {'id_documento_creado': None}, synchronize_session=False
+    )
+    Documento.query.filter_by(id_documento_original=id_documento).update(
+        {'id_documento_original': None}, synchronize_session=False
+    )
+
+    db.session.delete(documento)
+
+    return key
+
+
+def eliminar_documento(id_documento):
+    """
+    Borra un documento y su archivo. Devuelve (instantanea, error).
+
+    El commit va ANTES de tocar R2 y no al reves. Si se borrara primero el
+    objeto y la transaccion fallara despues, quedaria una fila apuntando a un
+    archivo inexistente, que es el peor final: el documento se ve en la lista
+    y revienta al abrirlo. Al reves, lo peor que queda es un objeto huerfano en
+    el bucket, que no se ve desde el sistema y se puede limpiar luego.
+    """
+    documento = Documento.query.get(id_documento)
+    if not documento:
+        return None, "Documento no encontrado"
+
+    datos = instantanea_documento(documento)
+
+    try:
+        key = desvincular_documento(documento)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.exception("[borrado] fallo al borrar el documento %s", id_documento)
+        return None, f"No se pudo borrar el documento: {e}"
+
+    _borrar_de_r2(key, id_documento)
+
+    return datos, None
+
+
+def _borrar_de_r2(key, referencia):
+    """
+    Quita el objeto del bucket. Un fallo aca no revierte nada ni se le informa
+    al usuario como error: la fila ya se borro y el archivo quedo inalcanzable
+    desde el sistema. Se deja en el log para poder limpiarlo despues.
+    """
+    if not key:
+        return
+
+    try:
+        eliminar_archivo(key)
+    except Exception:
+        logging.exception(
+            "[borrado] la fila %s se borro pero su objeto de R2 quedo huerfano: %s",
+            referencia, key
+        )

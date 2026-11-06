@@ -62,3 +62,25 @@
   font-size: 13px;
   margin-bottom: 16px;
 }
+
+.resultado-listo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--exito-fondo);
+  color: var(--exito);
+  border-radius: var(--radio-md);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* La pantalla terminaba sin decir a dónde ir después de cargar */
+.resultado-acciones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--borde-suave);
+}

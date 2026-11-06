@@ -4,16 +4,39 @@ from marshmallow import ValidationError
 import json
 
 from app.common.decorators import require_permission
+from app.common.peticion import obtener_ip_cliente, PLATAFORMA_WEB
+from app.auditoria.services import registrar_auditoria_segura
 from .schemas import DocumentoUploadSchema, DocumentoUpdateSchema
 from .services import (
     cargar_documento,
     listar_documentos_por_expediente,
     obtener_documento_por_id,
     actualizar_estado_fisico,
-    obtener_url_descarga
+    obtener_url_descarga,
+    eliminar_documento
 )
 
 documentos_bp = Blueprint('documentos', __name__)
+
+# Solo el Administrador borra. El borrado es definitivo y en un sistema donde
+# los expedientes son la evidencia del despacho conviene que la capacidad de
+# destruirla no este repartida. No se creo un permiso nuevo para no tener que
+# migrar la tabla de permisos a dos dias de la defensa: si mas adelante se
+# quiere un `eliminar_documento` propio, se agrega y se cambia el decorador.
+ROL_ADMINISTRADOR = 'Administrador'
+
+
+def _es_administrador(identity):
+    """
+    El token lleva id_rol, no el nombre del rol, asi que el nombre se resuelve
+    contra la tabla. Import diferido para no cargar modelos en la cabecera de
+    un modulo de rutas.
+    """
+    from app.common.models import Rol
+
+    rol = Rol.query.get(identity.get('id_rol'))
+    return rol is not None and rol.nombre_rol == ROL_ADMINISTRADOR
+
 
 
 @documentos_bp.route('/api/v1/documentos', methods=['POST'])
@@ -110,3 +133,33 @@ def actualizar(id_documento):
         return jsonify({'error': error}), 404
 
     return jsonify({'documento': documento.to_dict()}), 200
+
+
+@documentos_bp.route('/api/v1/documentos/<int:id_documento>', methods=['DELETE'])
+@require_permission('gestionar_expedientes')
+def eliminar(id_documento):
+    """Borra el documento y su archivo de R2. Queda constancia en auditoria."""
+    identity = json.loads(get_jwt_identity())
+
+    if not _es_administrador(identity):
+        return jsonify({'error': 'Solo un administrador puede eliminar documentos'}), 403
+
+    datos, error = eliminar_documento(id_documento)
+
+    if error:
+        return jsonify({'error': error}), 404 if error == "Documento no encontrado" else 400
+
+    registrar_auditoria_segura(
+        id_usuario=identity['id_usuario'],
+        tabla_afectada='documentos',
+        id_registro=id_documento,
+        accion='DELETE',
+        datos_anteriores=datos,
+        ip_address=obtener_ip_cliente(),
+        plataforma=PLATAFORMA_WEB
+    )
+
+    return jsonify({
+        'mensaje': f"Se eliminó {datos['nombre_archivo_original']}",
+        'documento': datos
+    }), 200

@@ -4,6 +4,8 @@ from marshmallow import ValidationError
 import json
 
 from app.common.decorators import require_permission
+from app.common.peticion import obtener_ip_cliente, PLATAFORMA_WEB
+from app.auditoria.services import registrar_auditoria_segura
 from .schemas import ExpedienteSchema, ExpedienteUpdateSchema, ExpedienteCerrarSchema
 from .services import (
     crear_expediente,
@@ -12,10 +14,31 @@ from .services import (
     actualizar_expediente,
     cambiar_estado_expediente,
     serializar_expediente,
-    serializar_lista_expedientes
+    serializar_lista_expedientes,
+    eliminar_expediente
 )
 
 expedientes_bp = Blueprint('expedientes', __name__)
+
+# Solo el Administrador borra. El borrado es definitivo y en un sistema donde
+# los expedientes son la evidencia del despacho conviene que la capacidad de
+# destruirla no este repartida. No se creo un permiso nuevo para no tener que
+# migrar la tabla de permisos a dos dias de la defensa: si mas adelante se
+# quiere un `eliminar_documento` propio, se agrega y se cambia el decorador.
+ROL_ADMINISTRADOR = 'Administrador'
+
+
+def _es_administrador(identity):
+    """
+    El token lleva id_rol, no el nombre del rol, asi que el nombre se resuelve
+    contra la tabla. Import diferido para no cargar modelos en la cabecera de
+    un modulo de rutas.
+    """
+    from app.common.models import Rol
+
+    rol = Rol.query.get(identity.get('id_rol'))
+    return rol is not None and rol.nombre_rol == ROL_ADMINISTRADOR
+
 
 
 @expedientes_bp.route('/api/v1/expedientes', methods=['POST'])
@@ -128,3 +151,40 @@ def cambiar_estado(id_expediente):
         return jsonify({'error': error}), codigo
 
     return jsonify({'expediente': serializar_expediente(expediente)}), 200
+
+
+@expedientes_bp.route('/api/v1/expedientes/<int:id_expediente>', methods=['DELETE'])
+@require_permission('gestionar_expedientes')
+def eliminar(id_expediente):
+    """
+    Borra el expediente completo: sus documentos, los archivos de R2 y, si
+    quedo huerfano, el cliente placeholder que creo la clasificacion
+    automatica. Queda constancia en auditoria.
+    """
+    identity = json.loads(get_jwt_identity())
+
+    if not _es_administrador(identity):
+        return jsonify({'error': 'Solo un administrador puede eliminar expedientes'}), 403
+
+    resumen, error = eliminar_expediente(id_expediente)
+
+    if error:
+        return jsonify({'error': error}), 404 if error == "Expediente no encontrado" else 400
+
+    registrar_auditoria_segura(
+        id_usuario=identity['id_usuario'],
+        tabla_afectada='expedientes',
+        id_registro=id_expediente,
+        accion='DELETE',
+        datos_anteriores=resumen,
+        ip_address=obtener_ip_cliente(),
+        plataforma=PLATAFORMA_WEB
+    )
+
+    numero = resumen['expediente']['numero_expediente']
+    cuantos = len(resumen['documentos'])
+
+    return jsonify({
+        'mensaje': f"Se eliminó el expediente {numero} y sus {cuantos} documento(s)",
+        'resumen': resumen
+    }), 200

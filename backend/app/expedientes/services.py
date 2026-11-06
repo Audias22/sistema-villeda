@@ -1,3 +1,5 @@
+import logging
+
 from app import db
 from app.expedientes.models import Expediente
 from app.common.models import Rol, AreaJuridica, EstadoExpediente, TipoExpediente, Prioridad
@@ -236,3 +238,100 @@ def cambiar_estado_expediente(id_expediente, nuevo_estado, id_usuario, fecha_cie
     db.session.commit()
 
     return expediente, None
+
+# ---------------------------------------------------------------------------
+# Borrado
+# ---------------------------------------------------------------------------
+
+
+def instantanea_expediente(expediente):
+    """Lo que se conserva en auditoria de un expediente que se va."""
+    if not expediente:
+        return None
+
+    return {
+        'id_expediente':     expediente.id_expediente,
+        'numero_expediente': expediente.numero_expediente,
+        'titulo':            expediente.titulo,
+        'id_cliente':        expediente.id_cliente,
+        'id_area':           expediente.id_area,
+        'id_tipo_expediente': expediente.id_tipo_expediente,
+        'id_estado':         expediente.id_estado,
+    }
+
+
+def eliminar_expediente(id_expediente):
+    """
+    Borra un expediente con todos sus documentos y los archivos de R2.
+
+    Pensado para retirar una prueba completa: la clasificacion automatica crea
+    documento, expediente y cliente placeholder de un solo golpe, de modo que
+    borrar solo el archivo dejaria un expediente vacio y un "Cliente NNN"
+    colgando, que es justo la basura que se quiere evitar.
+
+    Por eso, si el cliente queda sin ningun expediente Y es uno de esos
+    placeholders generados (primer_nombre 'Cliente'), se va tambien. Un cliente
+    con nombre real nunca se toca, aunque quede sin expedientes: lo cargo una
+    persona y borrarlo no es decision de esta operacion.
+
+    Devuelve (resumen, error).
+    """
+    from app.clasificacion.models import TrabajoClasificacion
+    from app.notificaciones.models import Notificacion
+    from app.documentos.models import Documento
+    from app.documentos.services import (
+        desvincular_documento, instantanea_documento, _borrar_de_r2
+    )
+
+    expediente = Expediente.query.get(id_expediente)
+    if not expediente:
+        return None, "Expediente no encontrado"
+
+    documentos = Documento.query.filter_by(id_expediente=id_expediente).all()
+
+    resumen = {
+        'expediente': instantanea_expediente(expediente),
+        'documentos': [instantanea_documento(d) for d in documentos],
+        'cliente_placeholder_borrado': None,
+    }
+
+    id_cliente = expediente.id_cliente
+
+    try:
+        claves = [desvincular_documento(d) for d in documentos]
+
+        Notificacion.query.filter_by(id_expediente=id_expediente).update(
+            {'id_expediente': None}, synchronize_session=False
+        )
+        TrabajoClasificacion.query.filter_by(id_expediente_creado=id_expediente).update(
+            {'id_expediente_creado': None}, synchronize_session=False
+        )
+        Expediente.query.filter_by(id_expediente_original=id_expediente).update(
+            {'id_expediente_original': None}, synchronize_session=False
+        )
+
+        db.session.delete(expediente)
+        db.session.flush()
+
+        cliente = Cliente.query.get(id_cliente) if id_cliente else None
+        es_placeholder = cliente is not None and cliente.primer_nombre == 'Cliente'
+
+        if es_placeholder:
+            le_quedan = Expediente.query.filter_by(id_cliente=id_cliente).count()
+            if le_quedan == 0:
+                resumen['cliente_placeholder_borrado'] = {
+                    'id_cliente': cliente.id_cliente,
+                    'nombre': f"{cliente.primer_nombre} {cliente.primer_apellido}",
+                }
+                db.session.delete(cliente)
+
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.exception("[borrado] fallo al borrar el expediente %s", id_expediente)
+        return None, f"No se pudo borrar el expediente: {e}"
+
+    for clave in claves:
+        _borrar_de_r2(clave, f"expediente {id_expediente}")
+
+    return resumen, None

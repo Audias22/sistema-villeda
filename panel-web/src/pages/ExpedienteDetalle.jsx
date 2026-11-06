@@ -11,6 +11,8 @@ import Table from '../components/common/Table'
 import EmptyState from '../components/common/EmptyState'
 import Modal from '../components/common/Modal'
 import Input from '../components/common/Input'
+import BotonEliminar from '../components/common/BotonEliminar'
+import { useAuth } from '../hooks/useAuth'
 import api from '../services/api'
 import { formatearFecha, formatearFechaHora, areaClaseCss, tipoClaseCss, estadoClaseCss } from '../utils/formatters'
 import './ExpedienteDetalle.css'
@@ -26,16 +28,23 @@ const TRANSICIONES_VALIDAS = {
 function ExpedienteDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { usuario } = useAuth()
   const [modalEstadoAbierto, setModalEstadoAbierto] = useState(false)
   const [nuevoEstado, setNuevoEstado] = useState('')
   const [fechaCierre, setFechaCierre] = useState(new Date().toISOString().slice(0, 10))
   const [enviando, setEnviando] = useState(false)
 
   const { datos: detalle, cargando, recargar } = useFetch(`/expedientes/${id}`)
-  const { datos: docsData, cargando: cargandoDocs } = useFetch(`/expedientes/${id}/documentos`)
+  const { datos: docsData, cargando: cargandoDocs, recargar: recargarDocs } = useFetch(
+    `/expedientes/${id}/documentos`
+  )
   const { datos: estadosData } = useFetch('/catalogos/estados-expediente')
 
   const expediente = detalle?.expediente
+
+  // El borrado es definitivo y saca el archivo de R2, que no tiene papelera.
+  // El backend lo restringe igual: esto solo evita mostrar un boton que daria 403.
+  const puedeEliminar = usuario?.rol === 'Administrador'
 
   const estadosDisponibles = (estadosData?.estados_expediente || []).filter((e) =>
     (TRANSICIONES_VALIDAS[expediente?.id_estado] || []).includes(e.id_estado)
@@ -47,6 +56,34 @@ function ExpedienteDetalle() {
       window.open(data.url_descarga, '_blank')
     } catch (error) {
       toast.error(error.response?.data?.error || 'No se pudo obtener el archivo')
+    }
+  }
+
+  const handleEliminarDocumento = async (doc) => {
+    try {
+      await api.delete(`/documentos/${doc.id_documento}`)
+      toast.success(`Se eliminó ${doc.nombre_archivo_original}`, {
+        icon: '🗑️',
+        duration: 6000,
+      })
+      recargarDocs()
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'No se pudo eliminar el documento')
+    }
+  }
+
+  const handleEliminarExpediente = async () => {
+    try {
+      const { data } = await api.delete(`/expedientes/${id}`)
+      // Más tiempo que un aviso normal: la pantalla cambia de golpe al listado
+      // y conviene que el mensaje siga ahí cuando uno termina de ubicarse.
+      toast.success(data.mensaje || 'Expediente eliminado', {
+        icon: '🗑️',
+        duration: 7000,
+      })
+      navigate('/expedientes')
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'No se pudo eliminar el expediente')
     }
   }
 
@@ -104,6 +141,12 @@ function ExpedienteDetalle() {
             <Button variant="acento" onClick={() => setModalEstadoAbierto(true)}>
               Cambiar estado
             </Button>
+          )}
+          {puedeEliminar && (
+            <BotonEliminar
+              etiqueta="Mantener para eliminar el expediente"
+              onEliminar={handleEliminarExpediente}
+            />
           )}
         </div>
       </div>
@@ -173,13 +216,14 @@ function ExpedienteDetalle() {
             <th>Páginas</th>
             <th>Tamaño</th>
             <th>Fecha carga</th>
+            {puedeEliminar && <th></th>}
           </tr>
         </thead>
         <tbody>
           {cargandoDocs &&
             Array.from({ length: 3 }).map((_, i) => (
               <tr key={i}>
-                <td colSpan={4}>
+                <td colSpan={puedeEliminar ? 5 : 4}>
                   <Skeleton height="18px" />
                 </td>
               </tr>
@@ -204,6 +248,14 @@ function ExpedienteDetalle() {
                 <td>{doc.num_paginas ?? '—'}</td>
                 <td>{doc.tamano_bytes ? `${Math.round(doc.tamano_bytes / 1024)} KB` : '—'}</td>
                 <td>{formatearFechaHora(doc.fecha_carga)}</td>
+                {puedeEliminar && (
+                  <td>
+                    <BotonEliminar
+                      etiqueta="Mantener para eliminar"
+                      onEliminar={() => handleEliminarDocumento(doc)}
+                    />
+                  </td>
+                )}
               </tr>
             ))}
         </tbody>

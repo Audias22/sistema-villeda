@@ -1,0 +1,57 @@
+.boton-eliminar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 10px 18px;
+  border: 1px solid var(--peligro);
+  border-radius: var(--radio-md);
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transicion);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.boton-eliminar:hover:not(:disabled) {
+  background: #F8DADA;
+}
+
+.boton-eliminar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.boton-eliminar:focus-visible {
+  outline: 2px solid var(--peligro);
+  outline-offset: 2px;
+}
+
+/* La barra se llena mientras se sostiene el botón y vuelve a cero al soltar */
+.boton-eliminar-relleno {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--peligro);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.boton-eliminar-texto {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.boton-eliminar-activo {
+  border-color: var(--peligro);
+  box-shadow: 0 0 0 3px rgba(163, 45, 45, 0.15);
+}

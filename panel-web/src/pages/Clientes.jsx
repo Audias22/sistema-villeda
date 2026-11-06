@@ -135,14 +135,20 @@ function Clientes() {
             ))}
           {!cargando &&
             datos?.clientes?.map((c) => (
-              <tr key={c.id_cliente}>
+              <tr
+                key={c.id_cliente}
+                className="fila-enlace"
+                onClick={() => navigate(`/clientes/${c.id_cliente}`)}
+              >
                 <td>{nombreCompletoCliente(c)}</td>
                 <td>{identificador(c)}</td>
                 <td>{c.telefono || '—'}</td>
                 <td>
                   <Badge tono={c.activo ? 'exito' : 'peligro'}>{c.activo ? 'Activo' : 'Inactivo'}</Badge>
                 </td>
-                <td>
+                {/* La fila entera abre el cliente, así que los botones cortan
+                    la propagación para no disparar también esa navegación */}
+                <td onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Button variant="secundario" onClick={() => navigate(`/clientes/${c.id_cliente}`)}>
                       <Eye size={14} />

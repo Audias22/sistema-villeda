@@ -1201,6 +1201,31 @@ Queda desalineado un dato informativo que no afecta el funcionamiento: `modelos_
 
 ---
 
+**Borrado de documentos y expedientes (6 de noviembre de 2026).** Hasta ahora un archivo subido por error solo se quitaba entrando a Supabase y a Cloudflare a mano. Se agregaron dos endpoints, ambos **restringidos al rol Administrador** y con registro en `auditoria`:
+
+| Endpoint | Que borra |
+|---|---|
+| `DELETE /api/v1/documentos/<id>` | El documento, sus filas de `clasificaciones_ml` y el objeto de R2 |
+| `DELETE /api/v1/expedientes/<id>` | El expediente, todos sus documentos, sus archivos de R2 y el cliente placeholder si quedo huerfano |
+
+Es borrado real y no un estado inactivo: la basura que molesta es la que sigue ocupando el bucket y contando en los totales del dashboard. La trazabilidad no se pierde, porque antes de borrar se arma una instantanea que la ruta guarda en `auditoria.datos_anteriores` con numero de expediente, nombre original del archivo, tamano, hash y la ruta en R2, ademas de quien y cuando.
+
+**El orden de las operaciones no es arbitrario.** Un documento es referenciado por cuatro tablas y un expediente por otras cuatro, asi que todo va en una transaccion: `clasificaciones_ml.id_documento` es NOT NULL y esas filas se borran, mientras que las notificaciones y el trabajo de clasificacion si admiten nulo y se conservan como historial, solo pierden la referencia. Lo mismo con los duplicados que apunten al documento como original.
+
+**El commit va ANTES de tocar R2, nunca al reves.** Si se borrara primero el objeto y la transaccion fallara despues, quedaria una fila apuntando a un archivo inexistente: el documento se ve en la lista y revienta al abrirlo. Al reves, lo peor que queda es un objeto huerfano en el bucket, invisible desde el sistema, y eso se anota en el log para limpiarlo luego.
+
+**Cliente placeholder.** La clasificacion automatica crea documento, expediente y cliente de un golpe, de modo que borrar solo el archivo dejaria un expediente vacio y un "Cliente NNN" colgando. Por eso, si el cliente queda sin expedientes Y es uno de esos placeholders (`primer_nombre = 'Cliente'`), se va tambien. **Un cliente con nombre real nunca se toca**, aunque quede sin expedientes: lo cargo una persona y borrarlo no es decision de esta operacion.
+
+**No se creo un permiso nuevo.** Se usa `gestionar_expedientes` mas una verificacion de rol, para no migrar la tabla de permisos a dos dias de la defensa. El token lleva `id_rol` y no el nombre del rol, asi que `_es_administrador` resuelve el nombre contra la tabla `roles`. Si mas adelante se quiere un permiso `eliminar_documento` propio, se agrega y se cambia el decorador.
+
+**Confirmacion por sostener el boton, no por "esta seguro".** `components/common/BotonEliminar.jsx` exige mantener presionado segundo y medio mientras se llena una barra, y se cancela al soltar. Un diálogo de confirmacion se acepta por reflejo y no hace a nadie mas consciente de lo que va a hacer, mientras que sostener el boton no se completa por accidente y no agrega ningun paso cuando la intencion es real. Verificado: soltando a la mitad no borra. Los avisos de borrado duran 6 y 7 segundos en vez de los 4 normales y llevan icono de papelera, para distinguirse de un guardado cualquiera. **No se centraron en pantalla a proposito:** un mensaje centrado tapa la vista y pide ser descartado, y esa friccion corresponde antes de borrar y no despues; la confirmacion de verdad es que la fila desaparecio.
+
+**Salida despues de cargar un documento (6 de noviembre de 2026).** La pantalla de carga terminaba mostrando paginas y tamano, sin decir a donde ir. Ahora, al terminar, muestra en que expediente quedo guardado y ofrece **Ver el expediente** o **Cargar otro documento**, que limpia el archivo pero deja el expediente puesto, que es el caso normal al digitalizar varios seguidos. Ademas hay boton **Volver** cuando se llego desde el detalle de un expediente.
+
+**Filas clicables en Clientes.** Toda la fila abre el cliente. Los botones Ver y Editar cortan la propagacion para no disparar dos veces la navegacion. Busqueda ya tenia las filas clicables desde antes.
+
+---
+
 ## NOTAS IMPORTANTES
 - El .env NUNCA se sube a GitHub — está en .gitignore
 - Los archivos .bin del modelo ML NUNCA van a GitHub
