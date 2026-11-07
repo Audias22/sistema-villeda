@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { onSessionExpired } from '../services/authEvents'
 import { tokenVigente } from '../utils/jwt'
+import { olvidarSeguimiento } from '../services/seguimientoClasificacion'
 
 export const AuthContext = createContext(null)
 
@@ -17,6 +18,7 @@ function leerUsuario() {
 function limpiarAlmacenamiento() {
   localStorage.removeItem('token')
   localStorage.removeItem('usuario')
+  olvidarSeguimiento()
 }
 
 // Se lee una sola vez al arrancar. Si el token guardado ya expiro se borra aqui

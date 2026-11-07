@@ -14,6 +14,11 @@ import Card from '../components/common/Card'
 import Button from '../components/common/Button'
 import ModalConfirmarClasificacion from '../components/notificaciones/ModalConfirmarClasificacion'
 import api from '../services/api'
+import {
+  obtenerSeguimiento,
+  actualizarSeguimiento,
+  suscribirSeguimiento,
+} from '../services/seguimientoClasificacion'
 import './CargarDocumento.css'
 import './ClasificarConIA.css'
 
@@ -37,13 +42,17 @@ function ClasificarConIA() {
 
   const [archivo, setArchivo] = useState(null)
   const [arrastrando, setArrastrando] = useState(false)
-  const [progreso, setProgreso] = useState(0)
-  const [enviando, setEnviando] = useState(false)
 
-  // Seguimiento del trabajo encolado. Antes la pantalla solo decía "encolado"
-  // y volvía a quedar vacía: no se sabía qué se había subido ni cómo terminó.
-  const [idTrabajo, setIdTrabajo] = useState(null)
-  const [nombreEnviado, setNombreEnviado] = useState('')
+  // La subida y el trabajo encolado viven en seguimientoClasificacion.js y no
+  // en el componente: así, si el usuario se va a otra pantalla y vuelve, ve
+  // la misma barra o el mismo resultado en vez de una pantalla vacía.
+  const [seguimiento, setSeguimiento] = useState(obtenerSeguimiento)
+  useEffect(() => {
+    setSeguimiento(obtenerSeguimiento())
+    return suscribirSeguimiento(setSeguimiento)
+  }, [])
+  const { idTrabajo, nombre: nombreEnviado, inicio, subiendo: enviando, progreso } = seguimiento
+
   const [trabajo, setTrabajo] = useState(null)
   const [descartado, setDescartado] = useState(false)
   const [expediente, setExpediente] = useState(null)
@@ -93,12 +102,16 @@ function ClasificarConIA() {
     }
   }, [idTrabajo, versionConsulta])
 
-  // Contador visible mientras procesa: el primer documento puede tardar por el arranque del clasificador.
+  // Contador visible mientras procesa: el primer documento puede tardar por el
+  // arranque del clasificador. Se calcula desde la hora de envío, así que sigue
+  // siendo correcto aunque el usuario haya salido de la pantalla y vuelto.
   useEffect(() => {
-    if (!idTrabajo || terminado) return undefined
-    const intervalo = setInterval(() => setSegundos((s) => s + 1), 1000)
+    if (!idTrabajo || terminado || !inicio) return undefined
+    const calcular = () => setSegundos(Math.max(0, Math.floor((Date.now() - inicio) / 1000)))
+    calcular()
+    const intervalo = setInterval(calcular, 1000)
     return () => clearInterval(intervalo)
-  }, [idTrabajo, terminado])
+  }, [idTrabajo, terminado, inicio])
 
   const idExpedienteCreado = trabajo?.id_expediente_creado
 
@@ -124,13 +137,11 @@ function ClasificarConIA() {
 
   const quitarArchivo = () => {
     setArchivo(null)
-    setProgreso(0)
     if (inputRef.current) inputRef.current.value = ''
   }
 
   const clasificarOtro = () => {
-    setIdTrabajo(null)
-    setNombreEnviado('')
+    actualizarSeguimiento({ idTrabajo: null, nombre: '', inicio: null, progreso: 0 })
     setTrabajo(null)
     setDescartado(false)
     setExpediente(null)
@@ -150,8 +161,8 @@ function ClasificarConIA() {
       return
     }
 
-    setEnviando(true)
-    setProgreso(0)
+    const nombre = archivo.name
+    actualizarSeguimiento({ subiendo: true, progreso: 0, nombre })
 
     const formData = new FormData()
     formData.append('archivo', archivo)
@@ -161,17 +172,24 @@ function ClasificarConIA() {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
         onUploadProgress: (evento) => {
-          setProgreso(Math.round((evento.loaded * 100) / evento.total))
+          actualizarSeguimiento({ progreso: Math.round((evento.loaded * 100) / evento.total) })
         },
       })
 
-      setNombreEnviado(archivo.name)
       setSegundos(0)
-      setIdTrabajo(data.id_trabajo)
+      setTrabajo(null)
+      setDescartado(false)
+      setExpediente(null)
+      actualizarSeguimiento({
+        idTrabajo: data.id_trabajo,
+        nombre,
+        inicio: Date.now(),
+        subiendo: false,
+        progreso: 0,
+      })
     } catch (error) {
       toast.error(error.response?.data?.error || 'No se pudo enviar el documento')
-    } finally {
-      setEnviando(false)
+      actualizarSeguimiento({ subiendo: false, progreso: 0 })
     }
   }
 
@@ -332,14 +350,18 @@ function ClasificarConIA() {
             />
           </div>
 
-          {archivo && (
+          {(archivo || enviando) && (
             <div className="archivo-preview">
               <FileText size={18} />
-              <span>{archivo.name}</span>
-              <span className="label">{Math.round(archivo.size / 1024)} KB</span>
-              <Button variant="secundario" onClick={quitarArchivo} style={{ marginLeft: 'auto' }}>
-                Quitar archivo
-              </Button>
+              {/* Si el usuario salió y volvió durante la subida, el File ya no
+                  existe en este componente: se muestra el nombre guardado. */}
+              <span>{archivo?.name || nombreEnviado}</span>
+              {archivo && <span className="label">{Math.round(archivo.size / 1024)} KB</span>}
+              {!enviando && (
+                <Button variant="secundario" onClick={quitarArchivo} style={{ marginLeft: 'auto' }}>
+                  Quitar archivo
+                </Button>
+              )}
             </div>
           )}
 
