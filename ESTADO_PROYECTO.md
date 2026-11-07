@@ -319,6 +319,8 @@ backend/
 | GET | /api/v1/notificaciones | ✅ Funcionando (20 más recientes + conteo de no leídas) | Sí — ver_notificaciones |
 | PUT | /api/v1/notificaciones/\<id\>/leida | ✅ Funcionando (valida pertenencia al usuario del token) | Sí — ver_notificaciones |
 | PUT | /api/v1/notificaciones/marcar-todas-leidas | ✅ Funcionando | Sí — ver_notificaciones |
+| DELETE | /api/v1/notificaciones/\<id\> | ✅ Funcionando (valida pertenencia; 409 si es una baja confianza con decisión pendiente) | Sí — ver_notificaciones |
+| DELETE | /api/v1/notificaciones/leidas | ✅ Funcionando (borra solo las leídas del usuario) | Sí — ver_notificaciones |
 | GET | /api/v1/reportes/expedientes/excel | ✅ Funcionando (descarga real .xlsx con filtros opcionales + registro en `exportaciones`) | Sí — exportar_reporte |
 | GET | /api/v1/auditoria | ✅ Funcionando (paginado + filtros tabla/acción/usuario/fecha) | Sí — ver_auditoria |
 | GET | /api/v1/auditoria/\<id\> | ✅ Funcionando | Sí — ver_auditoria |
@@ -443,6 +445,8 @@ Los documentos y trabajos anteriores a este cambio quedan en NULL, sin inventar 
 **Numeración de clientes provisionales (6 de noviembre de 2026):** `obtener_o_crear_cliente_placeholder()` numeraba "Cliente NNN" contando los placeholders existentes. Desde que borrar un expediente también borra su cliente provisional, borrar uno del medio hacía que el siguiente repitiera el último número (existen 001, 002 y 003, se borra 002, el nuevo salía 003 otra vez). Ahora toma el número más alto de `primer_apellido` entre los clientes con `primer_nombre = 'Cliente'` y le suma uno. Si se borran todos, vuelve a empezar en 001.
 
 **Clasificar con IA conserva su estado al navegar (6 de noviembre de 2026):** si el usuario salía de la pantalla durante la subida o el procesamiento y volvía, la encontraba vacía, aunque el trabajo seguía bien en el servidor. La subida y el trabajo en seguimiento ahora viven en `panel-web/src/services/seguimientoClasificacion.js`, un estado a nivel de módulo con suscriptores que sobrevive al desmontaje del componente, así que la barra de subida y la tarjeta de resultado siguen donde estaban. El id del trabajo, el nombre del archivo y la hora de envío se copian también a `sessionStorage` (envuelto en try/catch) para sobrevivir a un F5; el contador de segundos se calcula desde esa hora de envío. `AuthContext` llama a `olvidarSeguimiento()` al cerrar sesión, para que otro usuario en la misma pestaña no vea el trabajo anterior.
+
+**Borrar notificaciones (6 de noviembre de 2026):** la campanita solo permitía marcar como leídas. Ahora cada notificación muestra una X al pasar el mouse (siempre visible en pantallas táctiles) y el encabezado tiene **Borrar leídas**. Backend: `eliminar_notificacion()` y `eliminar_leidas()` en `notificaciones/services.py`, con borrado físico porque la notificación es un aviso y no un registro de auditoría (lo ocurrido queda en `trabajos_clasificacion`, `expedientes` y `auditoria`). Una notificación de baja confianza cuyo trabajo sigue con `requiere_confirmacion` y sin expediente creado no se puede borrar (409, y el panel no muestra la X): es la única entrada para confirmar o descartar ese documento. "Borrar leídas" no la alcanza porque esas notificaciones se marcan leídas recién al decidir.
 
 **Desplegado en Vercel, con la variable `VITE_API_URL` apuntando a `https://sistema-villeda-backend-v2.onrender.com/api/v1`. Prueba end-to-end contra el backend v2 en producción exitosa (subida de JPG + OCR real + R2 + descarga).**
 

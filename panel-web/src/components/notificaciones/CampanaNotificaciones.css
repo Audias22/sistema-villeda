@@ -142,3 +142,55 @@
   font-size: 13px;
   color: var(--texto-muted);
 }
+
+.campana-acciones {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.campana-item {
+  position: relative;
+}
+
+.campana-item-cuerpo {
+  flex: 1;
+}
+
+.campana-item-borrar {
+  flex-shrink: 0;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--texto-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.campana-item:hover .campana-item-borrar,
+.campana-item-borrar:focus-visible {
+  opacity: 1;
+}
+
+.campana-item-borrar:hover {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+
+/* En pantallas táctiles no hay hover: la X queda siempre visible. */
+@media (hover: none) {
+  .campana-item-borrar {
+    opacity: 1;
+  }
+}
+
+.campana-popup-encabezado {
+  flex-wrap: wrap;
+}

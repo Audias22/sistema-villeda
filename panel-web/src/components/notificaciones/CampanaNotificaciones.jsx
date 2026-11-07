@@ -8,7 +8,10 @@ import {
   User,
   XCircle,
   CheckCheck,
+  Trash2,
+  X,
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import usePolling from '../../hooks/usePolling'
 import api from '../../services/api'
 import ModalConfirmarClasificacion from './ModalConfirmarClasificacion'
@@ -64,6 +67,7 @@ function CampanaNotificaciones() {
 
   const notificaciones = datos?.notificaciones || []
   const noLeidas = datos?.no_leidas || 0
+  const hayLeidas = notificaciones.some((n) => n.leida)
 
   useEffect(() => {
     if (!abierto) return
@@ -84,6 +88,26 @@ function CampanaNotificaciones() {
       recargar()
     } catch {
       // Silencioso a propósito: el siguiente ciclo del polling corrige la vista.
+    }
+  }
+
+  const eliminar = async (evento, notificacion) => {
+    evento.stopPropagation()
+    try {
+      await api.delete(`/notificaciones/${notificacion.id_notificacion}`)
+      recargar()
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'No se pudo eliminar la notificación')
+    }
+  }
+
+  const borrarLeidas = async () => {
+    try {
+      const { data } = await api.delete('/notificaciones/leidas')
+      if (data.eliminadas > 0) toast.success(`Se eliminaron ${data.eliminadas} notificaciones leídas`)
+      recargar()
+    } catch {
+      toast.error('No se pudieron eliminar las notificaciones')
     }
   }
 
@@ -137,12 +161,20 @@ function CampanaNotificaciones() {
         <div className="campana-popup">
           <div className="campana-popup-encabezado">
             <span className="campana-popup-titulo">Notificaciones</span>
-            {noLeidas > 0 && (
-              <button type="button" className="campana-marcar-todas" onClick={marcarTodas}>
-                <CheckCheck size={14} />
-                Marcar todas como leídas
-              </button>
-            )}
+            <div className="campana-acciones">
+              {noLeidas > 0 && (
+                <button type="button" className="campana-marcar-todas" onClick={marcarTodas}>
+                  <CheckCheck size={14} />
+                  Marcar todas como leídas
+                </button>
+              )}
+              {hayLeidas && (
+                <button type="button" className="campana-marcar-todas" onClick={borrarLeidas}>
+                  <Trash2 size={14} />
+                  Borrar leídas
+                </button>
+              )}
+            </div>
           </div>
 
           <ul className="campana-lista">
@@ -152,6 +184,9 @@ function CampanaNotificaciones() {
 
             {notificaciones.map((notificacion) => {
               const Icono = ICONOS[notificacion.icono] || Bell
+              // Una baja confianza sin leer tiene una decisión pendiente: no se
+              // puede borrar hasta confirmar o descartar el documento.
+              const sePuedeBorrar = !(notificacion.id_tipo === TIPO_BAJA_CONFIANZA && !notificacion.leida)
               return (
                 <li
                   key={notificacion.id_notificacion}
@@ -169,6 +204,17 @@ function CampanaNotificaciones() {
                       {tiempoRelativo(notificacion.fecha_creacion)}
                     </span>
                   </div>
+                  {sePuedeBorrar && (
+                    <button
+                      type="button"
+                      className="campana-item-borrar"
+                      onClick={(evento) => eliminar(evento, notificacion)}
+                      aria-label="Eliminar notificación"
+                      title="Eliminar notificación"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </li>
               )
             })}

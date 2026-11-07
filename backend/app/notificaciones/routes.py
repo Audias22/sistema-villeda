@@ -9,6 +9,8 @@ from .services import (
     listar_notificaciones,
     marcar_leida,
     marcar_todas_leidas,
+    eliminar_notificacion,
+    eliminar_leidas,
     LIMITE_LISTADO
 )
 
@@ -68,3 +70,28 @@ def marcar_una(id_notificacion):
         return jsonify({'error': error}), 404
 
     return jsonify({'notificacion': notificacion.to_dict()}), 200
+
+@notificaciones_bp.route('/api/v1/notificaciones/leidas', methods=['DELETE'])
+@require_permission('ver_notificaciones')
+def borrar_leidas():
+    identity = json.loads(get_jwt_identity())
+
+    total = eliminar_leidas(identity['id_usuario'])
+
+    return jsonify({
+        'mensaje':   'Notificaciones leídas eliminadas',
+        'eliminadas': total
+    }), 200
+
+
+@notificaciones_bp.route('/api/v1/notificaciones/<int:id_notificacion>', methods=['DELETE'])
+@require_permission('ver_notificaciones')
+def borrar_una(id_notificacion):
+    identity = json.loads(get_jwt_identity())
+
+    ok, error, codigo = eliminar_notificacion(id_notificacion, identity['id_usuario'])
+
+    if not ok:
+        return jsonify({'error': error}), codigo
+
+    return jsonify({'mensaje': 'Notificación eliminada'}), 200
