@@ -1,0 +1,48 @@
+.resultado-proceso,
+.resultado-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radio-md);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.resultado-proceso {
+  background: var(--info-fondo);
+  color: var(--info);
+}
+
+.resultado-error {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+
+.resultado-segundos {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.resultado-nota {
+  margin: -6px 0 16px;
+  font-size: 12px;
+  color: var(--texto-secundario);
+}
+
+.icono-girando {
+  animation: icono-girando 1s linear infinite;
+}
+
+@keyframes icono-girando {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icono-girando {
+    animation: none;
+  }
+}
