@@ -133,7 +133,14 @@ def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None, id_tipo=
         filtro_expediente.append(Expediente.fecha_apertura <= fecha_hasta)
 
     total_expedientes = Expediente.query.filter(*filtro_expediente).count()
-    total_documentos = Documento.query.count()
+    # Los documentos se cuentan a través de su expediente, con los mismos
+    # filtros. Antes se contaban todos siempre, y al filtrar salía por ejemplo
+    # "119 expedientes, 390 documentos", que no tiene sentido. Sin filtros el
+    # resultado es el mismo de antes: todo documento pertenece a un expediente.
+    documentos_filtrados = Documento.query.join(
+        Expediente, Documento.id_expediente == Expediente.id_expediente
+    ).filter(*filtro_expediente)
+    total_documentos = documentos_filtrados.count()
     total_clientes = Cliente.query.filter_by(activo=True).count()
     total_busquedas = Busqueda.query.count()
 
@@ -173,7 +180,7 @@ def obtener_dashboard(id_area=None, fecha_desde=None, fecha_hasta=None, id_tipo=
         func.max(Busqueda.tiempo_respuesta_ms).label('maximo_ms')
     ).first()
 
-    documentos_duplicados = Documento.query.filter_by(es_duplicado_exacto=True).count()
+    documentos_duplicados = documentos_filtrados.filter(Documento.es_duplicado_exacto.is_(True)).count()
 
     return {
         'totales': {
