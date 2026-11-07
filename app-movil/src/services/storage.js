@@ -2,6 +2,9 @@ import * as SecureStore from 'expo-secure-store'
 
 const TOKEN_KEY = 'villeda_jwt'
 const USER_KEY = 'villeda_user'
+// Token de renovación (30 días). Es lo que permite volver a entrar con la
+// huella después de que vence el token de acceso de 15 minutos.
+const REFRESH_KEY = 'villeda_refresh'
 
 // Preferencia de desbloqueo biométrico. Son DOS claves y no una a propósito:
 // responden preguntas distintas. Con una sola no se podría distinguir "el
@@ -17,6 +20,30 @@ export async function saveToken(token) {
 export async function getToken() {
   const token = await SecureStore.getItemAsync(TOKEN_KEY)
   return token || null
+}
+
+export async function saveRefreshToken(token) {
+  await SecureStore.setItemAsync(REFRESH_KEY, token)
+}
+
+export async function getRefreshToken() {
+  try {
+    return (await SecureStore.getItemAsync(REFRESH_KEY)) || null
+  } catch (e) {
+    return null
+  }
+}
+
+/**
+ * Borra solo el token de acceso. Se usa cuando vence (401): el token de
+ * renovación y el usuario se conservan para poder volver a entrar con la huella.
+ */
+export async function clearAccessToken() {
+  try {
+    await SecureStore.deleteItemAsync(TOKEN_KEY)
+  } catch (e) {
+    // Si no se pudo borrar, el próximo 401 lo vuelve a intentar.
+  }
 }
 
 export async function saveUser(userObject) {
@@ -70,7 +97,9 @@ export async function getBiometriaPreguntada() {
 }
 
 /**
- * Borra la sesión: token y usuario.
+ * Borra la sesión completa: token de acceso, token de renovación y usuario.
+ * Es el cierre de sesión de verdad: después de esto la huella ya no alcanza y
+ * hay que entrar con contraseña.
  *
  * NO borra la preferencia de biometría, y es deliberado. La preferencia es del
  * dispositivo, no de la sesión: si el usuario habilitó el desbloqueo biométrico
@@ -87,4 +116,5 @@ export async function getBiometriaPreguntada() {
 export async function clearAll() {
   await SecureStore.deleteItemAsync(TOKEN_KEY)
   await SecureStore.deleteItemAsync(USER_KEY)
+  await SecureStore.deleteItemAsync(REFRESH_KEY)
 }

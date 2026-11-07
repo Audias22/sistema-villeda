@@ -1,9 +1,15 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, get_jwt_identity
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    get_jwt_identity,
+    jwt_required,
+)
 from datetime import datetime
 import json
 from app import db
 from app.common.models import Rol
+from app.usuarios.models import Usuario
 from .services import autenticar_usuario
 from . import limitador
 
@@ -74,24 +80,60 @@ def login():
     # ventana de tiempo.
     limitador.limpiar(claves[0])
 
-    identity = json.dumps({
+    identity = _identidad(usuario)
+
+    token = create_access_token(identity=identity)
+    token_renovacion = create_refresh_token(identity=identity)
+
+    usuario.ultimo_acceso = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({
+        'token':            token,
+        'refresh_token':    token_renovacion,
+        'usuario':          _datos_usuario(usuario)
+    }), 200
+
+
+def _identidad(usuario):
+    return json.dumps({
         'id_usuario': usuario.id_usuario,
         'id_rol':     usuario.id_rol,
         'nombre':     usuario.nombre
     })
 
-    token = create_access_token(identity=identity)
 
-    usuario.ultimo_acceso = datetime.utcnow()
-    db.session.commit()
-
+def _datos_usuario(usuario):
     rol = Rol.query.get(usuario.id_rol)
-    datos_usuario = usuario.to_dict()
-    datos_usuario['rol'] = rol.nombre_rol if rol else None
+    datos = usuario.to_dict()
+    datos['rol'] = rol.nombre_rol if rol else None
+    return datos
+
+
+@auth_bp.route('/api/v1/auth/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def renovar():
+    """
+    Entrega un token de acceso nuevo a cambio del token de renovacion.
+
+    Lo llama la app movil despues de que el usuario se autentica con la huella:
+    la huella demuestra que es el dueno del telefono y el token de renovacion,
+    guardado cifrado en ese telefono, demuestra que alguna vez entro con su
+    contrasena. Asi la sesion se puede retomar sin escribirla de nuevo.
+
+    El usuario se vuelve a leer de la base en cada renovacion: si lo
+    desactivaron desde el panel, o le cambiaron el rol, se entera aca y no
+    tiene que esperar a que venzan los 30 dias.
+    """
+    identidad = json.loads(get_jwt_identity())
+    usuario = Usuario.query.get(identidad.get('id_usuario'))
+
+    if not usuario or not usuario.activo:
+        return jsonify({'error': 'La sesión ya no es válida. Inicia sesión con tu contraseña.'}), 401
 
     return jsonify({
-        'token':   token,
-        'usuario': datos_usuario
+        'token':   create_access_token(identity=_identidad(usuario)),
+        'usuario': _datos_usuario(usuario)
     }), 200
 
 

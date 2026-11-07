@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getToken, clearAll } from './storage'
+import { getToken, clearAccessToken } from './storage'
 import { emitSessionExpired } from './authEvents'
 
 const api = axios.create({
@@ -8,8 +8,12 @@ const api = axios.create({
 })
 
 api.interceptors.request.use(async (config) => {
-  const token = await getToken()
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  // Si la petición ya trae su propio Authorization (la de /auth/refresh lleva
+  // el token de renovación), no se pisa.
+  if (!config.headers.Authorization) {
+    const token = await getToken()
+    if (token) config.headers.Authorization = `Bearer ${token}`
+  }
   return config
 })
 
@@ -30,10 +34,17 @@ api.interceptors.response.use(
       return Promise.reject(networkError)
     }
 
-    const esLogin = error.config?.url?.includes('/auth/login')
+    const url = error.config?.url || ''
+    const esLogin = url.includes('/auth/login')
+    // Un 401 de /auth/refresh lo resuelve quien lo llamó (renovarSesion): no es
+    // "la sesión expiró mientras se usaba la app".
+    const esRenovacion = url.includes('/auth/refresh')
 
-    if (error.response.status === 401 && !esLogin) {
-      await clearAll()
+    if (error.response.status === 401 && !esLogin && !esRenovacion) {
+      // Solo se borra el token de acceso. El de renovación y el usuario quedan
+      // para que AuthContext decida: si hay huella, pantalla de bloqueo; si
+      // no, login (y ahí sí se borra todo).
+      await clearAccessToken()
       emitSessionExpired()
       const sessionError = new Error('SESSION_EXPIRED')
       sessionError.code = 'SESSION_EXPIRED'

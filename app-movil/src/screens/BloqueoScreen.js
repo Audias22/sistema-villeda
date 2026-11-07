@@ -8,7 +8,7 @@
  *
  * REGLA DE LA PANTALLA: SIEMPRE TIENE QUE HABER UNA SALIDA VISIBLE.
  * En cualquier estado, incluso mientras se consulta el dispositivo o durante un
- * lockout del sensor, el botón "Entrar con contraseña" está presente. Una
+ * lockout del sensor, el botón "Usar contraseña" está presente. Una
  * pantalla de bloqueo sin salida es la peor falla posible de esta función: deja
  * al dueño legítimo afuera de su propia app sin nada que tocar.
  */
@@ -36,7 +36,7 @@ import {
 } from '../services/biometria'
 
 export default function BloqueoScreen() {
-  const { user, signOut, desbloquear } = useAuth()
+  const { user, signOut, desbloquear, motivoBloqueo } = useAuth()
 
   const [etiqueta, setEtiqueta] = useState('biometría')
   const [pidiendo, setPidiendo] = useState(false)
@@ -55,19 +55,28 @@ export default function BloqueoScreen() {
 
     const { resultado } = await pedirAutenticacion('Desbloquea Oficina Villeda')
 
-    setPidiendo(false)
-
     if (resultado === RESULTADO_OK) {
-      desbloquear()
+      // La huella pasó: ahora se pide al servidor un token de acceso nuevo.
+      // Si funciona, esta pantalla desaparece sola.
+      const { ok, motivo } = await desbloquear()
+      setPidiendo(false)
+      if (!ok && motivo === 'red') {
+        setMensaje('No hay conexión con el servidor. Revisa tu internet e intenta de nuevo.')
+      }
       return
     }
 
+    setPidiendo(false)
+
     if (resultado === RESULTADO_SIN_BIOMETRIA) {
       // El dispositivo dejó de poder autenticar entre que se guardó la
-      // preferencia y ahora. Se apaga la preferencia y se entra igual: ante la
-      // duda, la app se abre.
+      // preferencia y ahora. Se apaga la preferencia y se va al login.
+      //
+      // Antes se entraba igual ("ante la duda, la app se abre"), pero ahora
+      // desbloquear retoma la sesión con el servidor: entrar sin verificar a
+      // nadie sería regalar la sesión de 30 días. Ya no es seguro abrir.
       await saveBiometriaActiva(false)
-      desbloquear()
+      await signOut()
       return
     }
 
@@ -88,7 +97,7 @@ export default function BloqueoScreen() {
     }
 
     setMensaje('No pudimos verificar tu identidad. Intenta de nuevo o entra con tu contraseña.')
-  }, [desbloquear])
+  }, [desbloquear, signOut])
 
   // Se guarda la última versión de intentar() en un ref para que el efecto de
   // montaje pueda llamarla sin tenerla como dependencia. Sin esto el efecto se
@@ -128,7 +137,9 @@ export default function BloqueoScreen() {
 
         <Text style={styles.titulo}>{nombre}</Text>
         <Text style={styles.subtitulo}>
-          Usa tu {etiqueta} para volver a entrar
+          {motivoBloqueo === 'expirada'
+            ? `Tu sesión se cerró por inactividad. Usa tu ${etiqueta} para continuar.`
+            : `Usa tu ${etiqueta} para entrar`}
         </Text>
 
         {pidiendo && (
@@ -157,7 +168,7 @@ export default function BloqueoScreen() {
 
         {/* Salida siempre visible, en todos los estados. Ver la regla de arriba. */}
         <TouchableOpacity style={styles.botonSecundario} onPress={signOut}>
-          <Text style={styles.botonSecundarioTexto}>Entrar con contraseña</Text>
+          <Text style={styles.botonSecundarioTexto}>Usar contraseña</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

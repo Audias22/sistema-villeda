@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -8,6 +9,15 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+
+    # El token de acceso dura 15 minutos (era el valor por defecto de la
+    # libreria, ahora queda escrito). El token de renovacion dura 30 dias y
+    # solo lo usa la app movil para pedir un token de acceso nuevo despues de
+    # que el usuario se autentica con la huella. No sirve como token de acceso:
+    # require_permission() llama a verify_jwt_in_request() sin refresh=True, y
+    # la libreria rechaza un token de renovacion en esas rutas.
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
 
     # Origenes autorizados a consumir la API desde un navegador. Se definen
     # de forma explicita en lugar de permitir cualquier origen, para que una
