@@ -14,7 +14,7 @@ import Input from '../components/common/Input'
 import BotonEliminar from '../components/common/BotonEliminar'
 import { useAuth } from '../hooks/useAuth'
 import api from '../services/api'
-import { formatearFecha, formatearFechaHora, areaClaseCss, tipoClaseCss, estadoClaseCss } from '../utils/formatters'
+import { formatearFecha, formatearFechaHora, hoyLocalISO, areaClaseCss, tipoClaseCss, estadoClaseCss } from '../utils/formatters'
 import './ExpedienteDetalle.css'
 
 const TRANSICIONES_VALIDAS = {
@@ -31,7 +31,7 @@ function ExpedienteDetalle() {
   const { usuario } = useAuth()
   const [modalEstadoAbierto, setModalEstadoAbierto] = useState(false)
   const [nuevoEstado, setNuevoEstado] = useState('')
-  const [fechaCierre, setFechaCierre] = useState(new Date().toISOString().slice(0, 10))
+  const [fechaCierre, setFechaCierre] = useState(hoyLocalISO())
   const [enviando, setEnviando] = useState(false)
 
   const { datos: detalle, cargando, recargar } = useFetch(`/expedientes/${id}`)

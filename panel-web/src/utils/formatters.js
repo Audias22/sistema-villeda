@@ -1,12 +1,37 @@
+// El backend devuelve dos formatos de fecha y el navegador interpreta mal los dos:
+//  - Solo fecha ('2026-11-06'): new Date() la toma como medianoche UTC, que en
+//    Guatemala es el día anterior a las 6 p. m. Se arma como fecha local.
+//  - Fecha y hora sin zona ('2026-11-07T01:14:00'): el backend guarda en UTC,
+//    pero sin la Z el navegador la toma como hora local y la deja 6 horas adelante.
+function interpretarFecha(valor) {
+  if (valor instanceof Date) return valor
+  const texto = String(valor)
+  const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto)
+  if (soloFecha) {
+    return new Date(Number(soloFecha[1]), Number(soloFecha[2]) - 1, Number(soloFecha[3]))
+  }
+  const tieneZona = /(Z|[+-]\d{2}:?\d{2})$/.test(texto)
+  return new Date(tieneZona ? texto : `${texto}Z`)
+}
+
+// Fecha de hoy en formato YYYY-MM-DD según la hora local. toISOString() da la
+// fecha UTC, que desde las 6 p. m. en Guatemala ya es mañana.
+export function hoyLocalISO() {
+  const ahora = new Date()
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0')
+  const dia = String(ahora.getDate()).padStart(2, '0')
+  return `${ahora.getFullYear()}-${mes}-${dia}`
+}
+
 export function formatearFecha(valor) {
   if (!valor) return '—'
-  const fecha = new Date(valor)
+  const fecha = interpretarFecha(valor)
   return fecha.toLocaleDateString('es-GT', { year: 'numeric', month: 'short', day: '2-digit' })
 }
 
 export function formatearFechaHora(valor) {
   if (!valor) return '—'
-  const fecha = new Date(valor)
+  const fecha = interpretarFecha(valor)
   return fecha.toLocaleString('es-GT', {
     year: 'numeric',
     month: 'short',

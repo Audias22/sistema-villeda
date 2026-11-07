@@ -5,9 +5,9 @@ import Input from '../components/common/Input'
 import Button from '../components/common/Button'
 import ClienteFormulario from '../components/ClienteFormulario'
 import api from '../services/api'
-import { nombreCompletoCliente } from '../utils/formatters'
+import { nombreCompletoCliente, hoyLocalISO } from '../utils/formatters'
 
-const HOY = new Date().toISOString().slice(0, 10)
+const HOY = hoyLocalISO()
 
 // id_area del área Notarial. El despacho trabaja sobre todo el protocolo, así
 // que el formulario abre con Notarial puesta y solo queda elegir el tipo. Las

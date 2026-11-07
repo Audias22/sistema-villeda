@@ -1,7 +1,7 @@
 import uuid
 import time
 import logging
-from datetime import datetime, date
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
 
@@ -34,6 +34,16 @@ from .models import (
 # Por encima de este valor el expediente se crea solo. Por debajo, el trabajo
 # queda esperando que una persona confirme o corrija el tipo.
 UMBRAL_CONFIANZA = 0.70
+
+# Guatemala no usa horario de verano: UTC-6 todo el año. Se fija el desfase en
+# vez de usar zoneinfo porque la imagen de Docker no garantiza tener tzdata.
+ZONA_GUATEMALA = timezone(timedelta(hours=-6))
+
+
+def hoy_guatemala():
+    """Fecha de hoy en Guatemala. date.today() en Render da la fecha UTC, que
+    desde las 6 p. m. ya es el día siguiente."""
+    return datetime.now(ZONA_GUATEMALA).date()
 
 MAX_INTENTOS_NUMERO_EXPEDIENTE = 3
 
@@ -248,7 +258,7 @@ def _crear_expediente_automatico(trabajo, texto, num_paginas, id_formato, tiempo
             cliente = obtener_o_crear_cliente_placeholder(trabajo.id_usuario)
 
             numero_expediente = generar_numero_expediente(ID_AREA_NOTARIAL)
-            hoy = date.today()
+            hoy = hoy_guatemala()
 
             expediente = Expediente(
                 id_cliente=cliente.id_cliente,
@@ -395,7 +405,7 @@ def _crear_expediente_desde_confirmacion(trabajo, id_tipo_final, id_usuario_conf
             cliente = obtener_o_crear_cliente_placeholder(id_usuario_confirmador)
 
             numero_expediente = generar_numero_expediente(ID_AREA_NOTARIAL)
-            hoy = date.today()
+            hoy = hoy_guatemala()
 
             expediente = Expediente(
                 id_cliente=cliente.id_cliente,
