@@ -38,6 +38,12 @@ def _claves_intento(nombre_usuario):
 def login():
     datos = request.get_json(silent=True)
 
+    # Espacios al inicio o al final del usuario no son parte del nombre: un
+    # espacio tecleado sin querer daba "credenciales inválidas" con el usuario
+    # correcto. La contraseña NO se recorta: ahí un espacio sí es un carácter.
+    if datos and isinstance(datos.get('nombre_usuario'), str):
+        datos['nombre_usuario'] = datos['nombre_usuario'].strip()
+
     if not datos or not datos.get('nombre_usuario') or not datos.get('contrasena'):
         return jsonify({'error': 'Usuario y contraseña son requeridos'}), 400
 

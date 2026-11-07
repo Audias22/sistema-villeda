@@ -23,7 +23,7 @@ function Login() {
 
     try {
       const { data } = await api.post('/auth/login', {
-        nombre_usuario: nombreUsuario,
+        nombre_usuario: nombreUsuario.trim(),
         contrasena,
       })
       login(data.token, data.usuario)
