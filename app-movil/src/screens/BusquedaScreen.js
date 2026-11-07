@@ -20,8 +20,8 @@ const CRITERIOS = [
   { id: 1, label: 'Cliente', icono: '👤', tipo: 'texto', placeholder: 'Nombre del cliente' },
   { id: 2, label: 'Fecha', icono: '📅', tipo: 'fecha' },
   { id: 3, label: 'Tipo de acto', icono: '⚖️', tipo: 'tipo' },
-  { id: 4, label: 'Contenido', icono: '📄', tipo: 'texto', placeholder: 'Palabra clave en el documento' },
-  { id: 5, label: 'No. Expediente', icono: '#️⃣', tipo: 'texto', placeholder: 'Número de expediente' },
+  { id: 4, label: 'Contenido', icono: '📄', tipo: 'texto', placeholder: 'Palabra clave' },
+  { id: 5, label: 'Número', icono: '#️⃣', tipo: 'texto', placeholder: 'Ej. NOT-2026-0075' },
 ]
 
 function formatearFechaISO(fecha) {
@@ -151,7 +151,10 @@ export default function BusquedaScreen({ navigation }) {
       <AppHeader title="Búsqueda" />
 
       <View style={styles.selectorContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        {/* Los cinco criterios a la vista, en dos filas. Antes iban en una fila
+            con scroll horizontal y había que deslizar para descubrir los demás. */}
+        <Text style={styles.selectorEtiqueta}>Buscar por</Text>
+        <View style={styles.chips}>
           {CRITERIOS.map((c) => (
             <TouchableOpacity
               key={c.id}
@@ -163,7 +166,7 @@ export default function BusquedaScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       <View style={styles.buscadorContainer}>
@@ -276,9 +279,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  selectorEtiqueta: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: fontSize.tiny,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
   chips: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
     gap: 8,
   },
   chip: {

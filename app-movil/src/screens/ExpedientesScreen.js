@@ -164,6 +164,21 @@ export default function ExpedientesScreen({ navigation }) {
     <SafeAreaView style={styles.pantalla} edges={['top']}>
       <AppHeader title="Expedientes" />
 
+      {/* Atajo a Búsqueda. La búsqueda por texto vive solo en esa pestaña
+          porque registra el TBR del Capítulo V (ver el comentario de los
+          filtros); este botón evita que desde acá parezca que no se puede
+          buscar. */}
+      <TouchableOpacity
+        style={styles.atajoBusqueda}
+        onPress={() => navigation.navigate('Busqueda')}
+        accessibilityRole="button"
+      >
+        <Text style={styles.atajoBusquedaIcono}>🔍</Text>
+        <Text style={styles.atajoBusquedaTexto} numberOfLines={1}>
+          Buscar por cliente, contenido o número
+        </Text>
+      </TouchableOpacity>
+
       <View style={styles.filtrosContainer}>
         <View style={styles.filtrosFila}>
           <TouchableOpacity
@@ -330,6 +345,28 @@ export default function ExpedientesScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  atajoBusqueda: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+  },
+  atajoBusquedaIcono: {
+    fontSize: fontSize.body,
+  },
+  atajoBusquedaTexto: {
+    flex: 1,
+    fontFamily: fontFamily.regular,
+    fontSize: fontSize.body,
+    color: colors.textSecondary,
+  },
   pantalla: {
     flex: 1,
     backgroundColor: colors.cream,
