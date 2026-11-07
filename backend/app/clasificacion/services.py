@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.ocr.services import calcular_hash, procesar_archivo
-from app.services.r2_service import subir_archivo, descargar_archivo, eliminar_archivo
+from app.services.r2_service import subir_archivo, descargar_archivo, eliminar_archivo, obtener_url_firmada
 from app.documentos.services import (
     EXTENSIONES_PERMITIDAS,
     TAMANO_MAXIMO_BYTES,
@@ -108,6 +108,21 @@ def obtener_trabajo(id_trabajo):
     datos['estado'] = estado.nombre if estado else None
 
     return datos, None
+
+
+def obtener_url_documento_trabajo(id_trabajo):
+    """
+    URL firmada (1 hora) del archivo que subió el usuario, para que pueda verlo
+    antes de confirmar o corregir el tipo en el modal de baja confianza. Sin
+    esto tenía que decidir solo con el nombre del archivo y el porcentaje.
+    Devuelve (url, error).
+    """
+    trabajo = TrabajoClasificacion.query.get(id_trabajo)
+
+    if not trabajo or not trabajo.ruta_almacenamiento:
+        return None, "Trabajo no encontrado"
+
+    return obtener_url_firmada(trabajo.ruta_almacenamiento), None
 
 
 def obtener_o_crear_cliente_placeholder(id_usuario):

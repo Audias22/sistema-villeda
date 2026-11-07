@@ -9,7 +9,8 @@ from .services import (
     encolar_trabajo,
     obtener_trabajo,
     confirmar_trabajo,
-    descartar_trabajo
+    descartar_trabajo,
+    obtener_url_documento_trabajo
 )
 
 clasificacion_bp = Blueprint('clasificacion', __name__)
@@ -109,3 +110,15 @@ def descartar(id_trabajo):
         'mensaje':    'Trabajo descartado',
         'id_trabajo': trabajo['id_trabajo']
     }), 200
+
+@clasificacion_bp.route('/api/v1/clasificacion/trabajos/<int:id_trabajo>/documento', methods=['GET'])
+@require_permission('cargar_documento')
+def ver_documento(id_trabajo):
+    """URL temporal para abrir el archivo subido antes de confirmar su tipo."""
+    url, error = obtener_url_documento_trabajo(id_trabajo)
+
+    if error:
+        return jsonify({'error': error}), 404
+
+    return jsonify({'url': url}), 200
+

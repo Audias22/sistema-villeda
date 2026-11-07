@@ -198,7 +198,7 @@ function ClasificarConIA() {
       return (
         <div className="resultado-aviso">
           <XCircle size={16} />
-          <span>Descartaste el documento. No se creó ningún expediente.</span>
+          <span>El documento fue descartado. No se creó ningún expediente.</span>
         </div>
       )
     }

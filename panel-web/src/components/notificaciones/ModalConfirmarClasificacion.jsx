@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { ExternalLink, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Modal from '../common/Modal'
 import Button from '../common/Button'
+import BotonEliminar from '../common/BotonEliminar'
 import Skeleton from '../common/Skeleton'
 import api from '../../services/api'
 
@@ -13,12 +15,32 @@ function ModalConfirmarClasificacion({ isOpen, onClose, idTrabajo, onExito }) {
   const [idTipoElegido, setIdTipoElegido] = useState('')
   const [cargando, setCargando] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const [urlDocumento, setUrlDocumento] = useState(null)
+  const [noExiste, setNoExiste] = useState(false)
 
   useEffect(() => {
-    if (!isOpen || !idTrabajo) return
+    if (!isOpen) return
+
+    // Al descartar, el backend borra el trabajo y deja la notificación con
+    // id_trabajo en null. Sin id ya no hay nada que consultar: se sabe que fue
+    // descartado.
+    if (!idTrabajo) {
+      setTrabajo(null)
+      setCargando(false)
+      setNoExiste(true)
+      return
+    }
 
     setCargando(true)
     setTrabajo(null)
+    setUrlDocumento(null)
+    setNoExiste(false)
+
+    // Aparte del Promise.all: si falla la URL, el modal igual sirve para decidir.
+    api
+      .get(`/clasificacion/trabajos/${idTrabajo}/documento`)
+      .then(({ data }) => setUrlDocumento(data.url))
+      .catch(() => {})
 
     Promise.all([
       api.get(`/clasificacion/trabajos/${idTrabajo}`),
@@ -32,7 +54,18 @@ function ModalConfirmarClasificacion({ isOpen, onClose, idTrabajo, onExito }) {
         // el camino más común, corregir es la excepción.
         setIdTipoElegido(datos.id_tipo_predicho ? String(datos.id_tipo_predicho) : '')
       })
-      .catch(() => toast.error('No se pudo cargar el documento'))
+      .catch((error) => {
+        // Descartar borra el trabajo: si se descartó desde otro lado (la
+        // campanita o la pantalla de Clasificar), llega un 404. Se avisa en el
+        // modal y se le pide al padre que se actualice, en vez de dejar el
+        // modal vacío.
+        if (error.response?.status === 404) {
+          setNoExiste(true)
+          onExito?.()
+          return
+        }
+        toast.error('No se pudo cargar el documento')
+      })
       .finally(() => setCargando(false))
   }, [isOpen, idTrabajo])
 
@@ -58,8 +91,6 @@ function ModalConfirmarClasificacion({ isOpen, onClose, idTrabajo, onExito }) {
   }
 
   const descartar = async () => {
-    if (!window.confirm('¿Estás seguro? Esta acción no se puede deshacer.')) return
-
     setEnviando(true)
     try {
       await api.delete(`/clasificacion/trabajos/${idTrabajo}`)
@@ -85,6 +116,17 @@ function ModalConfirmarClasificacion({ isOpen, onClose, idTrabajo, onExito }) {
       {/* Las notificaciones no desaparecen al resolverse, así que se puede
           llegar acá desde una que ya se atendió. Sin este aviso, el formulario
           se vería normal y "Aceptar" fallaría con un error del backend. */}
+      {!cargando && noExiste && (
+        <>
+          <p style={{ marginBottom: 20 }}>
+            Este documento ya fue descartado. No se creó ningún expediente.
+          </p>
+          <Button variant="secundario" onClick={onClose}>
+            Cerrar
+          </Button>
+        </>
+      )}
+
       {!cargando && trabajo && !trabajo.requiere_confirmacion && (
         <>
           <p style={{ marginBottom: 20 }}>
@@ -102,6 +144,7 @@ function ModalConfirmarClasificacion({ isOpen, onClose, idTrabajo, onExito }) {
             <div>
               <span className="label">Archivo</span>
               <p>{trabajo.nombre_archivo_original}</p>
+
             </div>
             <div>
               <span className="label">Predicción del modelo</span>
@@ -110,6 +153,22 @@ function ModalConfirmarClasificacion({ isOpen, onClose, idTrabajo, onExito }) {
               </p>
             </div>
           </div>
+
+          {/* Con aspecto de botón y a todo el ancho: es el paso que hay que dar
+              antes de elegir el tipo, no un enlace secundario. */}
+          {urlDocumento && (
+            <a
+              href={urlDocumento}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secundario btn-full"
+              style={{ marginTop: 16, textDecoration: 'none' }}
+            >
+              <FileText size={16} />
+              Ver documento
+              <ExternalLink size={14} style={{ opacity: 0.6 }} />
+            </a>
+          )}
 
           <div style={{ marginTop: 18 }}>
             <label className="input-label" htmlFor="id_tipo_confirmado">
@@ -133,9 +192,13 @@ function ModalConfirmarClasificacion({ isOpen, onClose, idTrabajo, onExito }) {
             <Button variant="exito" onClick={aceptar} disabled={enviando}>
               Aceptar
             </Button>
-            <Button variant="peligro" onClick={descartar} disabled={enviando}>
-              Descartar
-            </Button>
+            {/* Mismo patrón que borrar expedientes: mantener presionado en vez
+                del confirm() del navegador, que rompía el diseño del panel. */}
+            <BotonEliminar
+              onEliminar={descartar}
+              etiqueta="Mantener para descartar"
+              deshabilitado={enviando}
+            />
             <Button
               variant="secundario"
               onClick={onClose}

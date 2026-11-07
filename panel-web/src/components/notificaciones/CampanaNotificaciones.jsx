@@ -125,7 +125,8 @@ function CampanaNotificaciones() {
     // Baja confianza: hay una decisión pendiente, así que se abre el modal en
     // vez de navegar. No se marca leída todavía — eso ocurre al aceptar o
     // descartar, para que cancelar deje la notificación tal como estaba.
-    if (notificacion.id_tipo === TIPO_BAJA_CONFIANZA && notificacion.id_trabajo) {
+    // Si ya fue descartada, id_trabajo viene en null y el modal lo explica.
+    if (notificacion.id_tipo === TIPO_BAJA_CONFIANZA) {
       setIdTrabajoConfirmar(notificacion.id_trabajo)
       setModalConfirmarAbierto(true)
       setAbierto(false)
