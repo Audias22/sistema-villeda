@@ -118,13 +118,20 @@ def obtener_o_crear_cliente_placeholder(id_usuario):
     su dueño, así que no hay ningún cliente previo con el que emparejarlo. La
     secretaria le pone el nombre real después, editando el cliente.
 
-    Numera contando los placeholders existentes ('Cliente 001', 'Cliente 002',
+    Numera con el siguiente al número más alto entre los placeholders
+    existentes ('Cliente 001', 'Cliente 002',
     ...). Hace add + flush pero NO commit: la fila queda dentro de la
     transacción del llamador para que un fallo posterior no deje clientes
     huérfanos.
     """
-    total = Cliente.query.filter_by(primer_nombre='Cliente').count()
-    secuencia = str(total + 1).zfill(3)
+    # Se toma el número más alto y no la cantidad: los placeholders se borran
+    # junto con su expediente, y contando, borrar uno del medio repetía el
+    # último número (existen 001, 002, 003; se borra 002; el siguiente era 003).
+    apellidos = db.session.query(Cliente.primer_apellido).filter(
+        Cliente.primer_nombre == 'Cliente'
+    ).all()
+    numeros = [int(a) for (a,) in apellidos if a and a.strip().isdigit()]
+    secuencia = str(max(numeros, default=0) + 1).zfill(3)
 
     cliente = Cliente(
         tipo_persona=1,              # Natural — exige primer_nombre y primer_apellido
